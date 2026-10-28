@@ -52,6 +52,12 @@ export default function ShareScreen() {
   const pageW = win.width;
   const w = Math.round(Math.min(pageW - space.lg * 2, win.height * 0.52 * r, 440));
   const h = Math.round(w / r);
+  // Di HP kanvas digambar seukuran hasil ekspor (1080 px) lalu hanya diperkecil untuk pratinjau, supaya gambar yang
+  // disimpan tajam. Menangkap pratinjau kecil (±640 px untuk Story) lalu memperbesarnya membuat hasilnya buram.
+  // Di web html2canvas menangkap pratinjau apa adanya.
+  const cw = Platform.OS === 'web' ? w : EXPORT_WIDTH / PixelRatio.get();
+  const ch = cw / r;
+  const shrink = w / cw;
   const item = ITEMS[index];
   const lines = { oranye: '#FF5A1F', putih: '#FFFFFF', tema: c.accent };
   const line = lines[lineKey];
@@ -110,15 +116,18 @@ export default function ShareScreen() {
           {/* Pola kotak-kotak hanya penanda bagian transparan; ada di luar wadah yang diekspor. */}
           {transparent ? <Checker w={w} h={h} /> : null}
           {/* Yang ditangkap jadi gambar: tanpa sudut membulat dan tanpa warna latar. */}
-          <View ref={i === index ? canvas : undefined} collapsable={false} style={{ width: w, height: h, overflow: 'hidden' }}>
+          <View
+            ref={i === index ? canvas : undefined}
+            collapsable={false}
+            style={{ width: cw, height: ch, overflow: 'hidden', transformOrigin: 'top left', transform: [{ scale: shrink }] }}>
             {photo ? (
               <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
             ) : it.kind === 'template' ? (
-              <PlainBackground a={a} w={w} h={h} faintRoute={it.key !== 'rute'} />
+              <PlainBackground a={a} w={cw} h={ch} faintRoute={it.key !== 'rute'} />
             ) : null}
             {it.kind === 'sticker'
-              ? STICKERS.find((s) => s.key === it.key)!.render({ a, w, h, line })
-              : TEMPLATES.find((t) => t.key === it.key)!.render({ a, w, h })}
+              ? STICKERS.find((s) => s.key === it.key)!.render({ a, w: cw, h: ch, line })
+              : TEMPLATES.find((t) => t.key === it.key)!.render({ a, w: cw, h: ch })}
           </View>
         </View>
       </View>

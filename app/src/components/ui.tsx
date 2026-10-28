@@ -686,5 +686,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl, paddingHorizontal: space.lg },
   emptyIcon: { width: 68, height: 68, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  errorBox: { borderRadius: radius.md, borderWidth: 1, padding: space.md, gap: space.sm },
+  // Selalu selebar wadahnya: di wadah rata tengah (mis. kepala profil) kotak tanpa lebar membuat pesannya tak terlihat.
+  errorBox: { alignSelf: 'stretch', borderRadius: radius.md, borderWidth: 1, padding: space.md, gap: space.sm },
 });

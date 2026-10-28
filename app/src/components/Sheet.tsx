@@ -14,6 +14,9 @@ export interface SheetOption {
 }
 
 /** Menu pilihan yang muncul dari bawah layar (ganti foto, blokir, laporkan). */
+/** Lama animasi `fade` Modal sebelum aksi pilihan dijalankan. */
+const CLOSE_MS = 250;
+
 export default function Sheet({
   visible,
   title,
@@ -38,7 +41,8 @@ export default function Sheet({
             accessibilityRole="button"
             onPress={() => {
               onClose();
-              o.onPress();
+              // Jalankan setelah lembar selesai memudar: membuka galeri/kamera saat Modal masih tertutup bisa gagal.
+              setTimeout(o.onPress, CLOSE_MS);
             }}
             style={({ pressed }) => [styles.row, { backgroundColor: pressed ? c.surface2 : 'transparent' }]}>
             <Ionicons name={o.icon} size={22} color={o.danger ? c.danger : c.text} />

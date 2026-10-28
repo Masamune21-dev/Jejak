@@ -231,12 +231,12 @@ const WANT_LIBRE = Platform.OS === 'android' && Constants.executionEnvironment !
 `StoreClient` berarti Expo Go. Cara memuatnya:
 
 1. **Dimuat saat dibutuhkan (lazy).** `JejakMap` membungkus implementasi dengan `React.lazy` + `Suspense`. Modul peta baru di-`require` saat peta pertama kali tampil, bukan saat app dibuka, sehingga masalah di modul peta tidak menghentikan app sejak awal (misalnya layar masuk tetap bisa dibuka). Selama memuat, tempat peta diisi `View` kosong dengan ukuran yang sama.
-2. **Cadangan ke react-native-maps.** Bila `WANT_LIBRE` benar tetapi `require('./LibreMap')` melempar error, app mencatat `[peta] MapLibre gagal dimuat, pakai react-native-maps: …` di konsol lalu memakai `NativeMap`. Di APK Android, react-native-maps tidak punya kunci Google Maps sehingga petanya bisa kosong, tetapi app tidak tertutup.
+2. **Cadangan ke react-native-maps.** Bila `WANT_LIBRE` benar tetapi `require('./LibreMap')` melempar error, app mencatat `[peta] MapLibre gagal dimuat, pakai react-native-maps: …` di konsol lalu memakai `NativeMap`. Sejak `edea652` react-native-maps tidak lagi dipasang di APK Android (`app/react-native.config.js`), jadi di sana cadangan ini hanya menampilkan tempat peta kosong, tetapi app tidak tertutup.
 3. Implementasi yang terpilih disimpan dan dipakai ulang untuk semua peta berikutnya. Modul yang tidak terpilih tidak pernah di-`require`, sehingga Expo Go tidak menyentuh kode native MapLibre (yang memang tidak dibawa Expo Go).
 
 Cadangan ini hanya menangkap kegagalan **memuat modul JavaScript**. Crash di dalam kode native MapLibre setelah peta tampil tidak bisa ditangkap dari JavaScript (lihat [Pencatat crash](#pencatat-crash-dan-errorboundary)).
 
-Alasan MapLibre di APK Android: react-native-maps di Android memakai Google Maps SDK yang butuh kunci API Google (dan akun penagihan). MapLibre dengan ubin Esri gratis dan tanpa kunci.
+Alasan MapLibre di APK Android: react-native-maps di Android memakai Google Maps SDK yang butuh kunci API Google (dan akun penagihan). MapLibre dengan ubin Esri gratis dan tanpa kunci. react-native-maps juga membawa WorkManager, yang membuat APK tertutup saat dibuka setelah kodenya diacak R8; karena itu react-native-maps dikeluarkan dari build Android (lihat [build-apk.md](build-apk.md#bila-apk-tertutup-sendiri-crash)).
 
 Tabel di atas berlaku bila MapLibre berhasil dimuat; bila gagal, Android build sendiri juga jatuh ke `NativeMap.tsx` (lihat cadangan di bawah). Lihat juga [build-apk.md](build-apk.md#peta-di-apk-android-maplibre).
 

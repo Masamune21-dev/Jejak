@@ -20,9 +20,9 @@ Masalah yang mungkin muncul, penyebabnya menurut kode, dan cara mengatasinya.
 
 ### APK langsung tertutup saat dibuka
 
-APK yang dibangun sebelum commit `b668024` tertutup sendiri (force close) saat dibuka tanpa pesan apa pun. Langkah:
+APK yang dibangun sebelum commit `edea652` tertutup sendiri saat dibuka. Penyebabnya WorkManager (dibawa react-native-maps) yang rusak oleh R8; rinciannya ada di [build-apk.md](build-apk.md#bila-apk-tertutup-sendiri-crash). Langkah:
 
-1. **Pasang APK terbaru** (dibangun dari kode sejak `b668024`). Build ini memuat peta hanya saat dibutuhkan, jatuh ke react-native-maps bila MapLibre gagal dimuat, dan menampilkan laporan untuk error JavaScript:
+1. **Pasang APK terbaru** (dibangun dari kode sejak `edea652`). Build ini juga memuat peta hanya saat dibutuhkan dan menampilkan laporan untuk error JavaScript:
    - error saat menampilkan layar: layar **Ada yang gagal di layar ini** dengan tombol **Coba lagi**, app tidak tertutup;
    - error fatal lainnya: app tertutup, tetapi saat dibuka lagi muncul layar **Jejak sempat berhenti** berisi pesan dan stack.
 

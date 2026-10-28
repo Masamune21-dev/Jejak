@@ -235,9 +235,22 @@ Izin kamera diminta saat menekan **Kamera**, izin galeri saat menekan **Simpan k
 
 ## Bila APK tertutup sendiri (crash)
 
-APK yang dibangun sebelum commit `b668024` langsung tertutup (force close) saat dibuka, tanpa pesan apa pun. Di build rilis memang tidak ada layar error merah seperti di Expo Go, jadi penyebabnya tidak terlihat.
+APK yang dibangun sebelum commit `edea652` langsung tertutup (force close) saat dibuka. Log `adb logcat -b crash` dari HP (Xiaomi, Android 16) menunjukkan penyebabnya:
 
-Build sejak `b668024` membedakan dua jenis crash:
+```
+java.lang.RuntimeException: Unable to get provider androidx.startup.InitializationProvider
+Caused by: java.lang.RuntimeException: Failed to create an instance of class androidx.work.impl.WorkDatabase…
+  at androidx.work.WorkManagerInitializer.create
+```
+
+WorkManager menyala otomatis saat app dibuka dan membuat database Room lewat refleksi. Expo SDK 58 menyalakan R8 (minify) secara bawaan di build rilis (`android.enableMinifyInReleaseBuilds=true`), dan R8 merusak pencarian kelas itu, jadi app mati sebelum JavaScript sempat jalan. WorkManager dibawa oleh **react-native-maps**, padahal APK Android memakai MapLibre.
+
+Perbaikannya (`edea652`):
+
+- `app/react-native.config.js` mengecualikan react-native-maps dari autolinking Android. Di Expo Go dan iOS react-native-maps tetap dipakai. APK juga jadi lebih kecil karena Google Maps SDK dan WorkManager ikut hilang.
+- `extraProguardRules` di plugin `expo-build-properties` menjaga kelas `androidx.work.**` dan `androidx.room.**` dari R8, sebagai pengaman bila pustaka lain membawa WorkManager.
+
+Selain itu, build sejak `b668024` membedakan jenis crash:
 
 | Jenis | Yang terjadi di build baru |
 | --- | --- |

@@ -38,7 +38,9 @@ Semua angka di dokumen ini diambil dari kode. Sebagian besar ada di `shared/geo.
 | Panjang minimal segmen | 100 m | `app.ts` `POST /segments` |
 | Toleransi penyederhanaan segmen | 2 m | `app.ts` `POST /segments` |
 | Margin kotak batas segmen (server) | 0,001° | `app.ts` `BBOX_MARGIN_DEG` |
-| Akurasi GPS maksimal | 35 m | `recorder.ts` `MAX_ACCURACY_M` |
+| Akurasi GPS maksimal | 25 m | `recorder.ts` `MAX_ACCURACY_M` |
+| Akurasi titik pertama rekaman | 20 m, paling lama 20 detik sejak Mulai | `recorder.ts` `FIRST_FIX_ACCURACY_M`, `WARMUP_MS` |
+| Kotak minimum fit peta | 200 m × 200 m | `map-types.ts` `MIN_FIT_SPAN_M` |
 | Jarak minimal antar titik | 3 m | `recorder.ts` `MIN_STEP_M` |
 | Kecepatan mustahil | > 45 m/s (162 km/j) | `recorder.ts` `MAX_SPEED_MPS` |
 | Keluar rute | > 40 m dari garis | `recorder.ts` `OFF_ROUTE_M` |
@@ -78,7 +80,8 @@ Cukup akurat untuk jarak beberapa kilometer, dan jauh lebih murah daripada geome
 
 1. `here` dan `accuracy` **selalu** diperbarui (untuk titik biru di peta dan angka ±m), walau titiknya nanti ditolak.
 2. Bila status bukan `recording`, berhenti di sini.
-3. **Akurasi**: bila `acc` diketahui dan lebih dari **35 m**, titik ditolak. Akurasi `null` diterima.
+3. **Akurasi**: bila `acc` diketahui dan lebih dari **25 m**, titik ditolak. Akurasi `null` diterima.
+   - **Pemanasan GPS**: selama rekaman belum punya titik sama sekali dan belum 20 detik sejak Mulai, titik juga ditolak bila `acc` lebih dari **20 m**. GPS yang baru menyala sering meleset puluhan meter; tanpa ini awal jejak tampak keluar jalan. Layar Rekam menampilkan *Menunggu GPS akurat sebelum mencatat…* selama menunggu. Sesudah 20 detik batas 25 m yang berlaku, supaya rekaman di tempat dengan sinyal kurang bagus tetap jalan.
 4. Bila sudah ada titik sebelumnya **di bagian yang sama**, hitung `d` (haversine) dan `dt` (detik). Titik ditolak bila:
    - `dt ≤ 0` (waktu tidak maju);
    - `d < 3 m` (getaran GPS saat diam);

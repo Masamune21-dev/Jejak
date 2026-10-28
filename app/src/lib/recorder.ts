@@ -45,7 +45,13 @@ export interface RecState {
 const STORAGE_KEY = 'jejak.rekaman';
 const OFF_ROUTE_M = 40;
 const MIN_STEP_M = 3;
-const MAX_ACCURACY_M = 35;
+const MAX_ACCURACY_M = 25;
+/**
+ * GPS yang baru menyala sering meleset puluhan meter. Titik pertama rekaman menunggu akurasi ini,
+ * paling lama WARMUP_MS; sesudah itu batas biasa (MAX_ACCURACY_M) yang berlaku.
+ */
+export const FIRST_FIX_ACCURACY_M = 20;
+const WARMUP_MS = 20_000;
 const MAX_SPEED_MPS = 45;
 const SAVE_EVERY_MS = 10_000;
 
@@ -70,6 +76,8 @@ let routeCum: number[] = [];
 let routeAlong = 0;
 let announcedStep = -1;
 let lastSave = 0;
+/** Saat Mulai ditekan; titik pertama ditunggu sampai GPS akurat (lihat FIRST_FIX_ACCURACY_M). */
+let warmupFrom = 0;
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<RecState>) {
@@ -138,6 +146,8 @@ function addFixes(fixes: Fix[]) {
     accuracy = f.acc;
     if (state.status !== 'recording') continue;
     if (f.acc != null && f.acc > MAX_ACCURACY_M) continue;
+    const warmingUp = f.t - warmupFrom < WARMUP_MS && parts.every((p) => p.length === 0);
+    if (warmingUp && f.acc != null && f.acc > FIRST_FIX_ACCURACY_M) continue;
     const part = parts[parts.length - 1] ?? [];
     const prev = part[part.length - 1];
     if (prev) {
@@ -188,6 +198,7 @@ export const recorder = {
     if (state.status !== 'idle') return;
     const src = await makeSource();
     source = src;
+    warmupFrom = Date.now();
     loadRoute(state.route);
     set({ status: 'recording', parts: [[]], distanceM: 0, activeMs: 0, runningSince: clock(), sourceKind: src.kind });
     try {

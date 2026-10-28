@@ -1,6 +1,6 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 
-import { haversine, type LatLon } from '@shared/geo';
+import { bounds, haversine, type LatLon } from '@shared/geo';
 
 export interface MapLine {
   id: string;
@@ -37,6 +37,22 @@ export interface MapProps {
 
 /** Alun-alun Pati, dipakai bila posisi belum diketahui. */
 export const DEFAULT_CENTER: LatLon = [-6.7535, 111.04];
+
+/** Lebar/tinggi minimum kotak fit (m), kira-kira zoom 16–17 di HP: jejak pendek tidak diperbesar sampai galat GPS beberapa meter tampak keluar jalan. */
+const MIN_FIT_SPAN_M = 200;
+
+/** Kotak [barat daya, timur laut] untuk menyesuaikan peta ke garis, minimal MIN_FIT_SPAN_M ke kedua arah. */
+export function fitBox(points: LatLon[]): [LatLon, LatLon] {
+  const b = bounds(points)!;
+  const lat = (b.minLat + b.maxLat) / 2;
+  const lon = (b.minLon + b.maxLon) / 2;
+  const halfLat = Math.max((b.maxLat - b.minLat) / 2, MIN_FIT_SPAN_M / 2 / 111_320);
+  const halfLon = Math.max((b.maxLon - b.minLon) / 2, MIN_FIT_SPAN_M / 2 / (111_320 * Math.cos((lat * Math.PI) / 180)));
+  return [
+    [lat - halfLat, lon - halfLon],
+    [lat + halfLat, lon + halfLon],
+  ];
+}
 
 /** Pin awal & akhir; bila rute berupa putaran (ujungnya berdekatan) cukup satu pin. */
 export function endPins(line: LatLon[], labels: [string, string] = ['A', 'B']): MapPin[] {

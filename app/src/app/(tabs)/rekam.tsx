@@ -17,7 +17,7 @@ import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_LABEL } from '@/lib/format';
 import { createGpsSource, currentPosition } from '@/lib/gps';
-import { elapsedMs, recorder, useRecorder } from '@/lib/recorder';
+import { elapsedMs, FIRST_FIX_ACCURACY_M, recorder, useRecorder } from '@/lib/recorder';
 import { createSimSource, loopAround } from '@/lib/sim';
 import { font, glow, radius, shadow, space, useColors } from '@/lib/theme';
 
@@ -117,6 +117,12 @@ export default function RecordScreen() {
     });
 
   const active = s.status === 'recording' || s.status === 'paused';
+  // Titik pertama ditahan sampai GPS cukup akurat (recorder.ts); beri tahu supaya jarak 0 tidak dikira macet.
+  const waitingGps =
+    s.status === 'recording' &&
+    s.parts.every((p) => p.length === 0) &&
+    s.accuracy != null &&
+    s.accuracy > FIRST_FIX_ACCURACY_M;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -133,7 +139,7 @@ export default function RecordScreen() {
       )}
 
       <TopOverlay
-        sourceText={s.sourceKind ? SOURCE_TEXT[s.sourceKind] : null}
+        sourceText={waitingGps ? 'Menunggu GPS akurat sebelum mencatat…' : s.sourceKind ? SOURCE_TEXT[s.sourceKind] : null}
         accuracy={s.sourceKind === 'sim' ? null : s.accuracy}
       />
 

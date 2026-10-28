@@ -10,13 +10,11 @@ import {
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { bounds } from '@shared/geo';
-
 import { palette } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { MeDot, PinView } from './map-markers';
-import { DEFAULT_CENTER, type MapLine, type MapProps } from './map-types';
+import { DEFAULT_CENTER, fitBox, type MapLine, type MapProps } from './map-types';
 
 // Ubin OpenStreetMap (sama dengan versi web dan cuplikan peta), digelapkan lewat cat raster:
 // kecerahan dibalik (min 1, max 0) lalu rona diputar 180° supaya warna asli kembali.
@@ -79,8 +77,8 @@ export default function LibreMap({
       cam.easeTo({ center: [fit[0][1], fit[0][0]], zoom: 15, duration: 300 });
       return;
     }
-    const b = bounds(fit)!;
-    cam.fitBounds([b.minLon, b.minLat, b.maxLon, b.maxLat], {
+    const [sw, ne] = fitBox(fit);
+    cam.fitBounds([sw[1], sw[0], ne[1], ne[0]], {
       padding: { top: 70, right: 50, bottom: 70 + bottomInset, left: 50 },
       duration: 0,
     });

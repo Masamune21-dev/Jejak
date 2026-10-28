@@ -7,7 +7,7 @@ import type { LatLon } from '@shared/geo';
 import { useIsDark } from '@/lib/theme';
 
 import { MeDot, PinView } from './map-markers';
-import { DEFAULT_CENTER, type MapProps } from './map-types';
+import { DEFAULT_CENTER, fitBox, type MapProps } from './map-types';
 
 const toLL = (p: LatLon): LatLng => ({ latitude: p[0], longitude: p[1] });
 
@@ -50,7 +50,7 @@ export default function NativeMap({
     if (!map || !fit || fit.length === 0) return;
     if (fit.length === 1) map.animateCamera({ center: toLL(fit[0]), zoom: 15 }, { duration: 300 });
     else
-      map.fitToCoordinates(fit.map(toLL), {
+      map.fitToCoordinates(fitBox(fit).map(toLL), {
         edgePadding: { top: 70, right: 50, bottom: 70 + bottomInset, left: 50 },
         animated: false,
       });

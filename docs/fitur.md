@@ -110,7 +110,8 @@ Bila izin ditolak atau GPS gagal menyala, pesan error tampil di panel dan rekama
 - Pil di atas peta menunjukkan sumber lokasi dan akurasinya:
   - *GPS aktif, tetap merekam saat layar mati* (lokasi latar aktif);
   - *GPS aktif. Biarkan layar menyala* (tanpa izin latar atau di Expo Go; layar dicegah mati otomatis);
-  - *Simulasi GPS, 8× lebih cepat* (mode uji).
+  - *Simulasi GPS, 8× lebih cepat* (mode uji);
+  - *Menunggu GPS akurat sebelum mencatat…* (di awal rekaman, sampai akurasi 20 m atau lebih baik, paling lama 20 detik; jarak tetap 0 selama itu).
   
   Angka dalam kurung, misalnya *(±6 m)*, adalah akurasi GPS. Titik hijau berarti akurasi 20 m atau lebih baik, titik kuning berarti lebih buruk.
 - Panel bawah menampilkan **Waktu** (stopwatch waktu aktif, tidak termasuk jeda), **Jarak** (km), dan **Pace** atau **Kecepatan**.

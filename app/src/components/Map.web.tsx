@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { DARK_MAP_FILTER } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
-import { DEFAULT_CENTER, type MapProps } from './map-types';
+import { DEFAULT_CENTER, fitBox, type MapProps } from './map-types';
 
 const pinHtml = (color: string, label?: string) =>
   `<div style="min-width:26px;height:26px;border-radius:13px;border:3px solid #fff;background:${color};` +
@@ -107,7 +107,7 @@ export default function JejakMap({
       const m = map.current;
       if (!m || !fit || fit.length === 0) return;
       if (fit.length === 1) m.setView(fit[0], 15);
-      else m.fitBounds(L.latLngBounds(fit), { paddingTopLeft: [48, 48], paddingBottomRight: [48, 48 + bottomInset] });
+      else m.fitBounds(L.latLngBounds(fitBox(fit)), { paddingTopLeft: [48, 48], paddingBottomRight: [48, 48 + bottomInset] });
     };
     applyFit.current();
   }, [fit, bottomInset]);

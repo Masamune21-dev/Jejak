@@ -51,32 +51,18 @@ Selama mode pengembangan, layar Rekam punya sakelar **Simulasi GPS**. Posisi ber
 
 ## Build APK (Android)
 
-APK dibuat di cloud EAS dengan akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar), dan memakai server produksi.
+APK dibuat di cloud EAS dengan akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar) dan memakai server produksi. Peta di APK Android memakai **MapLibre** dengan ubin Esri: gratis, tanpa kunci Google dan tanpa akun penagihan. Di Expo Go peta tetap memakai react-native-maps, karena Expo Go tidak membawa MapLibre.
 
-**1. Kunci Google Maps (sekali saja).** Expo Go membawa kuncinya sendiri, tapi APK butuh kunci milikmu supaya peta Android tidak kosong.
-
-- Buka [Google Cloud Console](https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com), buat/pilih project, lalu aktifkan **Maps SDK for Android** (perlu akun penagihan; pemakaian SDK peta Android gratis).
-- Buat kunci di **APIs & Services → Credentials → Create credentials → API key**.
-- Batasi kunci: *Application restrictions* → *Android apps*, package `id.my.masamune.jejak`, SHA-1 dari langkah 3 (bisa ditambahkan setelah build pertama).
-
-**2. Masuk EAS dan hubungkan project** (jalankan di folder `app`):
+Jalankan di folder `app` (login sekali saja):
 
 ```bash
 cd app
 npx eas-cli@latest login
 npx eas-cli@latest init
-npx eas-cli@latest env:create --name GOOGLE_MAPS_ANDROID_KEY --value KUNCI_KAMU --environment preview --environment production --visibility sensitive
-```
-
-**3. Build APK:**
-
-```bash
 npx eas-cli@latest build --platform android --profile preview
 ```
 
-Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS memberi tautan/QR untuk mengunduh APK ke HP. SHA-1 keystore bisa dilihat dengan `npx eas-cli@latest credentials -p android` untuk membatasi kunci Google Maps.
-
-Profil `production` membuat AAB untuk Google Play (`--profile production`).
+Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS memberi tautan/QR untuk mengunduh APK ke HP. Profil `production` membuat AAB untuk Google Play (`--profile production`).
 
 ## Deploy server & web
 
@@ -99,4 +85,4 @@ Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun,
 ## Catatan
 
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
-- Cuplikan peta dan peta versi web memakai ubin Esri Light/Dark Gray Canvas (tanpa kunci API, wajib atribusi). Peta di HP memakai Apple Maps (iOS) dan Google Maps (Android).
+- Cuplikan peta dan peta versi web memakai ubin Esri Light/Dark Gray Canvas (tanpa kunci API, wajib atribusi). Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).

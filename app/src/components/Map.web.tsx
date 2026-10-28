@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { DARK_MAP_FILTER } from '@/lib/theme';
+import { DARK_MAP_FILTER, useIsDark } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { DEFAULT_CENTER, fitBox, type MapProps } from './map-types';
@@ -54,8 +54,6 @@ export default function JejakMap({
       keyboard: false,
     }).setView(center, 15);
     L.tileLayer(OSM_TILES, { maxZoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION }).addTo(m);
-    // Hanya ubin yang digelapkan; garis rute dan penanda tetap berwarna asli.
-    m.getPane('tilePane')!.style.filter = DARK_MAP_FILTER;
     m.attributionControl.setPrefix(false);
     drawn.current = L.layerGroup().addTo(m);
     m.on('click', (e: L.LeafletMouseEvent) => onPressRef.current?.([e.latlng.lat, e.latlng.lng]));
@@ -111,6 +109,13 @@ export default function JejakMap({
     };
     applyFit.current();
   }, [fit, bottomInset]);
+
+  // Hanya ubin yang digelapkan (tema gelap); garis rute dan penanda tetap berwarna asli.
+  const dark = useIsDark();
+  useEffect(() => {
+    const pane = map.current?.getPane('tilePane');
+    if (pane) pane.style.filter = dark ? DARK_MAP_FILTER : '';
+  }, [dark]);
 
   const meLat = me?.[0];
   const meLon = me?.[1];

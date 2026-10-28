@@ -5,7 +5,7 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import type { LatLon } from '@shared/geo';
 
-import { alpha, DARK_MAP_FILTER, useColors } from '@/lib/theme';
+import { alpha, DARK_MAP_FILTER, useColors, useIsDark } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, osmTile, TILE_HEADERS } from '@/lib/tiles';
 
 const TILE = 256;
@@ -47,6 +47,7 @@ export default function StaticMap({
   attribution?: boolean;
 }) {
   const c = useColors();
+  const dark = useIsDark();
   const [width, setWidth] = useState(0);
   const lineColor = color ?? c.track;
 
@@ -78,7 +79,7 @@ export default function StaticMap({
     const [ex, ey] = [px[px.length - 1][0] - ox, px[px.length - 1][1] - oy];
     content = (
       <>
-        <View style={[StyleSheet.absoluteFill, FILTER_OK && { filter: DARK_MAP_FILTER }]}>
+        <View style={[StyleSheet.absoluteFill, dark && FILTER_OK && { filter: DARK_MAP_FILTER }]}>
           {tiles.map((t) => (
             <Image
               key={t.key}
@@ -89,7 +90,7 @@ export default function StaticMap({
             />
           ))}
         </View>
-        {FILTER_OK ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(c.bg, 0.55) }]} />}
+        {dark && !FILTER_OK ? <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(c.bg, 0.55) }]} /> : null}
         <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
           <Polyline
             points={line}

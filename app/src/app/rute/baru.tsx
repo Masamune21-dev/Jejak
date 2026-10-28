@@ -88,7 +88,7 @@ export default function RouteBuilderScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} me={here} initialCenter={here ?? undefined} fit={fitHere} onPress={add} />
       <View style={[styles.hint, { backgroundColor: c.surface, borderColor: c.line }]} pointerEvents="none">
-        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={c.accent} />
+        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={c.accentText} />
         <Text style={[styles.hintText, { color: c.text }]}>
           {waypoints.length === 0
             ? 'Ketuk peta untuk titik awal'

@@ -10,35 +10,39 @@ import {
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { palette } from '@/lib/theme';
+import { useColors, useIsDark } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { MeDot, PinView } from './map-markers';
 import { DEFAULT_CENTER, fitBox, type MapLine, type MapProps } from './map-types';
 
 // Ubin OpenStreetMap (sama dengan versi web dan cuplikan peta), digelapkan lewat cat raster:
-// kecerahan dibalik (min 1, max 0) lalu rona diputar 180° supaya warna asli kembali.
-const STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: { type: 'raster', tiles: [OSM_TILES], tileSize: 256, maxzoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION },
-  },
-  layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': palette.bg } },
-    {
-      id: 'osm',
-      type: 'raster',
-      source: 'osm',
-      paint: {
-        'raster-brightness-min': 0.92,
-        'raster-brightness-max': 0.04,
-        'raster-hue-rotate': 180,
-        'raster-saturation': -0.4,
-        'raster-contrast': -0.1,
-      },
+// kecerahan dibalik (min 1, max 0) lalu rona diputar 180° supaya warna asli kembali. Di tema terang ubin tampil asli.
+function mapStyle(dark: boolean, bg: string): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      osm: { type: 'raster', tiles: [OSM_TILES], tileSize: 256, maxzoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION },
     },
-  ],
-};
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': bg } },
+      {
+        id: 'osm',
+        type: 'raster',
+        source: 'osm',
+        paint: dark
+          ? {
+              'raster-brightness-min': 0.92,
+              'raster-brightness-max': 0.04,
+              'raster-hue-rotate': 180,
+              'raster-saturation': -0.4,
+              'raster-contrast': -0.1,
+            }
+          : {},
+      },
+    ],
+  };
+}
 
 function collection(lines: MapLine[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
   return {
@@ -66,6 +70,9 @@ export default function LibreMap({
   interactive = true,
   bottomInset = 0,
 }: MapProps) {
+  const dark = useIsDark();
+  const bgColor = useColors().bg;
+  const tiles = useMemo(() => mapStyle(dark, bgColor), [dark, bgColor]);
   const camera = useRef<CameraRef>(null);
   const loaded = useRef(false);
   const center = initialCenter ?? me ?? fit?.[0] ?? DEFAULT_CENTER;
@@ -102,7 +109,7 @@ export default function LibreMap({
   return (
     <MapLibreView
       style={[styles.map, style]}
-      mapStyle={STYLE}
+      mapStyle={tiles}
       onPress={(e) => onPress?.([e.nativeEvent.lngLat[1], e.nativeEvent.lngLat[0]])}
       onDidFinishLoadingMap={() => {
         loaded.current = true;

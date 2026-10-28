@@ -94,7 +94,7 @@ export default function ActivityScreen() {
       <View style={[styles.body, { backgroundColor: c.bg }]}>
         <Pressable onPress={() => router.push(`/atlet/${a.user.id}`)}>
           <Row>
-            <Avatar name={a.user.name} size={44} />
+            <Avatar name={a.user.name} uri={a.user.avatarUrl} size={44} />
             <View style={{ flex: 1 }}>
               <T v="strong">{a.user.name}</T>
               <Row gap={5}>
@@ -343,7 +343,7 @@ function Comments({ activityId, ownerId }: { activityId: number; ownerId: number
       <Card style={{ gap: space.md }}>
         {(q.data ?? []).map((cm) => (
           <Row key={cm.id} style={{ alignItems: 'flex-start' }}>
-            <Avatar name={cm.user.name} size={34} />
+            <Avatar name={cm.user.name} uri={cm.user.avatarUrl} size={34} />
             <View style={[styles.bubble, { backgroundColor: c.surface2 }]}>
               <Row gap={6}>
                 <T v="strong" size={13}>

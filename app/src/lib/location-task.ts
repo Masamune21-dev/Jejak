@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
 import { toFix, type Fix } from './location-source';
-import { palette } from './theme';
+import { currentColors } from './theme';
 
 const TASK = 'jejak-rekam-lokasi';
 const BUFFER_KEY = 'jejak.bgbuffer';
@@ -46,7 +46,7 @@ export async function startBackgroundUpdates(onFix: (fixes: Fix[]) => void): Pro
     foregroundService: {
       notificationTitle: 'Jejak sedang merekam',
       notificationBody: 'Rute kamu tetap tercatat walau layar mati.',
-      notificationColor: palette.accent,
+      notificationColor: currentColors().accent,
     },
   });
 }

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps, ReactNode } from 'react';
 import {
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ActivityType } from '@shared/api';
 
+import { mediaUri } from '@/lib/api';
 import { initials, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
 import { font, glow, radius, shadow, space, useColors } from '@/lib/theme';
 
@@ -476,11 +478,26 @@ export function Field({ label, icon, ...props }: TextInputProps & { label?: stri
 
 const AVATAR_COLORS = ['#12B77A', '#4DA3FF', '#A27BFF', '#FF8A4C', '#FF5C8A', '#2EC5D6', '#E7B33D', '#6C8CFF'];
 
-export function Avatar({ name, size = 40, ring }: { name: string; size?: number; ring?: boolean }) {
+/** Foto profil bila ada (`uri` = path bertanda tangan dari API), inisial berwarna bila belum. */
+export function Avatar({ name, size = 40, ring, uri }: { name: string; size?: number; ring?: boolean; uri?: string | null }) {
   const c = useColors();
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const bg = AVATAR_COLORS[h % AVATAR_COLORS.length];
+  const src = mediaUri(uri);
+  if (src) {
+    return (
+      <Image
+        source={{ uri: src }}
+        cachePolicy="memory-disk"
+        transition={120}
+        style={[
+          { width: size, height: size, borderRadius: size / 2, backgroundColor: c.surface2, borderWidth: ring ? 3 : 0, borderColor: c.accent },
+          ring && glow(c.accent, 0.5),
+        ]}
+      />
+    );
+  }
   return (
     <View
       style={[
@@ -513,7 +530,7 @@ export function Badge({ text, color, icon, textColor = '#fff' }: { text: string;
 /** Pil kecil berwarna aksen, mis. "12% dari minggu lalu". */
 export function Pill({ text, icon, tone = 'accent' }: { text: string; icon?: IconName; tone?: 'accent' | 'muted' | 'danger' }) {
   const c = useColors();
-  const fg = tone === 'accent' ? c.accent : tone === 'danger' ? c.danger : c.muted;
+  const fg = tone === 'accent' ? c.accentText : tone === 'danger' ? c.danger : c.muted;
   const bg = tone === 'accent' ? c.accentSoft : tone === 'danger' ? 'rgba(255,92,92,0.14)' : c.surface2;
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
@@ -570,7 +587,7 @@ export function Loading() {
   const c = useColors();
   return (
     <View style={[styles.center, { backgroundColor: c.bg }]}>
-      <ActivityIndicator color={c.accent} size="large" />
+      <ActivityIndicator color={c.accentText} size="large" />
     </View>
   );
 }
@@ -580,7 +597,7 @@ export function Empty({ icon, title, text, action }: { icon: IconName; title: st
   return (
     <View style={styles.empty}>
       <View style={[styles.emptyIcon, { backgroundColor: c.accentSoft, borderColor: c.accent + '55' }, glow(c.accent, 0.5)]}>
-        <Ionicons name={icon} size={30} color={c.accent} />
+        <Ionicons name={icon} size={30} color={c.accentText} />
       </View>
       <T v="h2" center>
         {title}

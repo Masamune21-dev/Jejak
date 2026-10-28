@@ -1,21 +1,24 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BlurTargetView, BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState, type ComponentRef } from 'react';
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ActivitySummary, ActivityType, Profile, Stats } from '@shared/api';
 
-import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { api, mediaUri } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
-import { font, palette, radius, space, useColors } from '@/lib/theme';
+import { appendPhoto, pickPhoto } from '@/lib/photo';
+import { alpha, font, radius, space, useColors, useIsDark } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
+import Sheet, { type SheetOption } from './Sheet';
 import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
 import WeeklyChart from './WeeklyChart';
 
@@ -23,10 +26,12 @@ const PAGE = 20;
 
 export default function ProfileView({ userId, inTab }: { userId: number; inTab?: boolean }) {
   const c = useColors();
+  const dark = useIsDark();
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
   const [type, setType] = useState<ActivityType>('run');
+  const [sheet, setSheet] = useState<'avatar' | 'cover' | 'more' | null>(null);
+  const blurTarget = useRef<ComponentRef<typeof View>>(null);
   const tz = -new Date().getTimezoneOffset();
 
   const profile = useQuery({ queryKey: ['user', userId], queryFn: () => api<Profile>(`/users/${userId}`) });
@@ -49,7 +54,32 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
     mutationFn: (on: boolean) => api<Profile>(`/users/${userId}/follow`, { method: on ? 'POST' : 'DELETE' }),
     onSuccess: (p) => {
       qc.setQueryData(['user', userId], p);
-      void qc.invalidateQueries({ queryKey: ['feed'] });
+      void qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
+
+  const block = useMutation({
+    mutationFn: (on: boolean) => api<Profile>(`/users/${userId}/block`, { method: on ? 'POST' : 'DELETE' }),
+    onSuccess: (p) => {
+      qc.setQueryData(['user', userId], p);
+      void qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
+
+  // Ganti/hapus foto profil atau sampul. Foto diperkecil dan dibersihkan dari EXIF (lokasi) sebelum diunggah.
+  const photo = useMutation({
+    mutationFn: async ({ kind, camera, remove }: { kind: 'avatar' | 'cover'; camera?: boolean; remove?: boolean }) => {
+      if (remove) return api<Profile>(`/me/${kind}`, { method: 'DELETE' });
+      const uri = await pickPhoto({ camera, aspect: kind === 'avatar' ? [1, 1] : [16, 9], maxWidth: kind === 'avatar' ? 512 : 1600 });
+      if (!uri) return null;
+      const form = new FormData();
+      await appendPhoto(form, 'foto', uri);
+      return api<Profile>(`/me/${kind}`, { method: 'PUT', body: form, timeoutMs: 60_000 });
+    },
+    onSuccess: (p) => {
+      if (!p) return;
+      qc.setQueryData(['user', userId], p);
+      for (const key of ['timeline', 'userActivities', 'chats']) void qc.invalidateQueries({ queryKey: [key] });
     },
   });
 
@@ -59,61 +89,133 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
   const s = stats.data;
   const total = distanceParts(p.totals.distanceM);
 
+  const cover = mediaUri(p.coverUrl);
+  // Di atas foto sampul, teks diberi bayangan tipis supaya tetap terbaca di foto terang maupun gelap.
+  const onPhoto = cover ? { textShadowColor: alpha(c.bg, 0.9), textShadowRadius: 6 } : null;
+  const photoOptions = (kind: 'avatar' | 'cover'): SheetOption[] => [
+    { label: 'Pilih dari galeri', icon: 'images-outline', onPress: () => photo.mutate({ kind }) },
+    ...(Platform.OS !== 'web' ? [{ label: 'Ambil foto', icon: 'camera-outline' as const, onPress: () => photo.mutate({ kind, camera: true }) }] : []),
+    ...((kind === 'avatar' ? p.avatarUrl : p.coverUrl)
+      ? [{ label: 'Hapus foto', icon: 'trash-outline' as const, danger: true, onPress: () => photo.mutate({ kind, remove: true }) }]
+      : []),
+  ];
+  const moreOptions: SheetOption[] = [
+    p.blocked
+      ? { label: 'Buka blokir', icon: 'lock-open-outline', onPress: () => block.mutate(false) }
+      : {
+          label: 'Blokir',
+          icon: 'ban-outline',
+          danger: true,
+          onPress: async () => {
+            if (await confirm('Blokir', `Blokir ${p.name}? Kalian berhenti saling mengikuti dan tidak bisa saling mengirim pesan.`, 'Blokir'))
+              block.mutate(true);
+          },
+        },
+  ];
+
   const header = (
     <View style={{ gap: space.lg }}>
-      <LinearGradient
-        colors={[c.heroTop, c.heroBottom]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 1 }}
-        style={[
-          styles.hero,
-          { borderColor: c.accent + '30', paddingTop: (inTab ? insets.top : 0) + space.xl, marginHorizontal: -space.lg },
-        ]}>
-        {inTab ? (
-          <View style={[styles.heroActions, { top: insets.top + space.sm }]}>
-            <IconButton
-              icon="person-add-outline"
-              label="Cari teman"
-              onPress={() => router.push('/cari')}
+      <View style={[styles.hero, { borderColor: c.accent + '30', marginHorizontal: -space.lg, backgroundColor: c.heroBottom }]}>
+        {cover ? (
+          <>
+            {/* Foto sampul; bagian bawahnya (di belakang angka) diburamkan oleh BlurView di bawah. */}
+            <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+              <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+            </BlurTargetView>
+            <LinearGradient
+              colors={[alpha(c.bg, 0.3), alpha(c.bg, 0.62), alpha(c.bg, 0.85)]}
+              locations={[0, 0.45, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
             />
-            <IconButton
-              icon="log-out-outline"
-              label="Keluar"
-              onPress={async () => {
-                if (await confirm('Keluar', 'Keluar dari akun ini?', 'Keluar')) await signOut();
-              }}
-            />
-          </View>
-        ) : null}
-        <Avatar name={p.name} size={84} ring />
-        <View style={{ alignItems: 'center', gap: 2 }}>
-          <Text style={styles.name}>{p.name}</Text>
-          <Text style={styles.handle}>@{p.username}</Text>
-        </View>
-        <Row gap={space.xl}>
-          <Text style={styles.count}>
-            <Text style={styles.countNum}>{p.followers}</Text> pengikut
-          </Text>
-          <Text style={styles.count}>
-            <Text style={styles.countNum}>{p.following}</Text> mengikuti
-          </Text>
-        </Row>
-        {p.isMe ? null : (
-          <Button
-            kind={p.isFollowing ? 'soft' : 'primary'}
-            icon={p.isFollowing ? 'checkmark' : 'person-add'}
-            title={p.isFollowing ? 'Mengikuti' : 'Ikuti'}
-            loading={follow.isPending}
-            onPress={() => follow.mutate(!p.isFollowing)}
-            style={{ alignSelf: 'stretch' }}
-          />
+          </>
+        ) : (
+          <LinearGradient colors={[c.heroTop, c.heroBottom]} start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }} style={StyleSheet.absoluteFill} />
         )}
-        <View style={[styles.totals, { borderTopColor: c.line }]}>
+
+        <View style={[styles.heroBody, { paddingTop: (inTab ? insets.top : 0) + space.xl }]}>
+          {inTab ? (
+            <View style={[styles.heroActions, { top: insets.top + space.sm }]}>
+              <IconButton icon="person-add-outline" label="Cari teman" onPress={() => router.push('/cari')} />
+              <IconButton icon="settings-outline" label="Pengaturan" onPress={() => router.push('/pengaturan')} />
+            </View>
+          ) : null}
+          {p.isMe ? (
+            <View style={[styles.coverAction, { top: (inTab ? insets.top : 0) + space.sm }]}>
+              <IconButton icon="image-outline" label="Ganti foto sampul" onPress={() => setSheet('cover')} />
+            </View>
+          ) : null}
+
+          <Pressable
+            disabled={!p.isMe}
+            onPress={() => setSheet('avatar')}
+            accessibilityRole={p.isMe ? 'button' : undefined}
+            accessibilityLabel={p.isMe ? 'Ganti foto profil' : undefined}>
+            <Avatar name={p.name} uri={p.avatarUrl} size={84} ring />
+            {p.isMe ? (
+              <View style={[styles.camBadge, { backgroundColor: c.accent, borderColor: c.heroBottom }]}>
+                <Ionicons name={photo.isPending ? 'hourglass-outline' : 'camera'} size={14} color={c.accentInk} />
+              </View>
+            ) : null}
+          </Pressable>
+          <View style={{ alignItems: 'center', gap: 2 }}>
+            <Text style={[styles.name, { color: c.text }, onPhoto]}>{p.name}</Text>
+            <Text style={[styles.handle, { color: c.text, opacity: cover ? 0.85 : 1 }, !cover && { color: c.muted }, onPhoto]}>@{p.username}</Text>
+          </View>
+          <Row gap={space.xl}>
+            <Pressable onPress={() => router.push(`/koneksi/${p.id}?tab=pengikut`)} hitSlop={8} accessibilityRole="link">
+              <Text style={[styles.count, { color: cover ? c.text : c.muted }, onPhoto]}>
+                <Text style={[styles.countNum, { color: c.text }]}>{p.followers}</Text> pengikut
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => router.push(`/koneksi/${p.id}?tab=mengikuti`)} hitSlop={8} accessibilityRole="link">
+              <Text style={[styles.count, { color: cover ? c.text : c.muted }, onPhoto]}>
+                <Text style={[styles.countNum, { color: c.text }]}>{p.following}</Text> mengikuti
+              </Text>
+            </Pressable>
+          </Row>
+          {p.isMe ? null : p.blocked ? (
+            <Button kind="soft" icon="lock-open-outline" title="Buka blokir" loading={block.isPending} onPress={() => block.mutate(false)} style={{ alignSelf: 'stretch' }} />
+          ) : (
+            <Row gap={space.sm} style={{ alignSelf: 'stretch' }}>
+              <Button
+                kind={p.isFollowing ? 'soft' : 'primary'}
+                icon={p.isFollowing ? 'checkmark' : 'person-add'}
+                title={p.isFollowing ? 'Mengikuti' : 'Ikuti'}
+                loading={follow.isPending}
+                onPress={() => follow.mutate(!p.isFollowing)}
+                style={{ flex: 1 }}
+              />
+              {p.canMessage ? (
+                <IconButton icon="chatbubble-ellipses-outline" label="Kirim pesan" size={50} onPress={() => router.push(`/pesan/${p.id}`)} />
+              ) : null}
+              <IconButton icon="ellipsis-horizontal" label="Lainnya" size={50} onPress={() => setSheet('more')} />
+            </Row>
+          )}
+          {photo.error ? <ErrorBox error={photo.error} /> : null}
+        </View>
+
+        <View style={[styles.totals, { borderTopColor: cover ? 'transparent' : c.line }]}>
+          {cover ? (
+            <BlurView
+              blurTarget={blurTarget}
+              blurMethod="dimezisBlurViewSdk31Plus"
+              intensity={45}
+              tint={dark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
           <HeroStat label="Aktivitas" value={String(p.totals.count)} />
           <HeroStat label="Jarak" value={total.value} unit={total.unit} />
           <HeroStat label="Waktu" value={durationShort(p.totals.movingS)} />
         </View>
-      </LinearGradient>
+      </View>
+      <Sheet
+        visible={sheet != null}
+        title={sheet === 'avatar' ? 'Foto profil' : sheet === 'cover' ? 'Foto sampul' : p.name}
+        options={sheet === 'more' ? moreOptions : sheet ? photoOptions(sheet) : []}
+        onClose={() => setSheet(null)}
+      />
 
       <TypePicker value={type} onChange={setType} />
       {stats.error ? <ErrorBox error={stats.error} onRetry={() => stats.refetch()} /> : null}
@@ -199,37 +301,56 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
 }
 
 function HeroStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  const c = useColors();
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={styles.heroNum}>
+      <Text style={[styles.heroNum, { color: c.accentText }]}>
         {value}
-        {unit ? <Text style={styles.heroUnit}> {unit}</Text> : null}
+        {unit ? <Text style={[styles.heroUnit, { color: c.muted }]}> {unit}</Text> : null}
       </Text>
-      <Text style={styles.heroLabel}>{label}</Text>
+      <Text style={[styles.heroLabel, { color: c.muted }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   hero: {
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.lg,
+    overflow: 'hidden',
     borderWidth: 1,
     borderTopWidth: 0,
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
   },
+  heroBody: { alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingBottom: space.md },
   heroActions: { position: 'absolute', right: space.lg, flexDirection: 'row', gap: space.sm },
-  name: { color: palette.text, fontFamily: font.bold, fontSize: 24, letterSpacing: -0.3 },
-  handle: { color: palette.muted, fontFamily: font.medium, fontSize: 14 },
-  count: { color: palette.muted, fontFamily: font.medium, fontSize: 14 },
-  countNum: { color: palette.text, fontFamily: font.bold },
-  totals: { flexDirection: 'row', alignSelf: 'stretch', borderTopWidth: 1, paddingTop: space.md, marginTop: space.xs },
-  heroNum: { color: palette.accent, fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5 },
-  heroUnit: { color: palette.muted, fontFamily: font.semibold, fontSize: 13 },
-  heroLabel: { color: palette.muted, fontFamily: font.medium, fontSize: 12 },
+  coverAction: { position: 'absolute', left: space.lg },
+  camBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  name: { fontFamily: font.bold, fontSize: 24, letterSpacing: -0.3 },
+  handle: { fontFamily: font.medium, fontSize: 14 },
+  count: { fontFamily: font.medium, fontSize: 14 },
+  countNum: { fontFamily: font.bold },
+  totals: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    borderTopWidth: 1,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
+    paddingHorizontal: space.lg,
+    overflow: 'hidden',
+  },
+  heroNum: { fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5 },
+  heroUnit: { fontFamily: font.semibold, fontSize: 13 },
+  heroLabel: { fontFamily: font.medium, fontSize: 12 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile: {
     flexGrow: 1,

@@ -19,7 +19,7 @@ export function useKudos(activity: Pick<ActivitySummary, 'id' | 'hasKudo'>) {
   return useMutation({
     mutationFn: () => api<KudosState>(`/activities/${activity.id}/kudos`, { method: activity.hasKudo ? 'DELETE' : 'POST' }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['feed'] });
+      void qc.invalidateQueries({ queryKey: ['timeline'] });
       void qc.invalidateQueries({ queryKey: ['activity', activity.id] });
       void qc.invalidateQueries({ queryKey: ['userActivities'] });
     },
@@ -44,7 +44,7 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
         <View style={styles.top}>
           <Pressable onPress={() => router.push(`/atlet/${a.user.id}`)} hitSlop={4}>
             <Row gap={space.md}>
-              <Avatar name={a.user.name} size={40} />
+              <Avatar name={a.user.name} uri={a.user.avatarUrl} size={40} />
               <View style={{ flex: 1 }}>
                 <T v="strong" numberOfLines={1}>
                   {a.user.name}

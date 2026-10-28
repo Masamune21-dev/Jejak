@@ -46,7 +46,7 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
                   { backgroundColor: focused ? c.surface2 : color, borderColor: c.bg, opacity: pressed ? 0.85 : 1 },
                   focused ? null : glow(color, 0.9),
                 ]}>
-                <Ionicons name={icon} size={32} color={focused ? color : recording ? '#fff' : c.accentInk} />
+                <Ionicons name={icon} size={32} color={focused ? (recording ? c.danger : c.accentText) : recording ? '#fff' : c.accentInk} />
               </Pressable>
             </View>
           );
@@ -62,8 +62,8 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
             accessibilityState={{ selected: focused }}
             accessibilityLabel={t.label}
             style={styles.slot}>
-            <Ionicons name={focused ? t.iconOn : t.icon} size={23} color={focused ? c.accent : c.muted} />
-            <Text style={[styles.label, { color: focused ? c.accent : c.muted, fontFamily: focused ? font.semibold : font.medium }]}>
+            <Ionicons name={focused ? t.iconOn : t.icon} size={23} color={focused ? c.accentText : c.muted} />
+            <Text style={[styles.label, { color: focused ? c.accentText : c.muted, fontFamily: focused ? font.semibold : font.medium }]}>
               {t.label}
             </Text>
           </Pressable>

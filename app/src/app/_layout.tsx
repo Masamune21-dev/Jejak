@@ -25,7 +25,7 @@ import CrashReportView from '@/components/CrashReport';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { takeLastCrash, toReport, type CrashReport } from '@/lib/crash';
 import { recorder } from '@/lib/recorder';
-import { font, useColors, useIsDark } from '@/lib/theme';
+import { font, loadTheme, useColors, useIsDark } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -62,11 +62,13 @@ function Root() {
     BigShouldersDisplay_800ExtraBold,
     BigShouldersDisplay_900Black,
   });
-  const loaded = ready && (fontsLoaded || !!fontError);
+  const [themeReady, setThemeReady] = useState(false);
+  const loaded = ready && themeReady && (fontsLoaded || !!fontError);
 
   const [lastCrash, setLastCrash] = useState<CrashReport | null>(null);
 
   useEffect(() => {
+    void loadTheme().finally(() => setThemeReady(true));
     void recorder.restore();
     void takeLastCrash().then(setLastCrash);
   }, []);
@@ -110,6 +112,12 @@ function Root() {
           <Stack.Screen name="rute/[id]" options={{ title: '' }} />
           <Stack.Screen name="atlet/[id]" options={{ title: '' }} />
           <Stack.Screen name="cari" options={{ title: 'Cari teman' }} />
+          <Stack.Screen name="pengaturan" options={{ title: 'Pengaturan' }} />
+          <Stack.Screen name="koneksi/[id]" options={{ title: '' }} />
+          <Stack.Screen name="pesan/index" options={{ title: 'Pesan' }} />
+          <Stack.Screen name="pesan/[id]" options={{ title: '' }} />
+          <Stack.Screen name="tulis" options={{ title: 'Tulis postingan' }} />
+          <Stack.Screen name="postingan/[id]" options={{ title: 'Postingan' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="masuk" options={{ headerShown: false, animation: 'fade' }} />

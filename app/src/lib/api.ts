@@ -40,7 +40,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Alamat lengkap foto dari path bertanda tangan yang dikirim API (`/media/…?exp=…&sig=…`). */
+export function mediaUri(path: string | null | undefined): string | null {
+  return path ? API_URL + path : null;
+}
+
+/** `body` berupa FormData dikirim apa adanya (unggah foto); selain itu dikirim sebagai JSON. */
 export async function api<T>(path: string, init: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
+  const form = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? 20_000);
   let res: Response;
@@ -48,10 +55,10 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     res = await fetch(API_URL + path, {
       method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
       headers: {
-        'Content-Type': 'application/json',
+        ...(form ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: init.body === undefined ? undefined : form ? (init.body as FormData) : JSON.stringify(init.body),
       signal: controller.signal,
     });
   } catch {

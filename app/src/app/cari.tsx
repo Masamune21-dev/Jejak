@@ -28,7 +28,7 @@ export default function SearchScreen() {
     mutationFn: (u: UserListItem) => api(`/users/${u.id}/follow`, { method: u.isFollowing ? 'DELETE' : 'POST' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] });
-      void qc.invalidateQueries({ queryKey: ['feed'] });
+      void qc.invalidateQueries({ queryKey: ['timeline'] });
       void qc.invalidateQueries({ queryKey: ['user'] });
     },
   });
@@ -61,7 +61,7 @@ export default function SearchScreen() {
           <Row>
             <Pressable style={{ flex: 1 }} onPress={() => router.push(`/atlet/${item.id}`)}>
               <Row>
-                <Avatar name={item.name} size={44} />
+                <Avatar name={item.name} uri={item.avatarUrl} size={44} />
                 <View style={{ flex: 1 }}>
                   <T v="strong">{item.name}</T>
                   <T v="small">@{item.username}</T>

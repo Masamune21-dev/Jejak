@@ -75,7 +75,7 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
               <Line key={f} x1={0} x2={w} y1={PAD_TOP + f * (H - PAD_TOP)} y2={PAD_TOP + f * (H - PAD_TOP)} stroke={c.line} strokeWidth={1} />
             ))}
             <Path d={area} fill="url(#isi)" />
-            <Path d={line} fill="none" stroke={c.accent} strokeWidth={3} strokeLinecap="round" />
+            <Path d={line} fill="none" stroke={c.track} strokeWidth={3} strokeLinecap="round" />
             {last ? (
               <>
                 <Line x1={last[0]} x2={last[0]} y1={BUBBLE_H} y2={H} stroke={c.accent} strokeOpacity={0.4} strokeWidth={1} strokeDasharray="3 3" />
@@ -94,7 +94,7 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
       <View style={styles.axis}>
         {weeks.map((x, i) =>
           i % 3 === 0 || i === n - 1 ? (
-            <Text key={x.start} style={[styles.tick, { color: i === n - 1 ? c.accent : c.muted }]}>
+            <Text key={x.start} style={[styles.tick, { color: i === n - 1 ? c.accentText : c.muted }]}>
               {i === n - 1 ? 'Kini' : label(x.start)}
             </Text>
           ) : null,

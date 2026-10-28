@@ -5,10 +5,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { LeaderboardRow, Segment } from '@shared/api';
+import type { LeaderboardRow, Post, Segment } from '@shared/api';
 
 import JejakMap from '@/components/Map';
 import { endPins } from '@/components/map-types';
+import PostCard from '@/components/PostCard';
 import {
   Avatar,
   Button,
@@ -28,7 +29,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, pace, speed, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, palette, radius, space, useColors } from '@/lib/theme';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 export default function SegmentScreen() {
   const c = useColors();
@@ -41,6 +42,8 @@ export default function SegmentScreen() {
     queryFn: () => api<Segment>(`/segments/${id}${filter === 'following' ? '?filter=following' : ''}`),
     placeholderData: (prev) => prev,
   });
+  // Diskusi: postingan semua pengguna yang menandai segmen ini (kondisi jalan, tips, ajakan lari bareng).
+  const posts = useQuery({ queryKey: ['segmentPosts', id], queryFn: () => api<Post[]>(`/segments/${id}/posts`) });
   const del = useMutation({
     mutationFn: () => api(`/segments/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
@@ -85,14 +88,14 @@ export default function SegmentScreen() {
             end={{ x: 1, y: 1 }}
             style={[styles.mine, { borderColor: c.accent + '30' }]}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.mineLabel}>Waktu terbaikmu</Text>
-              <Text style={styles.mineTime}>{duration(s.myBest.elapsedS)}</Text>
-              <Text style={styles.mineSub}>
+              <Text style={[styles.mineLabel, { color: c.muted }]}>Waktu terbaikmu</Text>
+              <Text style={[styles.mineTime, { color: c.accentText }]}>{duration(s.myBest.elapsedS)}</Text>
+              <Text style={[styles.mineSub, { color: c.muted }]}>
                 {tempoOf(s.myBest)}, {dateShort(s.myBest.date)}
               </Text>
             </View>
             <View style={[styles.mineRank, { borderColor: s.myBest.rank <= 3 ? c.gold : c.line }]}>
-              <Text style={styles.mineRankLabel}>Peringkat</Text>
+              <Text style={[styles.mineRankLabel, { color: c.muted }]}>Peringkat</Text>
               <Text style={[styles.mineRankNum, { color: s.myBest.rank <= 3 ? c.gold : c.text }]}>#{s.myBest.rank}</Text>
             </View>
           </LinearGradient>
@@ -127,7 +130,7 @@ export default function SegmentScreen() {
                   r.user.id === me.id && { backgroundColor: c.accent + '30' },
                 ]}>
                 <Rank rank={r.rank} />
-                <Avatar name={r.user.name} size={36} />
+                <Avatar name={r.user.name} uri={r.user.avatarUrl} size={36} />
                 <View style={{ flex: 1 }}>
                   <T v="strong" numberOfLines={1}>
                     {r.user.name}
@@ -144,6 +147,26 @@ export default function SegmentScreen() {
             </Pressable>
           ))}
         </Card>
+
+        <SectionTitle
+          right={
+            <Button
+              small
+              kind="soft"
+              icon="create-outline"
+              title="Tulis"
+              onPress={() => router.push({ pathname: '/tulis', params: { segmentId: String(id), segmentName: s.name } })}
+            />
+          }>
+          Diskusi
+        </SectionTitle>
+        {posts.error ? <ErrorBox error={posts.error} onRetry={() => posts.refetch()} /> : null}
+        {posts.data && posts.data.length === 0 ? (
+          <Card flat style={{ backgroundColor: c.surface2, borderWidth: 0 }}>
+            <T v="small">Belum ada diskusi. Bagikan kondisi jalan, tips, atau ajak lari bareng di segmen ini.</T>
+          </Card>
+        ) : null}
+        {posts.data?.map((post) => <PostCard key={post.id} post={post} />)}
 
         {s.createdBy.id === me.id ? (
           <Button
@@ -172,9 +195,9 @@ const styles = StyleSheet.create({
     gap: space.lg,
   },
   mine: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderWidth: 1, padding: space.lg },
-  mineLabel: { fontFamily: font.medium, fontSize: 13, color: palette.muted },
-  mineTime: { fontFamily: font.numBold, fontSize: 40, color: palette.accent, lineHeight: 46, letterSpacing: -1 },
-  mineSub: { fontFamily: font.medium, fontSize: 13, color: palette.muted },
+  mineLabel: { fontFamily: font.medium, fontSize: 13 },
+  mineTime: { fontFamily: font.numBold, fontSize: 40, lineHeight: 46, letterSpacing: -1 },
+  mineSub: { fontFamily: font.medium, fontSize: 13 },
   mineRank: {
     alignItems: 'center',
     borderWidth: 2,
@@ -182,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  mineRankLabel: { fontFamily: font.medium, fontSize: 11, color: palette.muted },
+  mineRankLabel: { fontFamily: font.medium, fontSize: 11 },
   mineRankNum: { fontFamily: font.numBold, fontSize: 30 },
   row: { paddingHorizontal: space.lg, paddingVertical: space.md },
 });

@@ -107,7 +107,7 @@ export default function SignInScreen() {
             height={HERO + insets.top}
             radius={0}
             pad={48}
-            color={c.accent}
+            color={c.track}
             attribution={false}
             style={StyleSheet.absoluteFill}
           />
@@ -126,7 +126,7 @@ export default function SignInScreen() {
             ]}>
             <View style={[styles.liveDot, { backgroundColor: c.accent }, glow(c.accent, 0.6)]} />
             <Text style={[styles.routeChipText, { color: c.text }]}>Keliling Alun-alun Pati</Text>
-            <Text style={[styles.routeChipText, { color: c.accent }]}>{PATI_KM} km</Text>
+            <Text style={[styles.routeChipText, { color: c.accentText }]}>{PATI_KM} km</Text>
           </View>
         </View>
 
@@ -136,7 +136,7 @@ export default function SignInScreen() {
               <Ionicons name="footsteps" size={26} color={c.accentInk} />
             </View>
             <Text style={[styles.wordmark, { color: c.text }]}>
-              jejak<Text style={{ color: c.accent }}>.</Text>
+              jejak<Text style={{ color: c.accentText }}>.</Text>
             </Text>
           </View>
           <Text style={[styles.tagline, { color: c.muted }]}>
@@ -186,7 +186,7 @@ export default function SignInScreen() {
           <Pressable onPress={() => switchMode(daftar ? 'masuk' : 'daftar')} hitSlop={8} style={styles.switch}>
             <Text style={[styles.switchText, { color: c.muted }]}>
               {daftar ? 'Sudah punya akun? ' : 'Belum punya akun? '}
-              <Text style={{ color: c.accent, fontFamily: font.bold }}>{daftar ? 'Masuk' : 'Daftar sekarang'}</Text>
+              <Text style={{ color: c.accentText, fontFamily: font.bold }}>{daftar ? 'Masuk' : 'Daftar sekarang'}</Text>
             </Text>
           </Pressable>
         </View>

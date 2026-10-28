@@ -15,7 +15,7 @@ import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
 import { appendPhoto, pickPhoto } from '@/lib/photo';
-import { alpha, font, radius, space, useColors, useIsDark } from '@/lib/theme';
+import { alpha, font, IMAGE_FADE, radius, space, useColors, useIsDark } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
 import Sheet, { type SheetOption } from './Sheet';
@@ -120,7 +120,7 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
           <>
             {/* Foto sampul; bagian bawahnya (di belakang angka) diburamkan oleh BlurView di bawah. */}
             <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
-              <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+              <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={IMAGE_FADE} />
             </BlurTargetView>
             <LinearGradient
               colors={[alpha(c.bg, 0.3), alpha(c.bg, 0.62), alpha(c.bg, 0.85)]}

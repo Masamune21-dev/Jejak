@@ -5,7 +5,7 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { cumulativeDistance, type LatLon } from '@shared/geo';
 
-import { alpha, DARK_MAP_FILTER, useColors, useIsDark } from '@/lib/theme';
+import { alpha, DARK_MAP_FILTER, IMAGE_FADE, useColors, useIsDark } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, osmTile, TILE_HEADERS } from '@/lib/tiles';
 
 const TILE = 256;
@@ -42,8 +42,8 @@ export default function StaticMap({
   color?: string;
   style?: StyleProp<ViewStyle>;
   radius?: number;
-  /** Jarak tepi garis rute ke tepi peta (px). */
-  pad?: number;
+  /** Jarak tepi garis rute ke tepi peta (px); per sisi untuk menggeser rute, mis. ke samping teks di landing page. */
+  pad?: number | { top: number; right: number; bottom: number; left: number };
   /** false bila pemanggil menutup tepi bawah peta (mis. gradasi) dan menggambar atribusi OSM sendiri. */
   attribution?: boolean;
   /** 0..1: gambar sebagian garis (demo rekaman berjalan) dengan titik posisi di ujungnya. Zoom tetap dari garis penuh. */
@@ -56,18 +56,22 @@ export default function StaticMap({
 
   let content = null;
   if (width > 0 && points.length >= 2) {
+    const p4 = typeof pad === 'number' ? { top: pad, right: pad, bottom: pad, left: pad } : pad;
+    const roomW = width - p4.left - p4.right;
+    const roomH = height - p4.top - p4.bottom;
     let z = MAX_ZOOM;
     for (; z > 2; z--) {
       const px = points.map((p) => project(p, z));
       const xs = px.map((p) => p[0]);
       const ys = px.map((p) => p[1]);
-      if (Math.max(...xs) - Math.min(...xs) <= width - pad * 2 && Math.max(...ys) - Math.min(...ys) <= height - pad * 2) break;
+      if (Math.max(...xs) - Math.min(...xs) <= roomW && Math.max(...ys) - Math.min(...ys) <= roomH) break;
     }
     const px = points.map((p) => project(p, z));
     const xs = px.map((p) => p[0]);
     const ys = px.map((p) => p[1]);
-    const ox = (Math.min(...xs) + Math.max(...xs)) / 2 - width / 2;
-    const oy = (Math.min(...ys) + Math.max(...ys)) / 2 - height / 2;
+    // Tengah rute jatuh di tengah ruang kosong (setelah dikurangi jarak tepi tiap sisi).
+    const ox = (Math.min(...xs) + Math.max(...xs)) / 2 - (p4.left + roomW / 2);
+    const oy = (Math.min(...ys) + Math.max(...ys)) / 2 - (p4.top + roomH / 2);
     const n = 2 ** z;
     const tiles: { key: string; uri: string; left: number; top: number }[] = [];
     for (let ty = Math.floor(oy / TILE); ty <= Math.floor((oy + height) / TILE); ty++) {
@@ -91,7 +95,7 @@ export default function StaticMap({
               source={{ uri: t.uri, headers: TILE_HEADERS }}
               style={{ position: 'absolute', left: t.left, top: t.top, width: TILE, height: TILE }}
               cachePolicy="memory-disk"
-              transition={120}
+              transition={IMAGE_FADE}
             />
           ))}
         </View>

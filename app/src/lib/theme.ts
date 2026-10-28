@@ -3,7 +3,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
-import { Appearance } from 'react-native';
+import { Appearance, Platform } from 'react-native';
 
 /** Warna tetap untuk template bagikan (nomor dada, patok, rambu) yang meniru benda nyata. */
 export const ROAD = {
@@ -160,6 +160,12 @@ export function useThemePrefs(): ThemePrefs {
 export function currentColors(): Colors {
   return state.colors;
 }
+
+/**
+ * Durasi efek pudar saat gambar (ubin peta, foto) selesai dimuat. Di web 0: transisi expo-image di build produksi
+ * bisa macet di opacity 0, sehingga ubin peta dan foto tidak pernah tampil.
+ */
+export const IMAGE_FADE = Platform.OS === 'web' ? 0 : 120;
 
 /** Plus Jakarta Sans untuk teks dan angka; Big Shoulders Display hanya untuk template bagikan. */
 export const font = {

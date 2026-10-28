@@ -8,7 +8,6 @@ import { pathDistance } from '@shared/geo';
 
 import GuideBanner from '@/components/GuideBanner';
 import { STICKERS } from '@/components/ShareStickers';
-import StaticMap from '@/components/StaticMap';
 import { Rank } from '@/components/ui';
 import { PATI } from '@/lib/demo-route';
 import { km } from '@/lib/format';
@@ -55,10 +54,10 @@ export const DEMO_ACTIVITY: Activity = {
 };
 
 /**
- * Demo di hero: rute Keliling Alun-alun Pati tergambar sendiri di peta, angka berjalan seperti saat merekam.
- * Satu-satunya gerakan otomatis di halaman; bila pengguna memilih "kurangi gerakan", rute langsung utuh.
+ * Progres demo rekaman di hero (0..1, ±9 detik): rute Keliling Alun-alun Pati tergambar di peta latar dan angka berjalan.
+ * Satu-satunya gerakan otomatis di halaman; bila pengguna memilih "kurangi gerakan", langsung 1 (rute utuh).
  */
-export function HeroDemo() {
+export function useDemoProgress(): number {
   const [p, setP] = useState(0);
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
@@ -80,36 +79,39 @@ export function HeroDemo() {
       if (timer) clearInterval(timer);
     };
   }, []);
-  const done = p >= 1;
+  return p;
+}
 
+/** Kartu angka rekaman yang mengambang di atas peta latar hero. `compact` untuk layar HP. */
+export function HeroStats({ p, compact }: { p: number; compact?: boolean }) {
+  const done = p >= 1;
   return (
-    <View style={styles.device} accessibilityLabel={`Contoh rekaman: ${km(DEMO_M * p)} km dalam ${mmss(DEMO_S * p)}`}>
-      <View>
-        <StaticMap points={PATI} height={300} radius={0} pad={36} color={c.accent} progress={p} />
-        <View style={styles.mapChip}>
+    <View
+      style={[styles.statsCard, compact && { padding: 14, gap: 8 }]}
+      accessibilityLabel={`Contoh rekaman: ${km(DEMO_M * p)} km dalam ${mmss(DEMO_S * p)}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={styles.statusPill}>
           <View style={[styles.dot, { backgroundColor: done ? c.start : c.danger }]} />
           <Text style={styles.mapChipText}>{done ? 'Tersimpan' : 'Merekam'}</Text>
         </View>
-      </View>
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle} numberOfLines={1}>
+        <Text style={[styles.panelTitle, { flex: 1 }]} numberOfLines={1}>
           Keliling Alun-alun Pati
         </Text>
-        <View style={styles.statRow}>
-          <DemoStat label="Waktu" value={mmss(DEMO_S * p)} />
-          <DemoStat label="Jarak" value={km(DEMO_M * p)} unit="km" />
-          <DemoStat label="Pace" value="6:01" unit="/km" />
-        </View>
+      </View>
+      <View style={styles.statRow}>
+        <DemoStat label="Waktu" value={mmss(DEMO_S * p)} small={compact} />
+        <DemoStat label="Jarak" value={km(DEMO_M * p)} unit="km" small={compact} />
+        <DemoStat label="Pace" value="6:01" unit="/km" small={compact} />
       </View>
     </View>
   );
 }
 
-function DemoStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function DemoStat({ label, value, unit, small }: { label: string; value: string; unit?: string; small?: boolean }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>
+      <Text style={[styles.statValue, small && { fontSize: 21 }]}>
         {value}
         {unit ? <Text style={styles.statUnit}> {unit}</Text> : null}
       </Text>
@@ -271,35 +273,29 @@ export function Faq({ q, children }: { q: string; children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  device: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: c.surface,
+  statsCard: {
+    padding: 18,
+    gap: 12,
+    borderRadius: 22,
+    backgroundColor: 'rgba(42,45,49,0.92)',
     borderWidth: 1,
     borderColor: c.line,
     shadowColor: '#000',
     shadowOpacity: 0.45,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 24 },
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 16 },
   },
-  mapChip: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(30,32,35,0.88)',
+    backgroundColor: c.bg,
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   mapChipText: { color: c.text, fontFamily: font.semibold, fontSize: 13 },
-  panel: { padding: 18, gap: 12, borderTopWidth: 1, borderTopColor: c.line },
   panelTitle: { color: c.text, fontFamily: font.bold, fontSize: 16 },
   statRow: { flexDirection: 'row', gap: 12 },
   statLabel: { color: c.muted, fontFamily: font.medium, fontSize: 12 },

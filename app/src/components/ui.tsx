@@ -21,7 +21,7 @@ import type { ActivityType } from '@shared/api';
 
 import { mediaUri } from '@/lib/api';
 import { initials, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, glow, radius, shadow, space, useColors } from '@/lib/theme';
+import { font, glow, IMAGE_FADE, radius, shadow, space, useColors } from '@/lib/theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -490,7 +490,7 @@ export function Avatar({ name, size = 40, ring, uri }: { name: string; size?: nu
       <Image
         source={{ uri: src }}
         cachePolicy="memory-disk"
-        transition={120}
+        transition={IMAGE_FADE}
         style={[
           { width: size, height: size, borderRadius: size / 2, backgroundColor: c.surface2, borderWidth: ring ? 3 : 0, borderColor: c.accent },
           ring && glow(c.accent, 0.5),

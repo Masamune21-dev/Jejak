@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import Head from 'expo-router/head';
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
@@ -10,14 +11,17 @@ import {
   DISPLAY,
   Faq,
   GuideFragment,
-  HeroDemo,
+  HeroStats,
   LockScreenFragment,
   Patok,
   Rambu,
   RambuItem,
   StickerFragment,
+  useDemoProgress,
 } from '@/components/landing/parts';
-import { font, palette as c, ROAD } from '@/lib/theme';
+import StaticMap from '@/components/StaticMap';
+import { PATI } from '@/lib/demo-route';
+import { alpha, font, palette as c, ROAD } from '@/lib/theme';
 
 /** Info APK terbaru yang ditulis `deploy/deploy.sh apk` di /unduh/versi.json. */
 interface ApkInfo {
@@ -31,7 +35,9 @@ const NAV_H = 68;
 
 /** Halaman depan versi web untuk pengunjung yang belum masuk. Di HP langsung ke halaman masuk. */
 export default function LandingScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height: winH } = useWindowDimensions();
+  const p = useDemoProgress();
+  const [heroBox, setHeroBox] = useState(0);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const anchors = useRef<Record<string, number>>({});
   const [apk, setApk] = useState<ApkInfo | null>(null);
@@ -53,7 +59,16 @@ export default function LandingScreen() {
   const download = () => {
     window.location.assign(APK_URL);
   };
-  const h1 = wide ? 104 : mid ? 80 : 58;
+  const h1 = wide ? 104 : mid ? 80 : 50;
+  // Hero setinggi layar (di bawah navigasi). Di HP isinya bisa lebih tinggi; peta latar mengikuti tinggi sebenarnya.
+  const heroH = Math.max(winH - NAV_H, wide ? 620 : 600);
+  const mapH = Math.max(heroH, heroBox);
+  // Jarak dari tepi layar ke tepi konten (1120 px) di layar lebar.
+  const sideGap = Math.max(gutter, (width - 1120) / 2 + gutter);
+  // Rute demo di kanan (desktop, di atas kartu angka) atau di atas teks (HP).
+  const mapPad = wide
+    ? { top: mapH * 0.14, bottom: mapH * 0.34, left: width * 0.56, right: sideGap + 40 }
+    : { top: 140, bottom: mapH - heroH * 0.4 + 12, left: gutter + 8, right: gutter + 8 };
   const h2 = wide ? 60 : mid ? 52 : 42;
 
   const features: { title: string; text: string; fragment: ReactNode }[] = [
@@ -124,26 +139,54 @@ export default function LandingScreen() {
           </View>
         </View>
 
-        {/* Hero: demo rekaman berjalan di peta Pati */}
-        <View style={[container, styles.hero, { flexDirection: wide ? 'row' : 'column', gap: wide ? 56 : 40, paddingTop: mid ? 72 : 40 }]}>
-          <View style={{ flex: wide ? 1.1 : undefined, gap: 22, justifyContent: 'center' }}>
-            <Text accessibilityRole="header" style={[styles.h1, { fontSize: h1, lineHeight: h1 * 0.98 }]}>
-              Setiap jalan dekat rumah bisa jadi lintasanmu.
-            </Text>
-            <Text style={[styles.lead, { fontSize: mid ? 19 : 17 }]}>
-              Jejak merekam lari, gowes, dan jalan kaki dengan GPS, membuat rute yang menempel ke jalan, lalu mengadu waktumu
-              dengan teman di segmen favorit kalian.
-            </Text>
-            <View style={{ flexDirection: mid ? 'row' : 'column', gap: 12, marginTop: 6 }}>
-              <CtaButton primary block={!mid} icon="logo-android" label="Unduh untuk Android" onPress={download} />
-              <CtaButton block={!mid} icon="globe-outline" label="Masuk atau daftar" onPress={() => router.push('/masuk')} />
-            </View>
-            <Text style={styles.note}>
-              Gratis dan tanpa iklan. Aplikasi untuk Android 64‑bit; di iPhone dan komputer, pakai versi web ini.
-            </Text>
+        {/* Hero satu layar: peta kota Pati sebagai latar, rute demo tergambar di lokasi aslinya. */}
+        <View
+          onLayout={(e) => setHeroBox(Math.round(e.nativeEvent.layout.height))}
+          style={{ minHeight: heroH, overflow: 'hidden', justifyContent: wide ? 'center' : 'flex-end' }}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <StaticMap points={PATI} height={mapH} radius={0} color={c.accent} progress={p} pad={mapPad} />
           </View>
-          <View style={{ flex: wide ? 1 : undefined, justifyContent: 'center' }}>
-            <HeroDemo />
+          {/* Gradasi gelap di sisi teks supaya judul terbaca di atas peta; tepi bawah menyatu ke bagian berikutnya. */}
+          <LinearGradient
+            colors={wide ? [alpha(c.bg, 0.97), alpha(c.bg, 0.86), alpha(c.bg, 0.3), alpha(c.bg, 0.02)] : [alpha(c.bg, 0.2), alpha(c.bg, 0.05), alpha(c.bg, 0.8), alpha(c.bg, 0.98)]}
+            locations={wide ? [0, 0.4, 0.66, 1] : [0, 0.32, 0.56, 0.78]}
+            start={wide ? { x: 0, y: 0 } : { x: 0, y: 0 }}
+            end={wide ? { x: 1, y: 0 } : { x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={[alpha(c.bg, 0), c.bg]}
+            locations={[0.82, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          {/* Di HP teks dimulai di 40% tinggi layar (bukan tinggi hero terukur, supaya tata letak tidak berputar). */}
+          <View style={[container, { paddingTop: wide ? 48 : heroH * 0.4, paddingBottom: wide ? 96 : 56 }]}>
+            <View style={{ maxWidth: wide ? 600 : undefined, gap: 22 }}>
+              <Text accessibilityRole="header" style={[styles.h1, { fontSize: h1, lineHeight: h1 * 0.98 }]}>
+                Setiap jalan dekat rumah bisa jadi lintasanmu.
+              </Text>
+              <Text style={[styles.lead, { fontSize: mid ? 19 : 17 }]}>
+                Jejak merekam lari, gowes, dan jalan kaki dengan GPS, membuat rute yang menempel ke jalan, lalu mengadu waktumu
+                dengan teman di segmen favorit kalian.
+              </Text>
+              <View style={{ flexDirection: mid ? 'row' : 'column', gap: 12, marginTop: 6 }}>
+                <CtaButton primary block={!mid} icon="logo-android" label="Unduh untuk Android" onPress={download} />
+                <CtaButton block={!mid} icon="globe-outline" label="Masuk atau daftar" onPress={() => router.push('/masuk')} />
+              </View>
+              <Text style={styles.note}>
+                Gratis dan tanpa iklan. Aplikasi untuk Android 64‑bit; di iPhone dan komputer, pakai versi web ini.
+              </Text>
+            </View>
+          </View>
+          <View
+            style={
+              wide
+                ? { position: 'absolute', right: sideGap, bottom: 72, width: 360 }
+                : { position: 'absolute', top: 16, left: gutter, right: gutter }
+            }>
+            <HeroStats p={p} compact={!wide} />
           </View>
         </View>
 
@@ -357,7 +400,6 @@ const styles = StyleSheet.create({
   navButton: { borderWidth: 1, borderColor: c.line, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
   navButtonText: { color: c.text, fontFamily: font.bold, fontSize: 15 },
   wordmark: { color: c.text, fontFamily: font.black, fontSize: 26, letterSpacing: -1 },
-  hero: { paddingBottom: 24 },
   h1: { color: c.text, fontFamily: DISPLAY, letterSpacing: -0.5 },
   h2: { color: c.text, fontFamily: DISPLAY },
   h3: { color: c.text, fontFamily: DISPLAY, lineHeight: 44 },

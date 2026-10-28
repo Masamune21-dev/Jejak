@@ -57,7 +57,7 @@ Isi halaman, dari atas:
 | Bagian | Isi |
 | --- | --- |
 | Navigasi | Wordmark, tautan **Fitur**, **Cara pakai**, **Privasi**, **Unduh** (hanya di layar lebar, menggulir ke bagiannya), dan tombol **Masuk**. Menempel di atas saat digulir. |
-| Hero | Judul *Setiap jalan dekat rumah bisa jadi lintasanmu.*, penjelasan singkat, tombol **Unduh untuk Android** dan **Masuk atau daftar**. Di sampingnya demo rekaman: rute Keliling Alun-alun Pati tergambar sendiri di peta selama ±9 detik sementara Waktu dan Jarak berjalan, lalu berhenti dengan status *Tersimpan*. Bila perangkat memakai pengaturan "kurangi gerakan", rute langsung tampil utuh. |
+| Hero | Setinggi satu layar, berlatar peta kota Pati (OSM versi gelap). Judul *Setiap jalan dekat rumah bisa jadi lintasanmu.*, penjelasan singkat, tombol **Unduh untuk Android** dan **Masuk atau daftar**. Rute Keliling Alun-alun Pati tergambar sendiri di peta latar pada lokasi aslinya selama ±9 detik (di kanan pada layar lebar, di atas judul pada HP), sementara kartu angka Waktu dan Jarak ikut berjalan, lalu berhenti dengan status *Tersimpan*. Bila perangkat memakai pengaturan "kurangi gerakan", rute langsung tampil utuh. |
 | Fitur | Lima baris berselang-seling, masing-masing dengan potongan tampilan asli app: layar kunci dengan notifikasi rekaman, banner belok dan keluar rute, papan peringkat segmen, stiker transparan (komponen yang sama dengan layar Bagikan), dan gelembung chat. |
 | Cara pakai | Tiga langkah berurutan di atas patok KM 0, 1, 2: pasang dan daftar, rekam, bagikan dan adu waktu. |
 | Privasi | Papan rambu hijau: zona privasi 300 m, lokasi di foto dihapus, foto dan postingan hanya untuk yang masuk, pesan tidak terenkripsi ujung-ke-ujung. |

@@ -11,7 +11,7 @@ import { api, mediaUri } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { TYPE_ICON, when } from '@/lib/format';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, IMAGE_FADE, radius, space, useColors } from '@/lib/theme';
 
 import Sheet from './Sheet';
 import { Avatar, Card, Row, T } from './ui';
@@ -86,7 +86,7 @@ export default function PostCard({ post, detail }: { post: Post; detail?: boolea
                 source={{ uri }}
                 contentFit="cover"
                 cachePolicy="memory-disk"
-                transition={150}
+                transition={IMAGE_FADE}
                 style={[
                   styles.photo,
                   { backgroundColor: c.surface2 },

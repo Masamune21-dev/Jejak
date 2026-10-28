@@ -28,7 +28,7 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 
 | Bagian | Lokasi | Peran |
 | --- | --- | --- |
-| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, tema, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `sambut` dan `masuk` hanya untuk yang belum). Grup layar utama memakai `redirectTo`: tamu di web diarahkan ke halaman depan `/sambut`, di HP ke `/masuk`. Tab ada di `(tabs)/`. |
+| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, tema, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `masuk` dan `sambut` hanya untuk yang belum). Di web grup tab `(tabs)/` juga terbuka untuk tamu: `(tabs)/_layout.tsx` menampilkan halaman depan (`components/landing/Landing.tsx`) di alamat utama `/` dan mengalihkan alamat tab lain ke sana; di HP tamu dialihkan ke `/masuk`. Layar lain memakai `redirectTo`: tamu di web ke `/`, di HP ke `/masuk`. `sambut.tsx` hanya mengalihkan alamat lama `/sambut` ke `/`. |
 | Komponen | `src/components/` | UI bersama (`ui.tsx`, termasuk `Avatar` dengan foto), kartu aktivitas, kartu postingan (`PostCard.tsx`), profil, grafik, tab bar, peta, menu bawah (`Sheet.tsx`), banner petunjuk arah (`GuideBanner.tsx`), stiker bagikan (`ShareStickers.tsx`), template bagikan lama (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
 | Perekam | `src/lib/recorder.ts` | Mesin status perekaman, filter titik GPS, stopwatch, penyimpanan lokal, pemandu rute. |
 | Lokasi | `src/lib/gps.ts`, `location-task.ts`, `sim.ts`, `location-source.ts` | Sumber posisi: GPS latar, GPS layar menyala, atau simulasi. |
@@ -293,7 +293,7 @@ Alur layar Bagikan (`aktivitas/[id]/bagikan.tsx`):
 2. Galeri = `FlatList` horizontal dengan `pagingEnabled`, satu halaman selebar layar. Isinya `STICKERS` (`ShareStickers.tsx`) lalu `TEMPLATES` (`ShareTemplates.tsx`). Indeks halaman aktif dihitung dari `contentOffset.x / lebar layar` saat geseran berhenti (di web juga saat menggulir) dan dipakai untuk titik-titik penanda halaman.
 3. Tiap halaman: bingkai bersudut bulat berisi pola papan catur (SVG `Pattern`, hanya untuk stiker tanpa foto), lalu **wadah yang diekspor** tanpa sudut membulat dan tanpa warna latar. Isi wadah = foto (`expo-image`, `contentFit="cover"`) atau, untuk template lama tanpa foto, `PlainBackground`; ditimpa stiker atau template. Karena papan catur ada di luar wadah, PNG stiker tanpa foto tetap transparan. Hanya wadah halaman aktif yang dipasangi `ref` untuk ditangkap.
 4. Ukuran pratinjau = lebar terkecil dari (lebar layar − 32), (52% tinggi layar × rasio), dan 440 px. Semua ukuran di stiker dan template diskalakan dari lebar kanvas (desain dasar 360 px).
-5. `captureRef` dari `react-native-view-shot` menangkap wadah sebagai PNG (`format: 'png'`, `quality: 1`) dengan lebar keluaran 1080 px fisik (`1080 / PixelRatio.get()` titik), tinggi sesuai rasio 9:16 atau 4:5.
+5. Di HP, wadah yang diekspor digambar seukuran hasil akhir (`1080 / PixelRatio.get()` titik = 1080 px fisik) lalu diperkecil dengan `transform: scale` ke ukuran pratinjau; di web wadah seukuran pratinjau. `captureRef` dari `react-native-view-shot` menangkapnya sebagai PNG (`format: 'png'`, `quality: 1`) dengan `width: 1080` dan `height` sesuai rasio 9:16 atau 4:5. Kedua opsi itu piksel gambar akhir, bukan titik: Android dan web mengubah ukuran gambar ke angka itu, iOS mengabaikannya dan memakai ukuran wadah × skala layar.
 6. Hasilnya diteruskan ke `saveImage` (**Simpan**), `shareImage` (**Lainnya**), atau, untuk **Salin**, ditangkap ulang sebagai `base64` lalu `Clipboard.setImageAsync()` dari `expo-clipboard` (tombol Salin tidak ditampilkan di web).
 
 `route-path.ts` memproyeksikan `preview` aktivitas (Web Mercator) ke dalam kotak w × h dengan padding, proporsional dan di tengah, lalu menghasilkan atribut `d` untuk `<Path>` SVG beserta titik awal dan akhir. Dipakai semua stiker, template *Rute*, dan latar polos.
@@ -358,7 +358,7 @@ sequenceDiagram
 | Simpan ulang | JPEG kualitas 0,8 | sama | sama |
 | Batas waktu unggah | 60 detik | 60 detik | 90 detik |
 
-Foto yang lebih kecil dari lebar maksimum tidak diperbesar. Penyimpanan ulang lewat `ImageManipulator` membuat JPEG baru tanpa metadata EXIF, termasuk lokasi GPS. Di HP, `appendPhoto()` menempelkan `{ uri, name: 'foto.jpg', type: 'image/jpeg' }` ke `FormData`; di web, foto diambil dulu sebagai `Blob`. Bila `body` berupa `FormData`, `api()` mengirimnya apa adanya tanpa header `Content-Type`, supaya `fetch` mengisi batas multipart sendiri.
+Foto yang lebih kecil dari lebar maksimum tidak diperbesar. Penyimpanan ulang lewat `ImageManipulator` membuat JPEG baru tanpa metadata EXIF, termasuk lokasi GPS. Di HP, `appendPhoto()` menempelkan `File` dari `expo-file-system` ke `FormData`; di web, foto diambil dulu sebagai `Blob`. `fetch` global di HP adalah `expo/fetch` (bawaan Expo SDK 58), yang membaca isi `File` sendiri dan tidak mendukung objek lama React Native `{ uri, name, type }`: dengan objek itu permintaan gagal sebelum terkirim. Bila `body` berupa `FormData`, `api()` mengirimnya apa adanya tanpa header `Content-Type`, supaya `fetch` mengisi batas multipart sendiri.
 
 **Di server** (`server/src/media.ts`): `cleanJpeg()` menelusuri segmen JPEG dari awal sampai `SOS` (awal data gambar) dan membuang segmen `APP1` (EXIF/XMP) dan `APP13` (IPTC); berkas yang bukan JPEG utuh ditolak. Ini pengaman kedua bila foto tidak lewat app. Berkas disimpan dengan nama acak di folder unggahan (`UPLOAD_DIR`, bawaan `uploads/` di sebelah database). Di tes, `createApp()` tanpa `media` memakai folder sementara.
 
@@ -412,7 +412,7 @@ Perilaku `api()`:
 - header `Content-Type: application/json` dan `Authorization: Bearer <token>` bila sudah masuk. Bila `body` berupa `FormData` (unggah foto), badan dikirim apa adanya tanpa `Content-Type` dan tanpa `JSON.stringify`;
 - metode bawaan `GET`, atau `POST` bila ada `body`;
 - batas waktu 20 detik (unggah aktivitas dan foto profil/sampul 60 detik, kirim postingan 90 detik);
-- gagal jaringan/batas waktu: `ApiError(0, "Tidak bisa terhubung ke server (<URL>). Pastikan server jalan dan HP satu WiFi dengan komputer.")`;
+- gagal jaringan/batas waktu: `ApiError(0, "Tidak bisa terhubung ke server (<URL>): <alasan>. <saran>")`. Alasan berisi pesan asli `fetch`, atau `batas waktu habis`. Saran untuk alamat `https:` adalah "Periksa koneksi internet HP.", selain itu "Pastikan server jalan dan HP satu WiFi dengan komputer.";
 - respons bukan 2xx: `ApiError(status, body.error)` atau `Permintaan gagal (<status>)` bila badan bukan JSON;
 - **401 saat punya token**: memanggil handler yang mengeluarkan pengguna (token, data pengguna, dan cache dihapus), sehingga app kembali ke layar masuk.
 

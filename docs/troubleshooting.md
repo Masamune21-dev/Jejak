@@ -46,9 +46,9 @@ APK yang dibangun sebelum commit `edea652` tertutup sendiri saat dibuka. Penyeba
 
 ## Koneksi dan login
 
-### "Tidak bisa terhubung ke server (…). Pastikan server jalan dan HP satu WiFi dengan komputer."
+### "Tidak bisa terhubung ke server (…): …"
 
-Muncul bila `fetch` gagal total atau melewati batas waktu (20 detik; unggah aktivitas 60 detik). Alamat di dalam kurung adalah alamat yang sedang dipakai app; alamat yang sama juga tertulis di bawah layar masuk (**Server: …**).
+Muncul bila `fetch` gagal total atau melewati batas waktu (20 detik; unggah aktivitas 60 detik). Teks setelah titik dua adalah alasan asli dari `fetch` (atau `batas waktu habis`). Bila alasannya bukan soal jaringan, misalnya `Unsupported FormDataPart implementation` saat unggah foto, permintaan gagal disusun di HP dan tidak pernah sampai ke server; lihat cara `appendPhoto()` di [arsitektur.md](arsitektur.md). Alamat di dalam kurung adalah alamat yang sedang dipakai app; alamat yang sama juga tertulis di bawah layar masuk (**Server: …**).
 
 | Alamat yang tertulis | Periksa |
 | --- | --- |

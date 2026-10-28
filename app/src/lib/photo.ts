@@ -1,3 +1,4 @@
+import { File as LocalFile } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
@@ -42,7 +43,9 @@ export async function appendPhoto(form: FormData, field: string, uri: string): P
   if (Platform.OS === 'web') {
     form.append(field, await (await fetch(uri)).blob(), 'foto.jpg');
   } else {
-    // React Native mengunggah berkas lokal dari objek { uri, name, type }.
-    form.append(field, { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
+    // fetch di HP adalah expo/fetch (bawaan sejak Expo SDK 58), yang tidak mengenal objek lama React Native
+    // { uri, name, type }: unggahan gagal sebelum terkirim. File dari expo-file-system dibaca isinya oleh fetch;
+    // nama dan jenis berkasnya (image/jpeg dari ekstensi .jpg) ikut terkirim.
+    form.append(field, new LocalFile(uri));
   }
 }

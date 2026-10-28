@@ -44,13 +44,13 @@ Tombol Rekam di tengah tab bar berwarna aksen dan bercahaya saat tidak ada rekam
 
 Layar lain dibuka di atas tab: detail aktivitas (`aktivitas/[id]`), buat segmen (`aktivitas/[id]/segmen`), bagikan (`aktivitas/[id]/bagikan`), detail segmen (`segmen/[id]`), rute baru (`rute/baru`), detail rute (`rute/[id]`), profil atlet lain (`atlet/[id]`), cari teman (`cari`), pengikut/mengikuti (`koneksi/[id]`), tulis postingan (`tulis`), detail postingan (`postingan/[id]`), daftar pesan (`pesan/index`), percakapan (`pesan/[id]`), dan pengaturan (`pengaturan`).
 
-Semua layar itu hanya bisa dibuka setelah masuk. Selama belum masuk, layarnya hanya `masuk`, ditambah [halaman depan](#halaman-depan-versi-web) `sambut` di versi web.
+Semua layar itu hanya bisa dibuka setelah masuk. Selama belum masuk, layarnya hanya `masuk`, ditambah [halaman depan](#halaman-depan-versi-web) di alamat utama versi web.
 
 ---
 
 ## Halaman depan (versi web)
 
-Pengunjung versi web yang belum masuk melihat halaman depan `sambut.tsx` (alamat `/sambut`); semua alamat lain yang butuh login diarahkan ke sana. Di aplikasi HP, pengguna yang belum masuk langsung ke halaman masuk. Dari halaman masuk versi web ada tautan *Kenali Jejak lebih dulu* untuk kembali ke halaman depan.
+Pengunjung versi web yang belum masuk melihat halaman depan (`components/landing/Landing.tsx`) langsung di alamat utama `/`; pengguna yang sudah masuk melihat Beranda di alamat yang sama. Semua alamat lain yang butuh login, juga alamat lama `/sambut`, diarahkan ke `/`. Di aplikasi HP, pengguna yang belum masuk langsung ke halaman masuk. Dari halaman masuk versi web ada tautan *Kenali Jejak lebih dulu* untuk kembali ke halaman depan.
 
 Isi halaman, dari atas:
 

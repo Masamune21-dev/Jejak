@@ -77,13 +77,15 @@ export default function ShareScreen() {
   };
 
   // Gambar diekspor 1080 px lebarnya, apa pun ukuran pratinjau di layar. Stiker tanpa foto tetap transparan (PNG).
+  // `width`/`height` adalah piksel gambar akhir, bukan titik layar: di Android dan web gambar diubah ke ukuran ini,
+  // sedangkan iOS mengabaikannya dan memakai ukuran kanvas × skala layar (juga 1080 px).
   const capture = (result: typeof CAPTURE_RESULT | 'base64') =>
     captureRef(canvas, {
       format: 'png',
       quality: 1,
       result,
-      width: EXPORT_WIDTH / PixelRatio.get(),
-      height: EXPORT_WIDTH / r / PixelRatio.get(),
+      width: EXPORT_WIDTH,
+      height: Math.round(EXPORT_WIDTH / r),
     });
 
   const run = async (kind: Exclude<Busy, null>) => {

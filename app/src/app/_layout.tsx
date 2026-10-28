@@ -103,9 +103,12 @@ function Root() {
           // Halaman detail masuk dari kanan seperti iOS, juga di Android (bawaan Android hanya memudar sekilas).
           animation: 'ios_from_right',
         }}>
-        {/* Tamu di web melihat landing page dulu; di HP langsung ke halaman masuk. */}
-        <Stack.Protected guard={!!user} redirectTo={Platform.OS === 'web' ? '/sambut' : '/masuk'}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
+        {/* Di web grup tab terbuka untuk tamu: alamat utama `/` menampilkan halaman depan ((tabs)/_layout.tsx).
+            Di HP tamu langsung ke halaman masuk. */}
+        <Stack.Protected guard={!!user || Platform.OS === 'web'} redirectTo="/masuk">
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade', title: 'Jejak' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!!user} redirectTo={Platform.OS === 'web' ? '/' : '/masuk'}>
           <Stack.Screen name="aktivitas/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="aktivitas/[id]/segmen" options={{ title: 'Buat segmen' }} />
           <Stack.Screen name="aktivitas/[id]/bagikan" options={{ title: 'Bagikan' }} />
@@ -122,7 +125,7 @@ function Root() {
           <Stack.Screen name="postingan/[id]" options={{ title: 'Postingan' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
-          <Stack.Screen name="sambut" options={{ headerShown: false, animation: 'fade', title: 'Jejak' }} />
+          <Stack.Screen name="sambut" options={{ headerShown: false }} />
           <Stack.Screen name="masuk" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>

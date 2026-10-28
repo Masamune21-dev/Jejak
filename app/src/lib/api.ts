@@ -61,8 +61,13 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       body: init.body === undefined ? undefined : form ? (init.body as FormData) : JSON.stringify(init.body),
       signal: controller.signal,
     });
-  } catch {
-    throw new ApiError(0, `Tidak bisa terhubung ke server (${API_URL}). Pastikan server jalan dan HP satu WiFi dengan komputer.`);
+  } catch (e) {
+    // Alasan asli dari fetch ikut ditampilkan: tanpa itu, unggahan yang gagal disusun di HP tampak seperti server mati.
+    const why = controller.signal.aborted ? 'batas waktu habis' : errorText(e);
+    const hint = API_URL.startsWith('https:')
+      ? 'Periksa koneksi internet HP.'
+      : 'Pastikan server jalan dan HP satu WiFi dengan komputer.';
+    throw new ApiError(0, `Tidak bisa terhubung ke server (${API_URL}): ${why}. ${hint}`);
   } finally {
     clearTimeout(timer);
   }

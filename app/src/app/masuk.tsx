@@ -160,7 +160,7 @@ export default function SignInScreen() {
             </Text>
           </Pressable>
           {Platform.OS === 'web' ? (
-            <Pressable onPress={() => router.replace('/sambut')} hitSlop={8} style={styles.switch} accessibilityRole="link">
+            <Pressable onPress={() => router.replace('/')} hitSlop={8} style={styles.switch} accessibilityRole="link">
               <Text style={[styles.switchText, { color: c.muted }]}>Kenali Jejak lebih dulu</Text>
             </Pressable>
           ) : null}

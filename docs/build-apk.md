@@ -179,11 +179,11 @@ const LIBRE = Platform.OS === 'android' && Constants.executionEnvironment !== Ex
 Alasannya:
 
 - **react-native-maps di Android memakai Google Maps SDK**, yang di APK sendiri wajib punya kunci API Google Maps dan akun penagihan Google Cloud. Tanpa kunci, peta tampil kosong.
-- **MapLibre** adalah mesin peta sumber terbuka. Dengan ubin raster **Esri World Light/Dark Gray Canvas** (sama dengan versi web dan cuplikan peta), tidak perlu kunci API atau akun penagihan.
+- **MapLibre** adalah mesin peta sumber terbuka. Dengan ubin raster **OpenStreetMap** yang digelapkan (sama dengan versi web dan cuplikan peta), tidak perlu kunci API atau akun penagihan.
 - Expo Go tidak membawa kode native MapLibre, jadi di Expo Go Android tetap memakai react-native-maps (Google Maps dengan kunci milik Expo Go). Modul yang tidak terpilih tidak dimuat sama sekali.
 - iOS selalu memakai react-native-maps (Apple Maps, tanpa kunci).
 
-MapLibre dipasang lewat plugin `@maplibre/maplibre-react-native` di `app.json`, sehingga baru aktif setelah build EAS. Atribusi *© Esri, OpenStreetMap* wajib tetap tampil.
+MapLibre dipasang lewat plugin `@maplibre/maplibre-react-native` di `app.json`, sehingga baru aktif setelah build EAS. Atribusi *© OpenStreetMap* wajib tetap tampil.
 
 Sejak commit `b668024`, modul peta baru dimuat saat peta pertama kali tampil (bukan saat app dibuka). Bila modul JavaScript MapLibre gagal dimuat, app mencatat `[peta] MapLibre gagal dimuat, pakai react-native-maps` dan memakai react-native-maps: petanya mungkin kosong (tanpa kunci Google), tetapi app tidak tertutup. Detail di [arsitektur.md](arsitektur.md#pemilihan-implementasi-peta).
 

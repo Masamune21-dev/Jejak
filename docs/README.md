@@ -68,7 +68,7 @@ flowchart LR
   end
 
   OSRM["OSRM FOSSGIS<br/>routing.openstreetmap.de"]
-  ESRI["Ubin peta Esri<br/>Gray Canvas"]
+  ESRI["Ubin peta<br/>OpenStreetMap"]
 
   SRC --> REC --> UI
   REC <--> STORE

@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -27,7 +28,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, pace, speed, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, radius, ROAD, space, useColors } from '@/lib/theme';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 export default function SegmentScreen() {
   const c = useColors();
@@ -78,7 +79,11 @@ export default function SegmentScreen() {
         </Row>
 
         {s.myBest ? (
-          <View style={[styles.mine, { backgroundColor: c.slab }]}>
+          <LinearGradient
+            colors={['#16372A', '#0E1A15']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.mine, { borderColor: c.accent + '30' }]}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.mineLabel}>Waktu terbaikmu</Text>
               <Text style={styles.mineTime}>{duration(s.myBest.elapsedS)}</Text>
@@ -86,11 +91,11 @@ export default function SegmentScreen() {
                 {tempoOf(s.myBest)}, {dateShort(s.myBest.date)}
               </Text>
             </View>
-            <View style={[styles.mineRank, { borderColor: s.myBest.rank <= 3 ? c.gold : 'rgba(255,255,255,0.25)' }]}>
+            <View style={[styles.mineRank, { borderColor: s.myBest.rank <= 3 ? c.gold : c.line }]}>
               <Text style={styles.mineRankLabel}>Peringkat</Text>
-              <Text style={[styles.mineRankNum, { color: s.myBest.rank <= 3 ? c.gold : '#fff' }]}>#{s.myBest.rank}</Text>
+              <Text style={[styles.mineRankNum, { color: s.myBest.rank <= 3 ? c.gold : c.text }]}>#{s.myBest.rank}</Text>
             </View>
-          </View>
+          </LinearGradient>
         ) : (
           <Card flat style={{ backgroundColor: c.surface2, borderWidth: 0 }}>
             <Row>
@@ -166,14 +171,10 @@ const styles = StyleSheet.create({
     paddingTop: space.xl,
     gap: space.lg,
   },
-  mine: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.lg },
-  mineLabel: {
-    fontFamily: font.bold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  mineTime: { fontFamily: font.numBold, fontSize: 44, color: ROAD.marka, lineHeight: 48 },
-  mineSub: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  mine: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderWidth: 1, padding: space.lg },
+  mineLabel: { fontFamily: font.medium, fontSize: 13, color: '#86958F' },
+  mineTime: { fontFamily: font.numBold, fontSize: 40, color: '#2EE59D', lineHeight: 46, letterSpacing: -1 },
+  mineSub: { fontFamily: font.medium, fontSize: 13, color: '#86958F' },
   mineRank: {
     alignItems: 'center',
     borderWidth: 2,
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  mineRankLabel: { fontFamily: font.semibold, fontSize: 10, color: 'rgba(255,255,255,0.6)' },
+  mineRankLabel: { fontFamily: font.medium, fontSize: 11, color: '#86958F' },
   mineRankNum: { fontFamily: font.numBold, fontSize: 30 },
   row: { paddingHorizontal: space.lg, paddingVertical: space.md },
 });

@@ -26,7 +26,7 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 | Bagian | Lokasi | Peran |
 | --- | --- | --- |
 | Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `masuk` hanya untuk yang belum). Tab ada di `(tabs)/`. |
-| Komponen | `src/components/` | UI bersama (`ui.tsx`), kartu aktivitas, profil, grafik, tab bar, peta, rambu petunjuk (`Rambu.tsx`), patok km (`Patok.tsx`), template bagikan (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
+| Komponen | `src/components/` | UI bersama (`ui.tsx`), kartu aktivitas, profil, grafik, tab bar, peta, banner petunjuk arah (`GuideBanner.tsx`), template bagikan (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
 | Perekam | `src/lib/recorder.ts` | Mesin status perekaman, filter titik GPS, stopwatch, penyimpanan lokal, pemandu rute. |
 | Lokasi | `src/lib/gps.ts`, `location-task.ts`, `sim.ts`, `location-source.ts` | Sumber posisi: GPS latar, GPS layar menyala, atau simulasi. |
 | API | `src/lib/api.ts` | Alamat server, `fetch` dengan token dan batas waktu, pesan error. |
@@ -217,8 +217,8 @@ Semua peta menerima props yang sama (`MapProps` di `components/map-types.ts`): `
 
 | Platform | Berkas | Mesin peta | Ubin |
 | --- | --- | --- | --- |
-| Web | `Map.web.tsx` (dipilih otomatis lewat ekstensi `.web`) | Leaflet | Esri World Light/Dark Gray Base + Reference |
-| Android, build sendiri (APK/AAB, development build) | `LibreMap.tsx` | MapLibre (`@maplibre/maplibre-react-native`) | Esri Gray Canvas yang sama, gaya raster |
+| Web | `Map.web.tsx` (dipilih otomatis lewat ekstensi `.web`) | Leaflet | OpenStreetMap, digelapkan dengan filter CSS pada lapisan ubin |
+| Android, build sendiri (APK/AAB, development build) | `LibreMap.tsx` | MapLibre (`@maplibre/maplibre-react-native`) | OpenStreetMap yang sama, raster digelapkan lewat cat raster |
 | Android di Expo Go | `NativeMap.tsx` | react-native-maps (Google Maps bawaan Expo Go) | Gaya Google dengan POI dan transit disembunyikan |
 | iOS (Expo Go maupun build) | `NativeMap.tsx` | react-native-maps (Apple Maps, `mutedStandard`) | Apple |
 
@@ -236,13 +236,13 @@ const WANT_LIBRE = Platform.OS === 'android' && Constants.executionEnvironment !
 
 Cadangan ini hanya menangkap kegagalan **memuat modul JavaScript**. Crash di dalam kode native MapLibre setelah peta tampil tidak bisa ditangkap dari JavaScript (lihat [Pencatat crash](#pencatat-crash-dan-errorboundary)).
 
-Alasan MapLibre di APK Android: react-native-maps di Android memakai Google Maps SDK yang butuh kunci API Google (dan akun penagihan). MapLibre dengan ubin Esri gratis dan tanpa kunci. react-native-maps juga membawa WorkManager, yang membuat APK tertutup saat dibuka setelah kodenya diacak R8; karena itu react-native-maps dikeluarkan dari build Android (lihat [build-apk.md](build-apk.md#bila-apk-tertutup-sendiri-crash)).
+Alasan MapLibre di APK Android: react-native-maps di Android memakai Google Maps SDK yang butuh kunci API Google (dan akun penagihan). MapLibre dengan ubin OpenStreetMap gratis dan tanpa kunci. react-native-maps juga membawa WorkManager, yang membuat APK tertutup saat dibuka setelah kodenya diacak R8; karena itu react-native-maps dikeluarkan dari build Android (lihat [build-apk.md](build-apk.md#bila-apk-tertutup-sendiri-crash)).
 
 Tabel di atas berlaku bila MapLibre berhasil dimuat; bila gagal, Android build sendiri juga jatuh ke `NativeMap.tsx` (lihat cadangan di bawah). Lihat juga [build-apk.md](build-apk.md#peta-di-apk-android-maplibre).
 
-Ubin Esri hanya tersedia sampai zoom 16; di atas itu MapLibre dan Leaflet memperbesar ubin zoom 16. Atribusi *© Esri, OpenStreetMap* wajib ditampilkan.
+Ubin OpenStreetMap tersedia sampai zoom 19 dan digelapkan di sisi app (lihat [desain.md](desain.md#peta)). Atribusi *© OpenStreetMap* wajib ditampilkan, dan permintaan ubin dari HP membawa User-Agent `Jejak/1.0` sesuai kebijakan ubin OSM. Alamat dan header ubin ada di `app/src/lib/tiles.ts`.
 
-**Cuplikan peta** (`StaticMap.tsx`) bukan peta interaktif: komponen ini memilih zoom tertinggi (maksimal 16) yang memuat seluruh garis dengan padding 28 px, menaruh ubin Esri Base sebagai gambar (`expo-image`, cache memori + disk), lalu menggambar garis dan titik awal/akhir dengan SVG. Dipakai di feed, daftar rute, daftar segmen, pemilih rute, dan layar simpan. Cuplikan hanya digambar bila ada minimal 2 titik.
+**Cuplikan peta** (`StaticMap.tsx`) bukan peta interaktif: komponen ini memilih zoom tertinggi (maksimal 17) yang memuat seluruh garis dengan padding 28 px, menaruh ubin OpenStreetMap sebagai gambar yang digelapkan dengan filter (`expo-image`, cache memori + disk), lalu menggambar garis dan titik awal/akhir dengan SVG. Dipakai di feed, daftar rute, daftar segmen, pemilih rute, dan layar simpan. Cuplikan hanya digambar bila ada minimal 2 titik.
 
 ---
 
@@ -263,7 +263,7 @@ Di APK (build rilis) tidak ada layar merah seperti saat pengembangan: error Java
 3. Saat app dibuka lagi, `Root` di `_layout.tsx` memanggil `takeLastCrash()` (bersamaan dengan `recorder.restore()`). Fungsi ini membaca laporan lalu **langsung menghapusnya**, jadi laporan hanya tampil sekali.
 4. Bila ada laporan, setelah font dan login siap, app menampilkan `CrashReportView` berjudul **Jejak sempat berhenti** dengan tombol **Tutup**. Setelah ditutup, app berjalan normal.
 
-`CrashReportView` (`components/CrashReport.tsx`) berlatar aspal dan mengajak pengguna memotret layar lalu mengirimkannya ke pengembang.
+`CrashReportView` (`components/CrashReport.tsx`) berlatar gelap dan mengajak pengguna memotret layar lalu mengirimkannya ke pengembang.
 
 ### Yang tidak tertangkap
 

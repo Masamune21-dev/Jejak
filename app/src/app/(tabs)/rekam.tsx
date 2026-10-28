@@ -10,7 +10,7 @@ import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import { DEFAULT_CENTER, endPins, type MapLine, type MapPin } from '@/components/map-types';
-import Rambu from '@/components/Rambu';
+import GuideBanner from '@/components/GuideBanner';
 import StaticMap from '@/components/StaticMap';
 import { Button, ErrorBox, Field, IconButton, Row, Sheet, Stat, T, TypePicker, type IconName } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
@@ -19,7 +19,7 @@ import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_L
 import { createGpsSource, currentPosition } from '@/lib/gps';
 import { elapsedMs, recorder, useRecorder } from '@/lib/recorder';
 import { createSimSource, loopAround } from '@/lib/sim';
-import { font, radius, ROAD, shadow, space, useColors } from '@/lib/theme';
+import { font, glow, radius, shadow, space, useColors } from '@/lib/theme';
 
 const SIM_SPEED: Record<ActivityType, number> = { run: 3.2, ride: 7, walk: 1.4 };
 
@@ -210,8 +210,8 @@ export default function RecordScreen() {
                   <RoundButton
                     size={76}
                     icon="pause"
-                    bg={c.slab}
-                    color="#fff"
+                    bg={c.surface2}
+                    color={c.text}
                     label="Jeda"
                     disabled={busy}
                     onPress={() => act(recorder.pause)}
@@ -295,7 +295,7 @@ function RoundButton({
             alignItems: 'center',
             justifyContent: 'center',
           },
-          shadow(c, 2),
+          bg === c.surface2 ? { borderWidth: 1, borderColor: c.line } : glow(bg, 0.7),
           { opacity: disabled ? 0.5 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
         ]}>
         <Ionicons
@@ -324,7 +324,7 @@ function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accur
   return (
     <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
       {sourceText && s.status !== 'finished' ? (
-        <View style={[styles.pill, { backgroundColor: c.surface }, shadow(c)]}>
+        <View style={[styles.pill, { backgroundColor: c.surface, borderColor: c.line }, shadow(c)]}>
           <View style={[styles.dot, { backgroundColor: goodGps ? c.start : c.gold }]} />
           <T v="small" color={c.text}>
             {sourceText}
@@ -334,8 +334,7 @@ function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accur
       ) : null}
 
       {showGuide && s.status === 'idle' ? (
-        <Rambu
-          color={ROAD.rambu}
+        <GuideBanner
           icon="navigate"
           title={s.route!.name}
           sub={`${g!.offRoute ? `Titik terdekat rute ${distance(g!.offM)} dari sini` : 'Kamu sudah di rute'}. Total ${distance(s.route!.distanceM)}`}
@@ -343,8 +342,8 @@ function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accur
       ) : null}
 
       {showGuide && s.status !== 'idle' && g!.offRoute ? (
-        <Rambu
-          color={ROAD.patok}
+        <GuideBanner
+          tone="danger"
           icon="warning"
           title="Keluar dari rute"
           sub={`${distance(g!.offM)} dari garis rute, sisa ${distance(g!.remainingM)}`}
@@ -352,8 +351,7 @@ function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accur
       ) : null}
 
       {showGuide && s.status !== 'idle' && !g!.offRoute ? (
-        <Rambu
-          color={ROAD.rambu}
+        <GuideBanner
           icon={turnIcon(g!.next?.text)}
           big={g!.next ? distance(g!.next.inM) : undefined}
           title={g!.next ? g!.next.text : 'Ikuti garis rute'}
@@ -530,14 +528,11 @@ const styles = StyleSheet.create({
     gap: 8,
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  guide: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.md },
-  turn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  guideTitle: { color: '#fff', fontFamily: font.bold, fontSize: 16 },
-  guideSub: { color: 'rgba(255,255,255,0.7)', fontFamily: font.medium, fontSize: 13 },
   clock: { fontFamily: font.numBold, fontSize: 72, lineHeight: 76, fontVariant: ['tabular-nums'] },
   vr: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
   routeRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, padding: space.md },

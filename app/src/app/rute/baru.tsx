@@ -13,7 +13,7 @@ import { Button, ErrorBox, Field, Row, Sheet, Stat, T, ToolButton, TypePicker } 
 import { api } from '@/lib/api';
 import { distanceParts, durationShort, TYPE_SPEED } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
-import { font, ROAD, space, useColors } from '@/lib/theme';
+import { font, space, useColors } from '@/lib/theme';
 
 export default function RouteBuilderScreen() {
   const c = useColors();
@@ -87,9 +87,9 @@ export default function RouteBuilderScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} me={here} initialCenter={here ?? undefined} fit={fitHere} onPress={add} />
-      <View style={[styles.hint, { backgroundColor: c.slab }]} pointerEvents="none">
-        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={ROAD.marka} />
-        <Text style={styles.hintText}>
+      <View style={[styles.hint, { backgroundColor: c.surface, borderColor: c.line }]} pointerEvents="none">
+        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={c.accent} />
+        <Text style={[styles.hintText, { color: c.text }]}>
           {waypoints.length === 0
             ? 'Ketuk peta untuk titik awal'
             : waypoints.length === 1
@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
+    borderWidth: 1,
   },
-  hintText: { color: '#fff', fontFamily: font.semibold, fontSize: 13 },
+  hintText: { fontFamily: font.semibold, fontSize: 13 },
 });

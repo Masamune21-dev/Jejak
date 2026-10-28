@@ -4,22 +4,10 @@ import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useIsDark } from '@/lib/theme';
+import { DARK_MAP_FILTER } from '@/lib/theme';
+import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { DEFAULT_CENTER, type MapProps } from './map-types';
-
-// Ubin Esri Gray Canvas (tanpa kunci API): dasar abu-abu bersih + lapisan nama jalan.
-const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
-const TILES = {
-  light: {
-    base: `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
-    labels: `${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
-  },
-  dark: {
-    base: `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
-    labels: `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
-  },
-};
 
 const pinHtml = (color: string, label?: string) =>
   `<div style="min-width:26px;height:26px;border-radius:13px;border:3px solid #fff;background:${color};` +
@@ -43,9 +31,7 @@ export default function JejakMap({
   interactive = true,
   bottomInset = 0,
 }: MapProps) {
-  const dark = useIsDark();
   const el = useRef<HTMLDivElement>(null);
-  const tiles = useRef<{ base: L.TileLayer; labels: L.TileLayer } | null>(null);
   const map = useRef<L.Map | null>(null);
   const drawn = useRef<L.LayerGroup | null>(null);
   const meMarker = useRef<L.Marker | null>(null);
@@ -67,11 +53,9 @@ export default function JejakMap({
       boxZoom: false,
       keyboard: false,
     }).setView(center, 15);
-    const opts = { maxZoom: 19, maxNativeZoom: 16 };
-    tiles.current = {
-      base: L.tileLayer(TILES.light.base, { ...opts, attribution: '© Esri, OpenStreetMap' }).addTo(m),
-      labels: L.tileLayer(TILES.light.labels, opts).addTo(m),
-    };
+    L.tileLayer(OSM_TILES, { maxZoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION }).addTo(m);
+    // Hanya ubin yang digelapkan; garis rute dan penanda tetap berwarna asli.
+    m.getPane('tilePane')!.style.filter = DARK_MAP_FILTER;
     m.attributionControl.setPrefix(false);
     drawn.current = L.layerGroup().addTo(m);
     m.on('click', (e: L.LeafletMouseEvent) => onPressRef.current?.([e.latlng.lat, e.latlng.lng]));
@@ -96,18 +80,12 @@ export default function JejakMap({
   }, []);
 
   useEffect(() => {
-    const t = dark ? TILES.dark : TILES.light;
-    tiles.current?.base.setUrl(t.base);
-    tiles.current?.labels.setUrl(t.labels);
-  }, [dark]);
-
-  useEffect(() => {
     const g = drawn.current;
     if (!g) return;
     g.clearLayers();
     for (const l of lines) {
       const weight = l.width ?? 4;
-      L.polyline(l.coords, { color: dark ? '#000' : '#fff', weight: weight + 4, opacity: 0.85, interactive: false }).addTo(g);
+      L.polyline(l.coords, { color: '#000', weight: weight + 4, opacity: 0.85, interactive: false }).addTo(g);
       L.polyline(l.coords, {
         color: l.color,
         weight,
@@ -122,7 +100,7 @@ export default function JejakMap({
         interactive: false,
       }).addTo(g);
     }
-  }, [lines, pins, dark]);
+  }, [lines, pins]);
 
   useEffect(() => {
     applyFit.current = () => {

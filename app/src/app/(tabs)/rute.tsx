@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -10,7 +11,7 @@ import { Card, Empty, ErrorBox, Header, Loading, Row, SectionTitle, Stat, T } fr
 import { api } from '@/lib/api';
 import { distanceParts, durationShort, TYPE_ICON, TYPE_LABEL, TYPE_SPEED } from '@/lib/format';
 import { useRefetchOnFocus } from '@/lib/hooks';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, glow, radius, space, useColors } from '@/lib/theme';
 
 export default function RoutesScreen() {
   const c = useColors();
@@ -29,17 +30,21 @@ export default function RoutesScreen() {
         <View style={{ gap: space.lg, marginHorizontal: -space.lg }}>
           <Header subtitle="Rencanakan jalurmu" title="Rute" />
           <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
-            <Pressable
-              onPress={() => router.push('/rute/baru')}
-              style={({ pressed }) => [styles.cta, { backgroundColor: c.slab, opacity: pressed ? 0.9 : 1 }]}>
-              <View style={[styles.ctaIcon, { backgroundColor: c.accent }]}>
-                <Ionicons name="add" size={28} color={c.accentInk} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ctaTitle}>Buat rute baru</Text>
-                <Text style={styles.ctaSub}>Ketuk titik di peta, garisnya otomatis mengikuti jalan.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+            <Pressable onPress={() => router.push('/rute/baru')} style={({ pressed }) => pressed && { opacity: 0.9 }}>
+              <LinearGradient
+                colors={['#16372A', '#0E1A15']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.cta, { borderColor: c.accent + '30' }]}>
+                <View style={[styles.ctaIcon, { backgroundColor: c.accent }, glow(c.accent, 0.6)]}>
+                  <Ionicons name="add" size={28} color={c.accentInk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ctaTitle, { color: c.text }]}>Buat rute baru</Text>
+                  <Text style={[styles.ctaSub, { color: c.muted }]}>Ketuk titik di peta, garisnya otomatis mengikuti jalan.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={c.muted} />
+              </LinearGradient>
             </Pressable>
             {q.error ? <ErrorBox error={q.error} onRetry={() => q.refetch()} /> : null}
             {routes.length > 0 ? <SectionTitle>Rute saya</SectionTitle> : null}
@@ -55,7 +60,9 @@ export default function RoutesScreen() {
         const d = distanceParts(item.distanceM);
         return (
           <Card onPress={() => router.push(`/rute/${item.id}`)} style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
-            <StaticMap points={item.preview} color={c.route} height={150} radius={0} />
+            <View style={{ padding: space.md, paddingBottom: 0 }}>
+              <StaticMap points={item.preview} color={c.route} height={150} radius={16} />
+            </View>
             <View style={{ padding: space.lg, gap: space.md }}>
               <Row gap={space.sm}>
                 <Ionicons name={TYPE_ICON[item.type]} size={16} color={c.muted} />
@@ -77,8 +84,8 @@ export default function RoutesScreen() {
 }
 
 const styles = StyleSheet.create({
-  cta: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.lg },
+  cta: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderWidth: 1, padding: space.lg },
   ctaIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  ctaTitle: { color: '#fff', fontFamily: font.bold, fontSize: 17 },
-  ctaSub: { color: 'rgba(255,255,255,0.7)', fontFamily: font.medium, fontSize: 13, marginTop: 2 },
+  ctaTitle: { fontFamily: font.bold, fontSize: 17 },
+  ctaSub: { fontFamily: font.medium, fontSize: 13, marginTop: 2 },
 });

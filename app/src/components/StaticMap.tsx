@@ -1,20 +1,20 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import type { LatLon } from '@shared/geo';
 
-import { useColors, useIsDark } from '@/lib/theme';
+import { DARK_MAP_FILTER, useColors } from '@/lib/theme';
+import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, osmTile, TILE_HEADERS } from '@/lib/tiles';
 
 const TILE = 256;
 
-/** Ubin Esri Light/Dark Gray Canvas: bersih, tanpa kunci API, wajib atribusi. */
-const MAX_ZOOM = 16;
-function tileUrl(dark: boolean, z: number, x: number, y: number) {
-  const layer = dark ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${layer}/MapServer/tile/${z}/${y}/${x}`;
-}
+/** Ubin cuplikan tidak perlu sedetail peta interaktif. */
+const MAX_ZOOM = Math.min(OSM_MAX_ZOOM, 17);
+
+/** iOS belum mendukung filter warna; di sana ubin terang diredupkan dengan lapisan gelap. */
+const FILTER_OK = Platform.OS !== 'ios';
 
 /** Proyeksi Web Mercator ke piksel dunia pada zoom z. */
 function project([lat, lon]: LatLon, z: number): [number, number] {
@@ -33,21 +33,22 @@ export default function StaticMap({
   color,
   style,
   radius = 16,
+  pad = 28,
 }: {
   points: LatLon[];
   height?: number;
   color?: string;
   style?: StyleProp<ViewStyle>;
   radius?: number;
+  /** Jarak tepi garis rute ke tepi peta (px). */
+  pad?: number;
 }) {
   const c = useColors();
-  const dark = useIsDark();
   const [width, setWidth] = useState(0);
   const lineColor = color ?? c.track;
 
   let content = null;
   if (width > 0 && points.length >= 2) {
-    const pad = 28;
     let z = MAX_ZOOM;
     for (; z > 2; z--) {
       const px = points.map((p) => project(p, z));
@@ -66,7 +67,7 @@ export default function StaticMap({
       if (ty < 0 || ty >= n) continue;
       for (let tx = Math.floor(ox / TILE); tx <= Math.floor((ox + width) / TILE); tx++) {
         const wx = ((tx % n) + n) % n;
-        tiles.push({ key: `${z}/${tx}/${ty}`, uri: tileUrl(dark, z, wx, ty), left: tx * TILE - ox, top: ty * TILE - oy });
+        tiles.push({ key: `${z}/${tx}/${ty}`, uri: osmTile(z, wx, ty), left: tx * TILE - ox, top: ty * TILE - oy });
       }
     }
     const line = px.map(([x, y]) => `${(x - ox).toFixed(1)},${(y - oy).toFixed(1)}`).join(' ');
@@ -74,20 +75,23 @@ export default function StaticMap({
     const [ex, ey] = [px[px.length - 1][0] - ox, px[px.length - 1][1] - oy];
     content = (
       <>
-        {tiles.map((t) => (
-          <Image
-            key={t.key}
-            source={{ uri: t.uri }}
-            style={{ position: 'absolute', left: t.left, top: t.top, width: TILE, height: TILE }}
-            cachePolicy="memory-disk"
-            transition={120}
-          />
-        ))}
+        <View style={[StyleSheet.absoluteFill, FILTER_OK && { filter: DARK_MAP_FILTER }]}>
+          {tiles.map((t) => (
+            <Image
+              key={t.key}
+              source={{ uri: t.uri, headers: TILE_HEADERS }}
+              style={{ position: 'absolute', left: t.left, top: t.top, width: TILE, height: TILE }}
+              cachePolicy="memory-disk"
+              transition={120}
+            />
+          ))}
+        </View>
+        {FILTER_OK ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,13,11,0.55)' }]} />}
         <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
           <Polyline
             points={line}
             fill="none"
-            stroke={dark ? '#000' : '#fff'}
+            stroke="#000"
             strokeOpacity={0.9}
             strokeWidth={7}
             strokeLinecap="round"
@@ -97,7 +101,7 @@ export default function StaticMap({
           <Circle cx={ex} cy={ey} r={5.5} fill={c.finish} stroke="#fff" strokeWidth={2} />
           <Circle cx={sx} cy={sy} r={5.5} fill={c.start} stroke="#fff" strokeWidth={2} />
         </Svg>
-        <Text style={[styles.attrib, { color: dark ? '#9aa' : '#667' }]}>© Esri, OpenStreetMap</Text>
+        <Text style={[styles.attrib, { color: c.muted }]}>{OSM_ATTRIBUTION}</Text>
       </>
     );
   }

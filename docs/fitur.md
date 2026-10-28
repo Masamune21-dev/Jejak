@@ -19,7 +19,7 @@ Panduan pemakaian Jejak per layar, sesuai perilaku kode saat ini. Nama berkas la
 13. [Profil dan statistik](#profil-dan-statistik)
 14. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
 
-Warna di app diambil dari benda di jalan (lihat [desain.md](desain.md)): **kuning marka** untuk aksi utama, **merah patok** untuk jalur rekaman dan rekor, **hijau rambu** untuk rute dan petunjuk arah, **oranye** untuk segmen, dan **aspal/beton** untuk teks dan latar.
+App selalu gelap dengan aksen hijau mint (lihat [desain.md](desain.md)): **hijau** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana, **oranye** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan.
 
 ---
 
@@ -35,7 +35,7 @@ Setelah masuk, app menampilkan lima tab (`app/src/app/(tabs)/`, tab bar di `comp
 | Segmen | `segmen.tsx` | Segmen terdekat atau paling ramai. |
 | Profil | `profil.tsx` | Profil, statistik, rekor pribadi, aktivitasmu. |
 
-Tombol Rekam berwarna kuning marka saat tidak ada rekaman. Selama ada rekaman yang belum disimpan (sedang merekam, dijeda, atau menunggu disimpan), tombol berubah merah dengan ikon denyut dan label **Merekam**, jadi kamu selalu tahu masih ada rekaman yang terbuka walau sedang di tab lain.
+Tombol Rekam di tengah tab bar berwarna hijau bercahaya saat tidak ada rekaman. Selama ada rekaman yang belum disimpan (sedang merekam, dijeda, atau menunggu disimpan), tombol berubah merah dengan ikon denyut dan label **Merekam**, jadi kamu selalu tahu masih ada rekaman yang terbuka walau sedang di tab lain.
 
 Layar lain dibuka di atas tab: detail aktivitas (`aktivitas/[id]`), buat segmen (`aktivitas/[id]/segmen`), bagikan (`aktivitas/[id]/bagikan`), detail segmen (`segmen/[id]`), rute baru (`rute/baru`), detail rute (`rute/[id]`), profil atlet lain (`atlet/[id]`), dan cari teman (`cari`).
 
@@ -69,12 +69,13 @@ Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai ap
 
 Layar `(tabs)/index.tsx`.
 
-- **Sapaan dan tanggal**: "Selamat pagi" (sebelum 11.00), "siang" (sebelum 15.00), "sore" (sebelum 18.00), atau "malam", plus nama depanmu.
-- **Kartu Minggu ini** (panel aspal): total jarak minggu berjalan (Senin–Minggu) dari semua jenis aktivitas, baris "N aktivitas, Xj Ym bergerak", dan batang jarak 8 minggu terakhir. Batang paling kanan (minggu ini) berwarna kuning marka.
+- **Sapaan dan tanggal** dengan avatarmu (ketuk untuk membuka profil): "Selamat pagi" (sebelum 11.00), "siang" (sebelum 15.00), "sore" (sebelum 18.00), atau "malam", plus nama depanmu.
+- **Kartu Minggu ini** (gradasi hijau tua): total jarak minggu berjalan (Senin–Minggu) dari semua jenis aktivitas, pil perbandingan dengan minggu lalu (misalnya *12% lebih jauh dari minggu lalu*), baris "N aktivitas, Xj Ym bergerak", dan ikon jejak bercahaya.
+- **Aksi cepat**: empat kotak, yaitu **Rekam** (hijau), **Buat rute**, **Segmen**, dan **Teman** (cari teman).
 - **Aktivitas terbaru**: aktivitasmu sendiri dan aktivitas orang yang kamu ikuti, terbaru di atas. Daftar memuat 20 aktivitas sekaligus dan memuat berikutnya otomatis saat digulir ke bawah. Tarik ke bawah untuk menyegarkan.
 - Tombol **Cari teman** (ikon orang+) di kanan atas.
 
-Setiap aktivitas tampil selebar layar (peta dari tepi ke tepi, dipisah garis tipis) dan menampilkan:
+Setiap aktivitas tampil sebagai kartu bergradasi dengan peta bersudut bulat di dalamnya, dan menampilkan:
 
 - nama atlet (ketuk untuk membuka profilnya) dan satu kalimat jenis + waktu, misalnya *Lari, hari ini pukul 06.12*, *Bersepeda, kemarin pukul 16.40*, *Jalan kaki, 3 hari lalu*, atau *Lari, 12 Okt 2026* untuk yang lebih dari seminggu;
 - lencana **N PR** bila aktivitas itu memecahkan rekor pribadi atau rekor segmen;
@@ -111,7 +112,7 @@ Bila izin ditolak atau GPS gagal menyala, pesan error tampil di panel dan rekama
   
   Angka dalam kurung, misalnya *(±6 m)*, adalah akurasi GPS. Titik hijau berarti akurasi 20 m atau lebih baik, titik kuning berarti lebih buruk.
 - Panel bawah menampilkan **Waktu** (stopwatch waktu aktif, tidak termasuk jeda), **Jarak** (km), dan **Pace** atau **Kecepatan**.
-- Peta mengikuti posisimu. Jalur yang sudah terekam digambar merah.
+- Peta mengikuti posisimu. Jalur yang sudah terekam digambar hijau.
 - Tombol **Jeda** menghentikan GPS dan stopwatch.
 
 Tidak ada jeda otomatis: berdiri diam tetap menambah stopwatch. Namun saat aktivitas disimpan, server menghitung **waktu bergerak** terpisah (lihat [algoritma.md](algoritma.md#waktu-bergerak)).
@@ -121,7 +122,7 @@ Tidak ada jeda otomatis: berdiri diam tetap menambah stopwatch. Namun saat aktiv
 Label stopwatch berubah menjadi **Dijeda**. Pilih:
 
 - **Lanjut**: merekam lagi. Jalur setelah jeda menjadi bagian baru, sehingga jarak dan waktu selama jeda tidak dihitung.
-- **Tahan untuk selesai**: tombol merah berbendera ini harus **ditekan dan ditahan** sekitar 0,6 detik, supaya rekaman tidak tertutup karena tersentuh tanpa sengaja. Bila hanya diketuk, labelnya berubah merah menjadi *Tekan lebih lama* selama 2,5 detik dan tidak terjadi apa-apa. Setelah ditahan, rekaman ditutup dan layar simpan terbuka.
+- **Tahan untuk selesai**: tombol hijau berbendera ini harus **ditekan dan ditahan** sekitar 0,6 detik, supaya rekaman tidak tertutup karena tersentuh tanpa sengaja. Bila hanya diketuk, labelnya berubah merah menjadi *Tekan lebih lama* selama 2,5 detik dan tidak terjadi apa-apa. Setelah ditahan, rekaman ditutup dan layar simpan terbuka.
 
 ### Simpan atau buang
 
@@ -155,12 +156,12 @@ Kecepatan simulasi: lari 3,2 m/s, sepeda 7 m/s, jalan 1,4 m/s, dengan variasi ac
 
 Ada dua cara memasang rute: memilihnya di layar Rekam (baris **Rute**), atau menekan **Ikuti rute ini** di detail rute. Rute hanya bisa dipasang selama belum ada rekaman yang berjalan.
 
-Selama merekam dengan rute, petunjuk tampil sebagai **rambu** di atas peta: pelat berwarna dengan bingkai putih di dalamnya, panah putih besar, dan huruf putih, seperti papan petunjuk arah di jalan (komponen `components/Rambu.tsx`). Warnanya tetap, tidak ikut tema terang/gelap.
+Selama merekam dengan rute, petunjuk tampil sebagai **banner** di atas peta: kartu gelap dengan kotak ikon belokan yang bercahaya, jarak besar, dan teks petunjuk (komponen `components/GuideBanner.tsx`).
 
-- **Rambu hijau (belokan)** menampilkan jarak ke belokan berikutnya dalam angka besar (misalnya *120 m* atau *1,20 km*), teks petunjuknya (misalnya *Belok kiri ke Jalan Pemuda*), dan *Sisa X* jarak rute. Panah menyesuaikan teks: kiri, kanan, putar/bundaran, atau bendera untuk *Sampai di tujuan*. Bila tidak ada belokan lagi, tertulis *Ikuti garis rute*.
+- **Banner hijau (belokan)** menampilkan jarak ke belokan berikutnya dalam angka besar (misalnya *120 m* atau *1,20 km*), teks petunjuknya (misalnya *Belok kiri ke Jalan Pemuda*), dan *Sisa X* jarak rute. Panah menyesuaikan teks: kiri, kanan, putar/bundaran, atau bendera untuk *Sampai di tujuan*. Bila tidak ada belokan lagi, tertulis *Ikuti garis rute*.
 - Satu petunjuk tetap ditampilkan sampai kamu melewatinya sekitar 5 m, lalu berganti ke petunjuk berikutnya.
 - **HP bergetar** (getaran kuat) sekali saat belokan berikutnya tinggal kurang dari 30 m.
-- **Rambu merah (keluar dari rute)**: bila posisimu lebih dari 40 m dari garis rute, rambu berubah merah dengan ikon peringatan, bertuliskan *Keluar dari rute* dan *X dari garis rute, sisa Y*. HP bergetar (getaran peringatan) sekali setiap kali kamu mulai keluar jalur.
+- **Banner merah (keluar dari rute)**: bila posisimu lebih dari 40 m dari garis rute, banner berubah merah dengan ikon peringatan, bertuliskan *Keluar dari rute* dan *X dari garis rute, sisa Y*. HP bergetar (getaran peringatan) sekali setiap kali kamu mulai keluar jalur.
 - Kemajuan di rute selalu dihitung maju: di rute putaran atau jalan yang dilewati pergi-pulang, posisi tidak meloncat ke bagian rute yang arahnya berlawanan.
 
 Getaran tidak ada di versi web.
@@ -175,7 +176,7 @@ Perkiraan dihitung dari jarak dibagi kecepatan rata-rata: lari 2,8 m/s, sepeda 5
 
 **Detail rute** (`rute/[id].tsx`) menampilkan:
 
-- peta rute (garis hijau) dengan pin hijau **A** (awal) dan pin merah **B** (akhir), atau satu pin **A/B** bila ujung-ujungnya berjarak kurang dari 30 m (rute putaran);
+- peta rute (garis biru) dengan pin hijau **A** (awal) dan pin merah **B** (akhir), atau satu pin **A/B** bila ujung-ujungnya berjarak kurang dari 30 m (rute putaran);
 - nama, pembuat, **Jarak**, **Perkiraan**, dan **Belokan** (jumlah petunjuk, termasuk *Sampai di tujuan*);
 - tombol **Ikuti rute ini**: memasang rute ke perekam lalu membuka tab Rekam. Nonaktif bila ada rekaman berjalan (*Selesaikan rekaman yang sedang berjalan dulu.*);
 - **Petunjuk arah**: daftar belokan dengan jaraknya dari awal rute;
@@ -188,7 +189,7 @@ Perkiraan dihitung dari jarak dibagi kecepatan rata-rata: lari 2,8 m/s, sepeda 5
 Layar `rute/baru.tsx`.
 
 1. Peta dibuka di posisimu.
-2. **Ketuk peta** untuk menaruh titik. Semua titik bernomor; titik terakhir merah, yang lain hijau. Garis rute juga hijau. Maksimal 50 titik.
+2. **Ketuk peta** untuk menaruh titik. Semua titik bernomor; titik terakhir merah, yang lain hijau. Garis rute biru. Maksimal 50 titik.
 3. Setiap kali titik berubah, app meminta rute yang **mengikuti jalan** ke server (OpenStreetMap lewat OSRM), ditunda 350 ms supaya ketukan beruntun tidak membanjiri server. Selama menunggu, garis sebelumnya tetap tampil dan petunjuk di atas peta bertuliskan *Menghitung rute…*.
 4. Pilih jenis (Lari / Bersepeda / Jalan kaki). Lari dan jalan memakai profil pejalan kaki; sepeda memakai profil sepeda, jadi garisnya bisa berbeda.
 
@@ -213,7 +214,7 @@ Isi **nama rute** (maksimal 80 karakter), lalu **Simpan rute**. Tombol aktif bil
 
 Layar `aktivitas/[id]/index.tsx`.
 
-**Peta** menampilkan jalur (merah, tiap bagian setelah jeda digambar terpisah) dengan titik hijau di awal dan merah di akhir.
+**Peta** menampilkan jalur (hijau, tiap bagian setelah jeda digambar terpisah) dengan titik hijau di awal dan merah di akhir.
 
 **Kepala**: atlet (ketuk untuk membuka profilnya), kalimat jenis + waktu (*Lari, hari ini pukul 06.12*), dan judul.
 
@@ -236,11 +237,11 @@ Rumus lengkapnya ada di [algoritma.md](algoritma.md).
 
 **Segmen**: daftar segmen yang dilewati aktivitas ini, berurutan sesuai posisi di jalur. Tiap baris menampilkan nama segmen, panjang, pace/kecepatan, waktu, lencana **PR** bila memecahkan waktu terbaikmu sebelumnya di segmen itu, dan lencana **#peringkat**, yaitu peringkat waktu ini dibanding waktu terbaik atlet lain. Ketuk satu baris untuk menyorot potongan jalurnya di peta (oranye) dan memunculkan tombol **Lihat leaderboard**.
 
-**Split per km**: satu baris per kilometer. Nomor km ditampilkan sebagai **patok kilometer** kecil (tugu putih berkepala merah, komponen `components/Patok.tsx`), diikuti pace (lari/jalan) atau km/j (sepeda) dan sebuah batang:
+**Split per km**: satu baris per kilometer. Nomor km ditampilkan dalam bulatan kecil (hijau untuk km tercepat), diikuti pace (lari/jalan) atau km/j (sepeda) dan sebuah batang:
 
 - panjang batang = kecepatan split itu dibanding split tercepat (`tercepat ÷ split × 100%`, minimal 12%), jadi selisih kecil tampak kecil, tidak dibesar-besarkan;
-- batang **merah** menandai km tercepat. Untuk penanda ini hanya split minimal 900 m yang dibandingkan, jadi kilometer terakhir yang pendek tidak dianggap tercepat;
-- keterangan di bawahnya: *Pace per km. Batang merah menandai km tercepat.* (sepeda: *Kecepatan per km dalam km/j. …*).
+- batang **hijau** menandai km tercepat. Untuk penanda ini hanya split minimal 900 m yang dibandingkan, jadi kilometer terakhir yang pendek tidak dianggap tercepat;
+- keterangan di bawahnya: *Pace per km. Batang hijau menandai km tercepat.* (sepeda: *Kecepatan per km dalam km/j. …*).
 
 Sisa kilometer terakhir yang kurang dari 50 m tidak ditampilkan.
 
@@ -363,7 +364,7 @@ Setiap kartu: cuplikan peta (garis oranye), nama, lalu panjang dan jumlah atlet 
 - peta segmen (garis oranye) dengan pin **S** dan **F** (atau satu pin **S/F** bila ujungnya berjarak kurang dari 30 m);
 - jenis (lari/bersepeda), nama, pembuat;
 - **Panjang**, **Atlet** (jumlah orang yang punya waktu di segmen ini), **Rekor** (waktu tercepat; hanya diisi pada filter *Semua*);
-- panel aspal **Waktu terbaikmu**: waktu (kuning), lalu *pace/kecepatan, tanggal*, dan **Peringkat** (bingkai emas untuk peringkat 1–3). Peringkat ini selalu dihitung terhadap semua atlet. Bila belum punya waktu: *Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.*;
+- kartu hijau tua **Waktu terbaikmu**: waktu (hijau), lalu *pace/kecepatan, tanggal*, dan **Peringkat** (bingkai emas untuk peringkat 1–3). Peringkat ini selalu dihitung terhadap semua atlet. Bila belum punya waktu: *Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.*;
 - **Leaderboard** dengan pilihan:
   - **Semua**: waktu terbaik tiap atlet;
   - **Yang kuikuti**: hanya kamu dan orang yang kamu ikuti.

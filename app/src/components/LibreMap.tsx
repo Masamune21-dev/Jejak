@@ -12,42 +12,34 @@ import { StyleSheet } from 'react-native';
 
 import { bounds } from '@shared/geo';
 
-import { useIsDark } from '@/lib/theme';
+import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { MeDot, PinView } from './map-markers';
 import { DEFAULT_CENTER, type MapLine, type MapProps } from './map-types';
 
-// Ubin Esri Gray Canvas (sama dengan versi web dan cuplikan peta): tanpa kunci API.
-const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
-
-function esriStyle(dark: boolean): StyleSpecification {
-  const tone = dark ? 'Dark' : 'Light';
-  return {
-    version: 8,
-    sources: {
-      base: {
-        type: 'raster',
-        tiles: [`${ESRI}/World_${tone}_Gray_Base/MapServer/tile/{z}/{y}/{x}`],
-        tileSize: 256,
-        maxzoom: 16,
-        attribution: '© Esri, OpenStreetMap',
-      },
-      labels: {
-        type: 'raster',
-        tiles: [`${ESRI}/World_${tone}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`],
-        tileSize: 256,
-        maxzoom: 16,
+// Ubin OpenStreetMap (sama dengan versi web dan cuplikan peta), digelapkan lewat cat raster:
+// kecerahan dibalik (min 1, max 0) lalu rona diputar 180° supaya warna asli kembali.
+const STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: { type: 'raster', tiles: [OSM_TILES], tileSize: 256, maxzoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION },
+  },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#080D0B' } },
+    {
+      id: 'osm',
+      type: 'raster',
+      source: 'osm',
+      paint: {
+        'raster-brightness-min': 0.92,
+        'raster-brightness-max': 0.04,
+        'raster-hue-rotate': 180,
+        'raster-saturation': -0.4,
+        'raster-contrast': -0.1,
       },
     },
-    layers: [
-      { id: 'base', type: 'raster', source: 'base' },
-      { id: 'labels', type: 'raster', source: 'labels' },
-    ],
-  };
-}
-
-const LIGHT = esriStyle(false);
-const DARK = esriStyle(true);
+  ],
+};
 
 function collection(lines: MapLine[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
   return {
@@ -75,7 +67,6 @@ export default function LibreMap({
   interactive = true,
   bottomInset = 0,
 }: MapProps) {
-  const dark = useIsDark();
   const camera = useRef<CameraRef>(null);
   const loaded = useRef(false);
   const center = initialCenter ?? me ?? fit?.[0] ?? DEFAULT_CENTER;
@@ -112,7 +103,7 @@ export default function LibreMap({
   return (
     <MapLibreView
       style={[styles.map, style]}
-      mapStyle={dark ? DARK : LIGHT}
+      mapStyle={STYLE}
       onPress={(e) => onPress?.([e.nativeEvent.lngLat[1], e.nativeEvent.lngLat[0]])}
       onDidFinishLoadingMap={() => {
         loaded.current = true;
@@ -132,7 +123,7 @@ export default function LibreMap({
           id="garis-tepi"
           type="line"
           layout={ROUND}
-          paint={{ 'line-color': dark ? '#000000' : '#ffffff', 'line-opacity': 0.9, 'line-width': ['+', ['get', 'width'], 4] }}
+          paint={{ 'line-color': '#000000', 'line-opacity': 0.9, 'line-width': ['+', ['get', 'width'], 4] }}
         />
         <Layer
           id="garis-isi"

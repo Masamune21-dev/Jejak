@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { useRefetchOnFocus } from '@/lib/hooks';
-import { font, radius, ROAD, space, useColors } from '@/lib/theme';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
 import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
@@ -63,25 +64,24 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
 
   const header = (
     <View style={{ gap: space.lg }}>
-      <View
+      <LinearGradient
+        colors={['#16372A', '#0B1310']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.6, y: 1 }}
         style={[
           styles.hero,
-          { backgroundColor: c.slab, paddingTop: (inTab ? insets.top : 0) + space.xl, marginHorizontal: -space.lg },
+          { borderColor: c.accent + '30', paddingTop: (inTab ? insets.top : 0) + space.xl, marginHorizontal: -space.lg },
         ]}>
         {inTab ? (
           <View style={[styles.heroActions, { top: insets.top + space.sm }]}>
             <IconButton
               icon="person-add-outline"
               label="Cari teman"
-              bg="rgba(255,255,255,0.12)"
-              color="#fff"
               onPress={() => router.push('/cari')}
             />
             <IconButton
               icon="log-out-outline"
               label="Keluar"
-              bg="rgba(255,255,255,0.12)"
-              color="#fff"
               onPress={async () => {
                 if (await confirm('Keluar', 'Keluar dari akun ini?', 'Keluar')) await signOut();
               }}
@@ -111,12 +111,12 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
             style={{ alignSelf: 'stretch' }}
           />
         )}
-        <View style={[styles.totals, { borderTopColor: 'rgba(255,255,255,0.12)' }]}>
+        <View style={[styles.totals, { borderTopColor: c.line }]}>
           <HeroStat label="Aktivitas" value={String(p.totals.count)} />
           <HeroStat label="Jarak" value={total.value} unit={total.unit} />
           <HeroStat label="Waktu" value={durationShort(p.totals.movingS)} />
         </View>
-      </View>
+      </LinearGradient>
 
       <TypePicker value={type} onChange={setType} />
       {stats.error ? <ErrorBox error={stats.error} onRetry={() => stats.refetch()} /> : null}
@@ -219,29 +219,27 @@ const styles = StyleSheet.create({
     gap: space.md,
     paddingHorizontal: space.lg,
     paddingBottom: space.lg,
+    borderWidth: 1,
+    borderTopWidth: 0,
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
   },
   heroActions: { position: 'absolute', right: space.lg, flexDirection: 'row', gap: space.sm },
-  name: { color: '#fff', fontFamily: font.black, fontSize: 24 },
-  handle: { color: 'rgba(255,255,255,0.6)', fontFamily: font.medium, fontSize: 14 },
-  count: { color: 'rgba(255,255,255,0.65)', fontFamily: font.medium, fontSize: 14 },
-  countNum: { color: '#fff', fontFamily: font.bold },
+  name: { color: '#EEF4F1', fontFamily: font.bold, fontSize: 24, letterSpacing: -0.3 },
+  handle: { color: '#86958F', fontFamily: font.medium, fontSize: 14 },
+  count: { color: '#86958F', fontFamily: font.medium, fontSize: 14 },
+  countNum: { color: '#EEF4F1', fontFamily: font.bold },
   totals: { flexDirection: 'row', alignSelf: 'stretch', borderTopWidth: 1, paddingTop: space.md, marginTop: space.xs },
-  heroNum: { color: ROAD.marka, fontFamily: font.numBold, fontSize: 30 },
-  heroUnit: { color: 'rgba(255,255,255,0.7)', fontFamily: font.semibold, fontSize: 13 },
-  heroLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontFamily: font.bold,
-    fontSize: 10,
-  },
+  heroNum: { color: '#2EE59D', fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5 },
+  heroUnit: { color: '#86958F', fontFamily: font.semibold, fontSize: 13 },
+  heroLabel: { color: '#86958F', fontFamily: font.medium, fontSize: 12 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile: {
     flexGrow: 1,
     flexBasis: '45%',
     borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     padding: space.md,
-    gap: 2,
+    gap: 4,
   },
 });

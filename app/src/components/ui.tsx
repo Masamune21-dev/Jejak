@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -18,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ActivityType } from '@shared/api';
 
 import { initials, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, radius, shadow, space, useColors } from '@/lib/theme';
+import { font, glow, radius, shadow, space, useColors } from '@/lib/theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -27,14 +28,14 @@ export type IconName = ComponentProps<typeof Ionicons>['name'];
 type Variant = 'h1' | 'h2' | 'h3' | 'body' | 'strong' | 'small' | 'label' | 'num';
 
 const VARIANT: Record<Variant, TextStyle> = {
-  h1: { fontFamily: font.black, fontSize: 28, letterSpacing: -0.6, lineHeight: 34 },
-  h2: { fontFamily: font.black, fontSize: 20, letterSpacing: -0.3, lineHeight: 26 },
-  h3: { fontFamily: font.bold, fontSize: 16, lineHeight: 22 },
+  h1: { fontFamily: font.bold, fontSize: 26, letterSpacing: -0.5, lineHeight: 32 },
+  h2: { fontFamily: font.bold, fontSize: 19, letterSpacing: -0.2, lineHeight: 25 },
+  h3: { fontFamily: font.semibold, fontSize: 16, lineHeight: 22 },
   body: { fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
   strong: { fontFamily: font.semibold, fontSize: 15, lineHeight: 21 },
   small: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
-  label: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16 },
-  num: { fontFamily: font.numBold, fontSize: 26, fontVariant: ['tabular-nums'] },
+  label: { fontFamily: font.medium, fontSize: 12, lineHeight: 16 },
+  num: { fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
 };
 
 export function T({
@@ -91,9 +92,12 @@ export function Num({
   const c = useColors();
   return (
     <Text style={[{ color: color ?? c.text }, style]} numberOfLines={1}>
-      <Text style={{ fontFamily: font.numBold, fontSize: size, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ fontFamily: font.numBold, fontSize: size, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{value}</Text>
       {unit ? (
-        <Text style={{ fontFamily: font.semibold, fontSize: Math.max(11, size * 0.42), color: c.muted }}> {unit}</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: Math.max(11, size * 0.45), color: c.muted }}>
+          {' '}
+          {unit}
+        </Text>
       ) : null}
     </Text>
   );
@@ -103,7 +107,7 @@ export function Stat({
   label,
   value,
   unit,
-  size = 26,
+  size = 24,
   align = 'left',
 }: {
   label: string;
@@ -117,6 +121,20 @@ export function Stat({
       <T v="label">{label}</T>
       <Num value={value} unit={unit} size={size} />
     </View>
+  );
+}
+
+/** Kotak kecil berisi ikon + label + nilai (seperti "Indoor 24°C" di referensi). */
+export function StatTile({ icon, label, value, unit, color }: { icon: IconName; label: string; value: string; unit?: string; color?: string }) {
+  const c = useColors();
+  return (
+    <Card style={styles.statTile}>
+      <Row gap={8}>
+        <Ionicons name={icon} size={18} color={color ?? c.accent} />
+        <T v="label">{label}</T>
+      </Row>
+      <Num value={value} unit={unit} size={20} />
+    </Card>
   );
 }
 
@@ -151,8 +169,8 @@ export function Header({ title, subtitle, right }: { title: string; subtitle?: s
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.header, { paddingTop: insets.top + space.md, backgroundColor: c.bg }]}>
-      <View style={{ flex: 1 }}>
-        {subtitle ? <T v="label">{subtitle}</T> : null}
+      <View style={{ flex: 1, gap: 2 }}>
+        {subtitle ? <T v="small">{subtitle}</T> : null}
         <T v="h1">{title}</T>
       </View>
       {right}
@@ -160,36 +178,33 @@ export function Header({ title, subtitle, right }: { title: string; subtitle?: s
   );
 }
 
-/** Blok konten datar berbingkai tipis; bayangan hanya untuk benda yang melayang (`raised`). */
+/** Kartu dengan gradasi halus dan garis tepi tipis. */
 export function Card({
   children,
   style,
   onPress,
   flat,
-  raised,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
-  /** Tanpa bingkai (untuk blok berwarna). */
+  /** Tanpa garis tepi (untuk kartu berwarna khusus). */
   flat?: boolean;
   raised?: boolean;
 }) {
   const c = useColors();
   const body = (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: c.surface, borderColor: flat ? 'transparent' : c.line },
-        raised && shadow(c),
-        style,
-      ]}>
+    <LinearGradient
+      colors={[c.cardTop, c.cardBottom]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.4, y: 1 }}
+      style={[styles.card, { borderColor: flat ? 'transparent' : c.line }, style]}>
       {children}
-    </View>
+    </LinearGradient>
   );
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] }}>
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && { opacity: 0.88 }}>
       {body}
     </Pressable>
   );
@@ -213,7 +228,7 @@ export function Sheet({
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Di layar tab: beri ruang untuk tombol Rekam yang menonjol dari tab bar. */
+  /** Di layar tab: beri ruang untuk tombol tengah yang menonjol dari tab bar. */
   aboveTabBar?: boolean;
   onHeight?: (h: number) => void;
 }) {
@@ -223,7 +238,7 @@ export function Sheet({
   return (
     <View
       onLayout={onHeight ? (e) => onHeight(Math.round(e.nativeEvent.layout.height)) : undefined}
-      style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: bottom }, shadow(c, 2), style]}>
+      style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.line, paddingBottom: bottom }, shadow(c, 2), style]}>
       <View style={[styles.grabber, { backgroundColor: c.line }]} />
       {children}
     </View>
@@ -232,8 +247,10 @@ export function Sheet({
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <Row style={{ justifyContent: 'space-between', marginTop: space.md, marginBottom: -space.xs }}>
-      <T v="h2">{children}</T>
+    <Row style={{ justifyContent: 'space-between', marginTop: space.sm, marginBottom: -space.xs }}>
+      <T v="h2" size={18}>
+        {children}
+      </T>
       {right}
     </Row>
   );
@@ -263,9 +280,10 @@ export function Button({
   small?: boolean;
 }) {
   const c = useColors();
-  const bg = { primary: c.accent, ink: c.ink, soft: c.surface2, danger: c.danger, ghost: 'transparent' }[kind];
-  const fg = { primary: c.accentInk, ink: c.inkText, soft: c.text, danger: '#fff', ghost: c.text }[kind];
+  const bg = { primary: c.accent, ink: c.surface2, soft: c.surface2, danger: c.danger, ghost: 'transparent' }[kind];
+  const fg = { primary: c.accentInk, ink: c.text, soft: c.text, danger: '#fff', ghost: c.text }[kind];
   const off = disabled || loading;
+  const bordered = kind === 'ink' || kind === 'soft';
   return (
     <Pressable
       onPress={onPress}
@@ -276,6 +294,8 @@ export function Button({
         styles.button,
         small && styles.buttonSmall,
         { backgroundColor: bg, opacity: off ? 0.45 : pressed ? 0.85 : 1 },
+        bordered && { borderWidth: 1, borderColor: c.line },
+        kind === 'primary' && !off && glow(c.accent, 0.6),
         style,
       ]}>
       {loading ? (
@@ -297,7 +317,7 @@ export function IconButton({
   label,
   color,
   bg,
-  size = 40,
+  size = 42,
   disabled,
 }: {
   icon: IconName;
@@ -324,10 +344,12 @@ export function IconButton({
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: bg ?? c.surface2,
+          borderWidth: bg === 'transparent' ? 0 : 1,
+          borderColor: c.line,
         },
         { opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
       ]}>
-      <Ionicons name={icon} size={Math.round(size * 0.48)} color={color ?? c.text} />
+      <Ionicons name={icon} size={Math.round(size * 0.46)} color={color ?? c.text} />
     </Pressable>
   );
 }
@@ -348,34 +370,46 @@ export function ToolButton({
 }) {
   return (
     <View style={{ alignItems: 'center', gap: 4, flex: 1 }}>
-      <IconButton icon={icon} label={label} onPress={onPress} color={color} disabled={disabled} size={44} />
-      <T v="small" size={11} center numberOfLines={1}>
+      <IconButton icon={icon} label={label} onPress={onPress} color={color} disabled={disabled} size={46} />
+      <T v="label" size={11} center numberOfLines={1}>
         {label}
       </T>
     </View>
   );
 }
 
-export function Chip({
-  label,
-  icon,
-  active,
-  onPress,
-}: {
-  label: string;
-  icon?: IconName;
-  active?: boolean;
-  onPress: () => void;
-}) {
+/** Kotak aksi cepat: ikon + label di dalam kotak bersudut bulat; aktif = hijau. */
+export function ActionTile({ icon, label, onPress, active }: { icon: IconName; label: string; onPress: () => void; active?: boolean }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.actionTile,
+        { backgroundColor: active ? c.accent : c.surface, borderColor: active ? c.accent : c.line, opacity: pressed ? 0.85 : 1 },
+        active && glow(c.accent, 0.6),
+      ]}>
+      <Ionicons name={icon} size={22} color={active ? c.accentInk : c.text} />
+      <Text style={{ color: active ? c.accentInk : c.muted, fontFamily: font.semibold, fontSize: 12 }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function Chip({ label, icon, active, onPress }: { label: string; icon?: IconName; active?: boolean; onPress: () => void }) {
   const c = useColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
-      style={({ pressed }) => [styles.chip, { backgroundColor: active ? c.ink : c.surface2, opacity: pressed ? 0.85 : 1 }]}>
-      {icon ? <Ionicons name={icon} size={16} color={active ? c.inkText : c.text} /> : null}
-      <Text style={{ color: active ? c.inkText : c.text, fontFamily: font.semibold, fontSize: 14 }}>{label}</Text>
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: active ? c.accent : c.surface2, borderColor: active ? c.accent : c.line, opacity: pressed ? 0.85 : 1 },
+      ]}>
+      {icon ? <Ionicons name={icon} size={16} color={active ? c.accentInk : c.text} /> : null}
+      <Text style={{ color: active ? c.accentInk : c.text, fontFamily: font.semibold, fontSize: 14 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -402,7 +436,7 @@ export function Segmented<K extends string>({
 }) {
   const c = useColors();
   return (
-    <View style={[styles.segmented, { backgroundColor: c.surface2 }]}>
+    <View style={[styles.segmented, { backgroundColor: c.surface2, borderColor: c.line }]}>
       {options.map((o) => {
         const on = o.key === value;
         return (
@@ -411,8 +445,8 @@ export function Segmented<K extends string>({
             onPress={() => onChange(o.key)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={[styles.segment, on && { backgroundColor: c.surface, ...shadow(c) }]}>
-            <Text style={{ color: on ? c.text : c.muted, fontFamily: font.semibold, fontSize: 14 }}>{o.label}</Text>
+            style={[styles.segment, on && { backgroundColor: c.accent }]}>
+            <Text style={{ color: on ? c.accentInk : c.muted, fontFamily: font.semibold, fontSize: 14 }}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -425,12 +459,12 @@ export function Field({ label, icon, ...props }: TextInputProps & { label?: stri
   return (
     <View style={{ gap: 6 }}>
       {label ? <T v="label">{label}</T> : null}
-      <View style={[styles.input, { backgroundColor: c.surface2 }]}>
+      <View style={[styles.input, { backgroundColor: c.surface2, borderColor: c.line }]}>
         {icon ? <Ionicons name={icon} size={18} color={c.muted} /> : null}
         <TextInput
           placeholderTextColor={c.muted}
           {...props}
-          style={[{ flex: 1, color: c.text, fontFamily: font.medium, fontSize: 16, paddingVertical: 13 }, props.style]}
+          style={[{ flex: 1, color: c.text, fontFamily: font.medium, fontSize: 16, paddingVertical: 14 }, props.style]}
         />
       </View>
     </View>
@@ -439,7 +473,7 @@ export function Field({ label, icon, ...props }: TextInputProps & { label?: stri
 
 // --- Identitas ---
 
-const AVATAR_COLORS = ['#FF4F1A', '#2F6BFF', '#8B5CF6', '#17B26A', '#E5484D', '#0EA5E9', '#F59E0B', '#EC4899'];
+const AVATAR_COLORS = ['#12B77A', '#4DA3FF', '#A27BFF', '#FF8A4C', '#FF5C8A', '#2EC5D6', '#E7B33D', '#6C8CFF'];
 
 export function Avatar({ name, size = 40, ring }: { name: string; size?: number; ring?: boolean }) {
   const c = useColors();
@@ -448,36 +482,42 @@ export function Avatar({ name, size = 40, ring }: { name: string; size?: number;
   const bg = AVATAR_COLORS[h % AVATAR_COLORS.length];
   return (
     <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: ring ? 3 : 0,
-        borderColor: c.accent,
-      }}>
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: ring ? 3 : 0,
+          borderColor: c.accent,
+        },
+        ring && glow(c.accent, 0.5),
+      ]}>
       <Text style={{ color: '#fff', fontFamily: font.bold, fontSize: size * 0.38 }}>{initials(name)}</Text>
     </View>
   );
 }
 
-export function Badge({
-  text,
-  color,
-  icon,
-  textColor = '#fff',
-}: {
-  text: string;
-  color: string;
-  icon?: IconName;
-  textColor?: string;
-}) {
+export function Badge({ text, color, icon, textColor = '#fff' }: { text: string; color: string; icon?: IconName; textColor?: string }) {
   return (
     <View style={[styles.badge, { backgroundColor: color }]}>
       {icon ? <Ionicons name={icon} size={12} color={textColor} /> : null}
       <Text style={{ color: textColor, fontSize: 12, fontFamily: font.bold }}>{text}</Text>
+    </View>
+  );
+}
+
+/** Pil kecil berwarna aksen, mis. "12% dari minggu lalu". */
+export function Pill({ text, icon, tone = 'accent' }: { text: string; icon?: IconName; tone?: 'accent' | 'muted' | 'danger' }) {
+  const c = useColors();
+  const fg = tone === 'accent' ? c.accent : tone === 'danger' ? c.danger : c.muted;
+  const bg = tone === 'accent' ? c.accentSoft : tone === 'danger' ? 'rgba(255,92,92,0.14)' : c.surface2;
+  return (
+    <View style={[styles.pill, { backgroundColor: bg }]}>
+      {icon ? <Ionicons name={icon} size={13} color={fg} /> : null}
+      <Text style={{ color: fg, fontFamily: font.semibold, fontSize: 12 }}>{text}</Text>
     </View>
   );
 }
@@ -496,7 +536,29 @@ export function Rank({ rank, size = 30 }: { rank: number; size?: number }) {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <Text style={{ color: medal ? '#fff' : c.text, fontFamily: font.numBold, fontSize: size * 0.55 }}>{rank}</Text>
+      <Text style={{ color: medal ? '#1A1405' : c.text, fontFamily: font.bold, fontSize: size * 0.45 }}>{rank}</Text>
+    </View>
+  );
+}
+
+/** Ikon dalam kotak bulat berwarna (kartu, daftar). */
+export function IconTile({ icon, color, size = 44, glowing }: { icon: IconName; color?: string; size?: number; glowing?: boolean }) {
+  const c = useColors();
+  const col = color ?? c.accent;
+  return (
+    <View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size * 0.32,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: col + '22',
+        },
+        glowing && glow(col, 0.5),
+      ]}>
+      <Ionicons name={icon} size={size * 0.5} color={col} />
     </View>
   );
 }
@@ -507,7 +569,7 @@ export function Loading() {
   const c = useColors();
   return (
     <View style={[styles.center, { backgroundColor: c.bg }]}>
-      <ActivityIndicator color={c.text} size="large" />
+      <ActivityIndicator color={c.accent} size="large" />
     </View>
   );
 }
@@ -516,8 +578,8 @@ export function Empty({ icon, title, text, action }: { icon: IconName; title: st
   const c = useColors();
   return (
     <View style={styles.empty}>
-      <View style={[styles.emptyIcon, { backgroundColor: c.accent }]}>
-        <Ionicons name={icon} size={30} color={c.accentInk} />
+      <View style={[styles.emptyIcon, { backgroundColor: c.accentSoft, borderColor: c.accent + '55' }, glow(c.accent, 0.5)]}>
+        <Ionicons name={icon} size={30} color={c.accent} />
       </View>
       <T v="h2" center>
         {title}
@@ -535,7 +597,7 @@ export function Empty({ icon, title, text, action }: { icon: IconName; title: st
 export function ErrorBox({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const c = useColors();
   return (
-    <View style={[styles.errorBox, { backgroundColor: c.danger + '18' }]}>
+    <View style={[styles.errorBox, { backgroundColor: 'rgba(255,92,92,0.1)', borderColor: 'rgba(255,92,92,0.3)' }]}>
       <Row gap={space.sm} style={{ alignItems: 'flex-start' }}>
         <Ionicons name="alert-circle" size={18} color={c.danger} />
         <T v="small" color={c.danger} style={{ flex: 1 }}>
@@ -549,11 +611,14 @@ export function ErrorBox({ error, onRetry }: { error: unknown; onRetry?: () => v
 
 const styles = StyleSheet.create({
   screen: { padding: space.lg, gap: space.md },
-  header: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md, paddingHorizontal: space.lg, paddingBottom: space.md },
-  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingBottom: space.md },
+  card: { borderRadius: radius.lg, borderWidth: 1, padding: space.lg, gap: space.md, overflow: 'hidden' },
+  statTile: { flex: 1, padding: space.md, gap: 6, borderRadius: radius.md },
   sheet: {
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    borderWidth: 1,
+    borderBottomWidth: 0,
     paddingHorizontal: space.lg,
     paddingTop: space.sm,
     gap: space.md,
@@ -569,27 +634,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
   },
   buttonSmall: { paddingVertical: 9, paddingHorizontal: space.lg },
+  actionTile: {
+    flex: 1,
+    height: 78,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     borderRadius: radius.pill,
+    borderWidth: 1,
     paddingVertical: 9,
     paddingHorizontal: 14,
   },
-  segmented: { flexDirection: 'row', borderRadius: radius.pill, padding: 4, gap: 4 },
+  segmented: { flexDirection: 'row', borderRadius: radius.pill, borderWidth: 1, padding: 4, gap: 4 },
   segment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: radius.pill },
-  input: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, paddingHorizontal: space.md },
-  badge: {
+  input: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: 14, borderWidth: 1, paddingHorizontal: space.md },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl, paddingHorizontal: space.lg },
-  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  errorBox: { borderRadius: radius.md, padding: space.md, gap: space.sm },
+  emptyIcon: { width: 68, height: 68, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  errorBox: { borderRadius: radius.md, borderWidth: 1, padding: space.md, gap: space.sm },
 });

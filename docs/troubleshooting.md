@@ -146,10 +146,10 @@ Peringatan muncul bila posisi lebih dari **40 m** dari garis rute. Penyebab umum
 
 ### Peta kosong / abu-abu tanpa jalan
 
-- **Semua versi** memakai ubin dari `server.arcgisonline.com` (Esri), kecuali Expo Go Android (Google Maps) dan iOS (Apple Maps). Pastikan HP punya internet dan domain itu tidak diblokir jaringan.
-- **APK Android** memakai MapLibre. Peta kosong di APK biasanya berarti ubin Esri tidak termuat (internet), bukan masalah kunci API. Pengecualian: bila modul MapLibre gagal dimuat, app jatuh ke react-native-maps tanpa kunci Google, sehingga peta kosong tetapi app tetap jalan. Di log (`adb logcat`) muncul `[peta] MapLibre gagal dimuat, pakai react-native-maps`.
+- **Semua versi** memakai ubin dari `tile.openstreetmap.org` (OpenStreetMap), kecuali Expo Go Android (Google Maps) dan iOS (Apple Maps). Pastikan HP punya internet dan domain itu tidak diblokir jaringan.
+- **APK Android** memakai MapLibre. Peta kosong di APK biasanya berarti ubin OpenStreetMap tidak termuat (internet), bukan masalah kunci API. Pengecualian: bila modul MapLibre gagal dimuat, app jatuh ke react-native-maps tanpa kunci Google, sehingga peta kosong tetapi app tetap jalan. Di log (`adb logcat`) muncul `[peta] MapLibre gagal dimuat, pakai react-native-maps`.
 - APK yang dibangun sebelum peralihan ke MapLibre (commit `c8907a4`) memakai react-native-maps dan butuh kunci Google Maps; tanpa kunci, petanya kosong. Bangun ulang APK dari kode terbaru.
-- Ubin Esri hanya sampai zoom 16; bila diperbesar lebih jauh, gambar diperbesar dan tampak buram. Ini normal.
+- Ubin OpenStreetMap sampai zoom 19. Server ubin OSM menolak pemakaian berlebihan; bila suatu saat ubin diganti gambar "blocked", pindahkan alamat di `app/src/lib/tiles.ts` ke penyedia ubin lain.
 
 ### Cuplikan peta di kartu kosong
 

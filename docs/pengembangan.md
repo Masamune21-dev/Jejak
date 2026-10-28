@@ -134,7 +134,7 @@ Yang berbeda di Expo Go dibanding APK:
 | Hal | Expo Go | APK (build EAS) |
 | --- | --- | --- |
 | Lokasi saat layar mati | Tidak bisa; perekam memakai `gps-fg` dan menjaga layar tetap menyala. | Bisa, bila izin "sepanjang waktu" diberikan (`gps-bg`). |
-| Peta Android | react-native-maps (Google Maps milik Expo Go). | MapLibre + ubin Esri. |
+| Peta Android | react-native-maps (Google Maps milik Expo Go). | MapLibre + ubin OpenStreetMap. |
 | Sakelar Simulasi GPS | Ada (mode dev). | Tidak ada (build rilis). |
 | Error JavaScript | Layar merah / LogBox pengembangan (error saat render juga ditangkap `ErrorBoundary`). | Layar laporan error Jejak (lihat [build-apk.md](build-apk.md#bila-apk-tertutup-sendiri-crash)). |
 

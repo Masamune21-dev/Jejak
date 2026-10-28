@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useRecorder } from '@/lib/recorder';
-import { font, shadow, useColors } from '@/lib/theme';
+import { font, glow, useColors } from '@/lib/theme';
 
 import type { IconName } from './ui';
 
@@ -15,7 +15,7 @@ const TABS: Record<string, { label: string; icon: IconName; iconOn: IconName }> 
   profil: { label: 'Profil', icon: 'person-outline', iconOn: 'person' },
 };
 
-/** Tab bar dengan tombol Rekam bulat besar di tengah. */
+/** Tab bar gelap dengan tombol Rekam bulat hijau bercahaya di tengah. */
 export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -23,7 +23,7 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   const recording = rec.status === 'recording' || rec.status === 'paused' || rec.status === 'finished';
 
   return (
-    <View style={[styles.bar, { backgroundColor: c.surface, borderTopColor: c.line, paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[styles.bar, { backgroundColor: c.surface, borderColor: c.line, paddingBottom: Math.max(insets.bottom, 10) }]}>
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const go = () => {
@@ -31,6 +31,7 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
         };
 
         if (route.name === 'rekam') {
+          const color = recording ? c.danger : c.accent;
           return (
             <View key={route.key} style={styles.slot}>
               <Pressable
@@ -39,14 +40,11 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
                 accessibilityLabel="Rekam"
                 style={({ pressed }) => [
                   styles.record,
-                  { backgroundColor: recording ? c.track : c.accent, borderColor: c.surface, opacity: pressed ? 0.85 : 1 },
-                  shadow(c, 2),
+                  { backgroundColor: color, borderColor: c.bg, opacity: pressed ? 0.85 : 1 },
+                  glow(color, 0.9),
                 ]}>
-                <Ionicons name={recording ? 'pulse' : 'radio-button-on'} size={30} color={recording ? '#fff' : c.accentInk} />
+                <Ionicons name={recording ? 'pulse' : 'add'} size={32} color={recording ? '#fff' : c.accentInk} />
               </Pressable>
-              <Text style={[styles.label, { color: focused ? c.text : c.muted, marginTop: 2 }]}>
-                {recording ? 'Merekam' : 'Rekam'}
-              </Text>
             </View>
           );
         }
@@ -61,10 +59,10 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
             accessibilityState={{ selected: focused }}
             accessibilityLabel={t.label}
             style={styles.slot}>
-            <View style={[styles.iconWrap, focused && { backgroundColor: c.accent }]}>
-              <Ionicons name={focused ? t.iconOn : t.icon} size={22} color={focused ? c.accentInk : c.muted} />
-            </View>
-            <Text style={[styles.label, { color: focused ? c.text : c.muted }]}>{t.label}</Text>
+            <Ionicons name={focused ? t.iconOn : t.icon} size={23} color={focused ? c.accent : c.muted} />
+            <Text style={[styles.label, { color: focused ? c.accent : c.muted, fontFamily: focused ? font.semibold : font.medium }]}>
+              {t.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -73,17 +71,23 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
-  slot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 3 },
-  iconWrap: { width: 52, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: font.semibold, fontSize: 11 },
+  bar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+  },
+  slot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  label: { fontSize: 11 },
   record: {
     width: 62,
     height: 62,
     borderRadius: 31,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -30,
-    borderWidth: 4,
+    marginTop: -34,
+    marginBottom: 6,
+    borderWidth: 5,
   },
 });

@@ -54,7 +54,7 @@ Selama mode pengembangan, layar Rekam punya sakelar **Simulasi GPS**. Posisi ber
 
 ## Build APK (Android)
 
-APK dibuat di cloud EAS dengan akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar) dan memakai server produksi. Peta di APK Android memakai **MapLibre** dengan ubin Esri: gratis, tanpa kunci Google dan tanpa akun penagihan. Di Expo Go peta tetap memakai react-native-maps, karena Expo Go tidak membawa MapLibre.
+APK dibuat di cloud EAS dengan akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar) dan memakai server produksi. Peta di APK Android memakai **MapLibre** dengan ubin OpenStreetMap: gratis, tanpa kunci Google dan tanpa akun penagihan. Di Expo Go peta tetap memakai react-native-maps, karena Expo Go tidak membawa MapLibre.
 
 Jalankan di folder `app` (login sekali saja):
 
@@ -88,4 +88,4 @@ Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun,
 ## Catatan
 
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
-- Cuplikan peta dan peta versi web memakai ubin Esri Light/Dark Gray Canvas (tanpa kunci API, wajib atribusi). Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).
+- Semua peta memakai ubin OpenStreetMap yang digelapkan agar cocok dengan tema (tanpa kunci API, wajib atribusi). Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).

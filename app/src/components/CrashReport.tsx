@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CrashReport as Report } from '@/lib/crash';
-import { font, ROAD } from '@/lib/theme';
+import { font } from '@/lib/theme';
 
 import { Button } from './ui';
 
@@ -24,7 +24,7 @@ export default function CrashReportView({
   return (
     <View style={styles.wrap}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Ionicons name="warning" size={40} color={ROAD.marka} />
+        <Ionicons name="warning" size={40} color="#FFC94D" />
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.help}>Foto layar ini dan kirim ke pengembang supaya bisa diperbaiki.</Text>
         <View style={styles.box}>
@@ -40,11 +40,11 @@ export default function CrashReportView({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: ROAD.aspal },
+  wrap: { flex: 1, backgroundColor: '#080D0B' },
   body: { padding: 24, paddingTop: 72, gap: 14 },
   title: { color: '#fff', fontFamily: font.black, fontSize: 22 },
   help: { color: 'rgba(255,255,255,0.75)', fontFamily: font.medium, fontSize: 14 },
-  box: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 14, gap: 8 },
-  message: { color: ROAD.marka, fontFamily: font.bold, fontSize: 15 },
+  box: { backgroundColor: '#111916', borderRadius: 16, borderWidth: 1, borderColor: '#1E2A25', padding: 14, gap: 8 },
+  message: { color: '#FFC94D', fontFamily: font.bold, fontSize: 15 },
   stack: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'monospace' },
 });

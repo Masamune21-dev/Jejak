@@ -9,7 +9,6 @@ import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import { useKudos } from '@/components/ActivityCard';
 import JejakMap from '@/components/Map';
-import Patok from '@/components/Patok';
 import type { MapLine, MapPin } from '@/components/map-types';
 import {
   Avatar,
@@ -210,7 +209,9 @@ export default function ActivityScreen() {
                 const w = (quickest / rate) * 100;
                 return (
                   <Row key={s.index} gap={space.md}>
-                    <Patok km={s.index} />
+                    <View style={[styles.kmDot, { backgroundColor: best ? c.accentSoft : c.surface2, borderColor: best ? c.accent : c.line }]}>
+                      <Text style={[styles.kmNum, { color: best ? c.accent : c.muted }]}>{s.index}</Text>
+                    </View>
                     <Text style={[styles.splitPace, { color: c.text }]}>
                       {a.type === 'ride'
                         ? speed(s.distanceM, s.elapsedS).replace(' km/j', '')
@@ -230,7 +231,7 @@ export default function ActivityScreen() {
                 );
               })}
               <T v="small">
-                {a.type === 'ride' ? 'Kecepatan per km dalam km/j.' : 'Pace per km.'} Batang merah menandai km tercepat.
+                {a.type === 'ride' ? 'Kecepatan per km dalam km/j.' : 'Pace per km.'} Batang hijau menandai km tercepat.
               </T>
             </Card>
           </>
@@ -241,11 +242,11 @@ export default function ActivityScreen() {
             <SectionTitle>Waktu terbaik</SectionTitle>
             <View style={styles.tiles}>
               {a.bestEfforts.map((b) => (
-                <View key={b.name} style={[styles.tile, { backgroundColor: b.isPr ? c.slab : c.surface, borderColor: c.line }]}>
+                <View
+                  key={b.name}
+                  style={[styles.tile, { backgroundColor: b.isPr ? c.accentSoft : c.surface, borderColor: b.isPr ? c.accent + '55' : c.line }]}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <T v="label" color={b.isPr ? 'rgba(255,255,255,0.7)' : undefined}>
-                      {b.name}
-                    </T>
+                    <T v="label">{b.name}</T>
                     {b.isPr ? <Ionicons name="trophy" size={14} color={c.gold} /> : null}
                   </Row>
                   <T v="num" size={28} color={b.isPr ? c.accent : undefined}>
@@ -394,6 +395,8 @@ function Comments({ activityId, ownerId }: { activityId: number; ownerId: number
 }
 
 const styles = StyleSheet.create({
+  kmDot: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  kmNum: { fontFamily: font.bold, fontSize: 13 },
   body: {
     marginTop: -radius.xl,
     borderTopLeftRadius: radius.xl,

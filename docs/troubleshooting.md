@@ -292,7 +292,7 @@ Commit perubahan di folder itu dulu. Skrip mengirim isi commit `HEAD` (lewat `gi
 
 ### Health check gagal setelah deploy
 
-Lihat `pm2 logs jejak --lines 100`. Penyebab umum: error sintaks/import di kode server, versi Node di nvm bukan 24+, atau database tidak bisa dibuka (izin folder `data/`). Pada titik ini folder kode sudah ditukar; untuk kembali cepat ke versi sebelumnya, pakai `repo.old/` (lihat [deploy.md](deploy.md#rollback)).
+Skrip deploy menampilkan 30 baris terakhir log; lebih lengkap: `journalctl -u jejak -n 100 --no-pager`. Penyebab umum: error sintaks/import di kode server, versi Node di nvm bukan 24+, atau database tidak bisa dibuka (folder `data/` atau berkas di dalamnya bukan milik user `jejak`, misalnya setelah menyalin backup sebagai root; perbaiki dengan `chown -R jejak:jejak /var/www/jejak.masamune.my.id/data`). Sandbox service juga menolak tulisan di luar folder `data/` (*read-only file system*). Pada titik ini folder kode sudah ditukar; untuk kembali cepat ke versi sebelumnya, pakai `repo.old/` (lihat [deploy.md](deploy.md#rollback)).
 
 ### Perubahan sudah di-deploy tetapi tidak terpasang
 
@@ -302,4 +302,4 @@ Lihat `pm2 logs jejak --lines 100`. Penyebab umum: error sintaks/import di kode 
 
 ### Respons 502 atau 504 dari `/api/`
 
-Proses Node mati atau tidak menjawab. Periksa `pm2 status` dan `pm2 logs jejak`. PM2 me-restart proses bila memakai lebih dari 300 MB memori.
+Proses Node mati atau tidak menjawab. Periksa `systemctl status jejak` dan `journalctl -u jejak -n 100`. systemd menjalankan ulang proses yang berhenti (setelah 2 detik), termasuk bila memakai lebih dari 300 MB memori (`MemoryMax`).

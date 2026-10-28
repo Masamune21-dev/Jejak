@@ -69,13 +69,13 @@ Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS
 
 ## Deploy server & web
 
-Server produksi ada di `103.189.249.115` (PM2 `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`). Setelah commit & push:
+Server produksi ada di `103.189.249.115` (service systemd `jejak` dengan user non-root `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`). Setelah commit:
 
 ```bash
 deploy/deploy.sh
 ```
 
-Skrip ini menjalankan `git pull` + `npm ci` + reload PM2 di server, lalu membangun versi web dan mengunggahnya. Pakai `deploy/deploy.sh server` atau `deploy/deploy.sh web` untuk salah satunya saja.
+Skrip ini mengirim commit `HEAD` ke server lewat SSH (`git archive`), menjalankan `npm ci`, memasang config nginx dan service systemd, lalu menjalankan ulang API; setelah itu membangun versi web dan mengunggahnya. Detailnya di [docs/deploy.md](docs/deploy.md). Pakai `deploy/deploy.sh server` atau `deploy/deploy.sh web` untuk salah satunya saja.
 
 ## Cek kode
 

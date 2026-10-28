@@ -1,0 +1,50 @@
+# Service systemd untuk API Jejak di jejak.masamune.my.id.
+# Dipasang deploy/deploy.sh ke /etc/systemd/system/jejak.service.
+# Berjalan sebagai user sistem `jejak` (bukan root) di dalam sandbox: seluruh sistem berkas hanya-baca
+# kecuali folder data, jadi celah di app tidak bisa menyentuh app lain di VPS ini.
+
+[Unit]
+Description=Jejak API (jejak.masamune.my.id)
+After=network.target
+
+[Service]
+Type=simple
+User=jejak
+Group=jejak
+WorkingDirectory=/var/www/jejak.masamune.my.id/repo/server
+# Node disalin dari nvm root ke /opt/jejak setiap deploy, karena /root tertutup untuk user lain.
+ExecStart=/opt/jejak/node src/index.ts
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3014
+Environment=DB_PATH=/var/www/jejak.masamune.my.id/data/jejak.db
+Restart=always
+RestartSec=2
+# Pengganti max_memory_restart PM2: lewat batas ini proses dihentikan lalu dijalankan ulang.
+MemoryMax=300M
+
+# Sandbox
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/jejak.masamune.my.id/data
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+# Berkas database baru (mis. -wal, -shm) hanya bisa dibaca user jejak.
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

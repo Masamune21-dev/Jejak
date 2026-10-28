@@ -75,7 +75,7 @@ Cara app menerjemahkan nilai ini dijelaskan di [arsitektur.md](arsitektur.md#ala
 | `DB_PATH` | `server/data/jejak.db` | Berkas SQLite. Folder dibuat otomatis. |
 | `ROUTING_URL` | `https://routing.openstreetmap.de` | Server OSRM untuk rute mengikuti jalan. |
 
-`NODE_ENV=production` dipasang PM2 di produksi tetapi tidak dibaca oleh kode.
+`NODE_ENV=production` dipasang service systemd di produksi tetapi tidak dibaca oleh kode.
 
 Contoh:
 

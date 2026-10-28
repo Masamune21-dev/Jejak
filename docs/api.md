@@ -541,5 +541,5 @@ Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di
 | 404 | `404 Not Found` (teks biasa, bukan JSON) | Path tidak dikenal dengan token valid (bawaan Hono). |
 | 429 | (HTML dari nginx) | Batas laju `/api/auth/` di produksi. |
 | 413 | (HTML dari nginx) | Badan lebih dari 20 MB di produksi. |
-| 500 | `Terjadi kesalahan di server` | Error tak terduga; detailnya ada di log server (`pm2 logs jejak`). |
+| 500 | `Terjadi kesalahan di server` | Error tak terduga; detailnya ada di log server (`journalctl -u jejak`). |
 | 502/504 | (HTML dari nginx) | Proses Node mati atau tidak menjawab dalam 120 detik. |

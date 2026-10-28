@@ -18,7 +18,7 @@ Database adalah satu berkas SQLite yang dibuka lewat `node:sqlite` (`DatabaseSyn
 | Lingkungan | Berkas |
 | --- | --- |
 | Lokal (bawaan) | `server/data/jejak.db` (folder dibuat otomatis, diabaikan git) |
-| Produksi | `/var/www/jejak.masamune.my.id/data/jejak.db` (lewat `DB_PATH` di `deploy/ecosystem.config.cjs`) |
+| Produksi | `/var/www/jejak.masamune.my.id/data/jejak.db` (lewat `DB_PATH` di `deploy/jejak.service`; folder milik user `jejak`, izin 700) |
 | Tes | `:memory:` |
 
 Pragma yang dipasang setiap kali database dibuka:

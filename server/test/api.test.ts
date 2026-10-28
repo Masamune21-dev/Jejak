@@ -355,3 +355,28 @@ test('validasi: kecepatan dan tanggal mustahil ditolak', async () => {
   assert.equal((await post('run', walkPath([A, B], 6))).status, 201);
   assert.equal((await post('ride', walkPath([A, B, C], 15, Date.UTC(2026, 9, 21, 6)))).status, 201);
 });
+
+test('validasi: kata sandi mudah ditebak ditolak saat daftar, tz ekstrem tidak membuat error', async () => {
+  const { call, register } = setup();
+  const daftar = (username: string, password: string) =>
+    call('POST', '/auth/register', undefined, { username, name: 'X', password });
+  for (const [u, pw] of [
+    ['satu', '123456'],
+    ['dua', 'Password'],
+    ['tiga', 'aaaaaaa'],
+    ['empat', '987654'],
+    ['dicky_lari', 'dicky_lari99'],
+    ['budi', 'budi1990'],
+  ]) {
+    const r = await daftar(u, pw);
+    assert.equal(r.status, 400, `${u}/${pw}`);
+    assert.match(r.body.error ?? '', /terlalu mudah ditebak/);
+  }
+  // Username pendek yang kebetulan muncul di kata sandi biasa tetap boleh.
+  assert.equal((await daftar('ika', 'fisika123')).status, 201);
+
+  const u = await register('waktu');
+  for (const tz of ['1e20', '-99999', 'abc']) {
+    assert.equal((await call('GET', `/users/${u.user.id}/stats?tz=${tz}`, u.token)).status, 200, tz);
+  }
+});

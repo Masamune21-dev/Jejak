@@ -14,7 +14,7 @@ Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://je
 | [data.md](data.md) | Skema SQLite: tabel, kolom, relasi, indeks, format kolom JSON. |
 | [algoritma.md](algoritma.md) | Rumus dan ambang: waktu bergerak, tanjakan, kecepatan maksimum, split, waktu terbaik, PR, pencocokan segmen, progres rute, filter GPS, routing OSRM. |
 | [pengembangan.md](pengembangan.md) | Setup lokal, variabel lingkungan, menjalankan server/app/web, simulasi GPS, tes, gaya kode, jebakan yang diketahui. |
-| [deploy.md](deploy.md) | Server produksi, PM2, nginx + Cloudflare, `deploy/deploy.sh`, log, backup, rollback. |
+| [deploy.md](deploy.md) | Server produksi, service systemd (user `jejak`), nginx + Cloudflare, `deploy/deploy.sh`, log, backup, rollback. |
 | [build-apk.md](build-apk.md) | Membuat dan memasang APK/AAB lewat EAS, ukuran APK (arm64), keystore, peta MapLibre, lokasi latar, izin foto/kamera, log crash dengan adb, menaikkan versi. |
 | [troubleshooting.md](troubleshooting.md) | Masalah umum dan cara mengatasinya, termasuk APK yang tertutup sendiri dan gambar yang tidak tersimpan. |
 | [desain.md](desain.md) | Riset UI/UX dan sistem desain: kosakata visual dari jalan (aspal, marka, patok, rambu), warna, huruf, template bagikan. |
@@ -33,7 +33,7 @@ jejak/
 ├── server/   API Node 24+ dengan Hono dan SQLite bawaan Node (node:sqlite).
 │             TypeScript dijalankan langsung, tanpa langkah build.
 ├── shared/   Kode bersama app & server: hitungan geo (geo.ts) dan tipe kontrak API (api.ts).
-└── deploy/   Skrip deploy, konfigurasi PM2, dan konfigurasi nginx produksi.
+└── deploy/   Skrip deploy, service systemd, dan konfigurasi nginx produksi.
 ```
 
 Prinsip penting:
@@ -63,7 +63,7 @@ flowchart LR
   subgraph PROD["Server produksi"]
     CF["Cloudflare"]
     NGINX["nginx<br/>/api/ → :3014<br/>/ → web statis"]
-    HONO["Node + Hono<br/>(server/src/app.ts)<br/>PM2 'jejak'"]
+    HONO["Node + Hono<br/>(server/src/app.ts)<br/>systemd 'jejak'"]
     DB[("SQLite<br/>jejak.db")]
   end
 

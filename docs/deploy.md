@@ -5,7 +5,7 @@ Produksi berjalan di satu VPS di belakang Cloudflare: **https://jejak.masamune.m
 ## Daftar isi
 
 1. [Tata letak server](#tata-letak-server)
-2. [Proses Node (PM2)](#proses-node-pm2)
+2. [Proses Node (systemd, user `jejak`)](#proses-node-systemd-user-jejak)
 3. [nginx dan Cloudflare](#nginx-dan-cloudflare)
 4. [Alur deploy](#alur-deploy)
 5. [Memeriksa hasil deploy](#memeriksa-hasil-deploy)
@@ -28,7 +28,8 @@ Host SSH bawaan di `deploy/deploy.sh` adalah `root@103.189.249.115`; bisa digant
 ├── repo.old/   Versi sebelumnya (dari deploy terakhir), untuk rollback cepat.
 ├── repo.new/   Hanya ada sementara selama deploy berlangsung (atau tertinggal bila deploy gagal).
 ├── web/        Hasil `expo export --platform web` (diunggah dengan rsync).
-└── data/       Database SQLite: jejak.db, jejak.db-wal, jejak.db-shm.
+└── data/       Database SQLite: jejak.db, jejak.db-wal, jejak.db-shm. Milik user `jejak`,
+                izin 700/600: hanya proses API (dan root) yang bisa membacanya.
 ```
 
 Server **tidak** butuh akses ke GitHub (repo boleh private): kode dikirim dari komputer pengembang lewat SSH. Untuk melihat versi yang sedang jalan: `cat /var/www/jejak.masamune.my.id/repo/REVISION`.
@@ -41,35 +42,39 @@ Berkas lain di server yang dipakai:
 | `/etc/ssl/cloudflare/masamune.my.id.pem` / `.key` | Sertifikat origin Cloudflare (wildcard `*.masamune.my.id`). |
 | `/etc/ssl/cloudflare/aop-ca.pem` | CA Cloudflare untuk Authenticated Origin Pulls. |
 | `/etc/nginx/snippets/cloudflare-real-ip.conf` | Memulihkan IP asli pengunjung dari header Cloudflare. |
-| `/root/.nvm` | Node dipasang lewat nvm; `deploy.sh` memuatnya sebelum menjalankan `npm` dan `pm2`. |
+| `/root/.nvm` | Node dipasang lewat nvm; `deploy.sh` memuatnya sebelum menjalankan `npm`. |
+| `/opt/jejak/node` | Salinan biner Node dari nvm, disalin ulang setiap deploy. `/root` tertutup untuk user lain, jadi service tidak bisa memakai Node di sana langsung. |
+| `/etc/systemd/system/jejak.service` | Salinan `deploy/jejak.service` (dipasang otomatis saat deploy server). |
 
 Berkas sertifikat dan snippet tidak ada di repo dan tidak diubah oleh skrip deploy.
 
 ---
 
-## Proses Node (PM2)
+## Proses Node (systemd, user `jejak`)
 
-Konfigurasi `deploy/ecosystem.config.cjs`:
+API berjalan sebagai service systemd `jejak` dengan user sistem **`jejak`** (tanpa login, tanpa home), bukan root. App lain di VPS ini masih memakai PM2 sebagai root; Jejak sengaja dipisah supaya celah di app ini tidak bisa menyentuh app lain atau sistem. Sampai commit `05c6f01` API juga berjalan di PM2 sebagai root (`deploy/ecosystem.config.cjs`, sudah dihapus); deploy pertama setelahnya menghapus proses PM2 `jejak` dan memindahkannya ke systemd.
+
+Konfigurasi `deploy/jejak.service`:
 
 | Kunci | Nilai |
 | --- | --- |
-| `name` | `jejak` |
-| `cwd` | `/var/www/jejak.masamune.my.id/repo/server` |
-| `script` | `src/index.ts` (dijalankan langsung oleh Node 24, tanpa build) |
-| `interpreter` | `node` |
-| `env.NODE_ENV` | `production` |
-| `env.HOST` | `127.0.0.1` (hanya bisa diakses dari mesin itu, lewat nginx) |
-| `env.PORT` | `3014` |
-| `env.DB_PATH` | `/var/www/jejak.masamune.my.id/data/jejak.db` |
-| `max_memory_restart` | `300M` |
+| `User` / `Group` | `jejak` |
+| `WorkingDirectory` | `/var/www/jejak.masamune.my.id/repo/server` |
+| `ExecStart` | `/opt/jejak/node src/index.ts` (dijalankan langsung oleh Node, tanpa build) |
+| `Environment` | `NODE_ENV=production`, `HOST=127.0.0.1` (hanya bisa diakses dari mesin itu, lewat nginx), `PORT=3014`, `DB_PATH=/var/www/jejak.masamune.my.id/data/jejak.db` |
+| `Restart` | `always`, jeda 2 detik |
+| `MemoryMax` | `300M`: lewat batas ini proses dihentikan lalu dijalankan ulang |
+| `UMask` | `0077`: berkas database baru hanya bisa dibaca user `jejak` |
 
-Perintah PM2 yang berguna (di server):
+Sandbox: `ProtectSystem=strict` membuat seluruh sistem berkas hanya-baca kecuali `ReadWritePaths=/var/www/jejak.masamune.my.id/data`. Ditambah `ProtectHome`, `PrivateTmp`, `PrivateDevices`, `NoNewPrivileges`, tanpa capability (`CapabilityBoundingSet=` kosong), dan hanya soket IPv4/IPv6/Unix. Koneksi keluar ke OSRM tetap bisa. Bila suatu saat server perlu menulis ke folder lain, folder itu harus ditambahkan ke `ReadWritePaths`.
+
+Perintah yang berguna (di server):
 
 ```bash
-pm2 status                 # daftar proses
-pm2 describe jejak         # detail, termasuk env dan jumlah restart
-pm2 reload jejak           # muat ulang tanpa mengubah konfigurasi
-pm2 restart jejak
+systemctl status jejak                 # status, PID, memori, beberapa baris log terakhir
+systemctl restart jejak
+systemctl show jejak -p NRestarts      # jumlah restart otomatis
+ps -o user=,pid=,args= -C node | grep jejak   # pastikan user-nya jejak
 ```
 
 ---
@@ -92,7 +97,8 @@ Lokasi:
 | `location` | Perilaku |
 | --- | --- |
 | `/api/auth/` | Batas laju zona `jejak_auth`: 10 permintaan/menit per IP, `burst=10 nodelay`, kelebihan → **429**. Diteruskan ke `http://127.0.0.1:3014/auth/`. |
-| `/api/` | Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
+| `/api/` | Batas laju zona `jejak_api` (10 permintaan/detik per IP, `burst=100`) dan `jejak_write` (hanya `POST`/`PATCH`/`DELETE`: 30/menit per IP, `burst=30`; `map $request_method` memberi kunci kosong untuk metode lain, yang tidak dihitung nginx). Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
+| `@jejak_terlalu_banyak` | `error_page 429` untuk semua lokasi: badan JSON `{"error":"Terlalu banyak permintaan. …"}` supaya app menampilkan pesannya. |
 | `/_expo/` | Berkas build web ber-hash: `expires 1y`, `Cache-Control: public, immutable`, 404 bila tidak ada. |
 | `/` | Berkas web; bila tidak ada, `$uri.html`, lalu `/index.html` (aplikasi satu halaman). `Cache-Control: no-cache`. |
 
@@ -138,13 +144,15 @@ deploy/deploy.sh web      # hanya web
 2. Kirim kode: `git archive --format=tar HEAD server shared deploy` dialirkan lewat SSH dan diekstrak ke `repo.new/` (folder lama `repo.new/` dihapus dulu), lalu hash pendek commit ditulis ke `repo.new/REVISION`.
 3. Lewat SSH ke host:
    1. muat nvm;
-   2. buat `data/` dan `web/` bila belum ada;
+   2. buat `web/` bila belum ada; buat user sistem `jejak` bila belum ada; pastikan `data/` milik `jejak` dengan izin 700;
    3. di `repo.new/`: `npm ci --omit=dev --prefix server`;
    4. salin config nginx lama ke `/tmp/jejak.nginx.bak`, pasang `repo.new/deploy/nginx-jejak.conf` ke `/etc/nginx/sites-enabled/jejak`, lalu `nginx -t`. **Bila tes gagal, config lama dikembalikan** (atau berkas dihapus bila sebelumnya tidak ada) dan deploy berhenti dengan *config nginx gagal dites, dibatalkan*;
    5. **tukar folder**: hapus `repo.old/`, pindahkan `repo/` menjadi `repo.old/`, lalu `repo.new/` menjadi `repo/`;
    6. `systemctl reload nginx`;
-   7. `pm2 startOrReload repo/deploy/ecosystem.config.cjs --update-env` lalu `pm2 save`;
-   8. tunggu 1 detik, lalu `curl -fsS http://127.0.0.1:3014/health`. Bila berhasil: *server sehat (\<isi REVISION\>)*, yaitu hash yang dibaca dari server.
+   7. salin Node dari nvm ke `/opt/jejak/node`, pasang `repo/deploy/jejak.service` ke `/etc/systemd/system/`, lalu `systemctl daemon-reload`;
+   8. bila masih ada proses PM2 `jejak` (dari sebelum pindah ke systemd), hapus lalu `pm2 save`;
+   9. `systemctl enable jejak` lalu `systemctl restart jejak`;
+   10. cek `curl -fsS http://127.0.0.1:3014/health` hingga 5 kali dengan jeda 1 detik. Bila berhasil: *server sehat (\<isi REVISION\>)*, yaitu hash yang dibaca dari server. Bila gagal, 30 baris terakhir `journalctl -u jejak` ditampilkan dan deploy berhenti dengan error.
 
 Skrip memakai `set -euo pipefail`, jadi langkah yang gagal menghentikan deploy. Karena folder baru baru ditukar setelah `npm ci` dan `nginx -t` berhasil, kegagalan di langkah itu membuat server lama tetap jalan tanpa perubahan. Perubahan manual di `repo/` di server akan hilang pada deploy berikutnya.
 
@@ -176,8 +184,9 @@ Lalu buka https://jejak.masamune.my.id di browser, masuk, dan buka beberapa laya
 Di server:
 
 ```bash
-pm2 logs jejak                     # ikuti log Node (stdout + stderr)
-pm2 logs jejak --lines 200         # 200 baris terakhir
+journalctl -u jejak -f                          # ikuti log Node (stdout + stderr)
+journalctl -u jejak -n 200 --no-pager           # 200 baris terakhir
+journalctl -u jejak --since "1 hour ago"        # log satu jam terakhir
 tail -f /var/log/nginx/jejak.access.log
 tail -f /var/log/nginx/jejak.error.log
 ```
@@ -190,7 +199,7 @@ Yang biasa muncul di log Node:
 | `[routing] gagal, pakai garis lurus: …` | OSRM gagal/timeout; pengguna mendapat rute garis lurus. |
 | Stack trace error | Penyebab respons 500 *Terjadi kesalahan di server*. |
 
-Di log akses nginx, status 429 pada `/api/auth/` menandakan batas laju terpicu, dan 444 menandakan pemindai yang diblokir.
+Di log akses nginx, status 429 menandakan batas laju terpicu (di `/api/auth/` atau di API lain), dan 444 menandakan pemindai yang diblokir.
 
 ---
 
@@ -224,11 +233,12 @@ Saran:
 Memulihkan backup:
 
 ```bash
-pm2 stop jejak
+systemctl stop jejak
 cd /var/www/jejak.masamune.my.id/data
 mkdir -p rusak && mv jejak.db jejak.db-wal jejak.db-shm rusak/ 2>/dev/null
 cp /root/backup/jejak-2026-10-28.db jejak.db
-pm2 start jejak
+chown -R jejak:jejak . && chmod 600 jejak.db     # salinan dari root harus bisa dibuka user jejak
+systemctl start jejak
 ```
 
 ---
@@ -244,7 +254,7 @@ pm2 start jejak
 cd /var/www/jejak.masamune.my.id
 cat repo/REVISION repo.old/REVISION      # pastikan repo.old memang versi yang diinginkan
 mv repo repo.bad && mv repo.old repo
-pm2 startOrReload repo/deploy/ecosystem.config.cjs --update-env && pm2 save
+systemctl restart jejak
 curl -fsS http://127.0.0.1:3014/health
 rm -rf repo.bad                          # setelah yakin tidak dibutuhkan lagi
 ```
@@ -283,7 +293,9 @@ Bila `nginx -t` gagal saat deploy, skrip otomatis mengembalikan config sebelumny
 
 ### Database
 
-Rollback kode jarang membutuhkan rollback database, karena skema hanya bertambah (`create table if not exists`). Bila data rusak, pulihkan dari backup seperti di atas; data sejak backup itu akan hilang.
+Rollback kode jarang membutuhkan rollback database, karena skema umumnya hanya bertambah (`create table if not exists`). Bila data rusak, pulihkan dari backup seperti di atas; data sejak backup itu akan hilang.
+
+Pengecualian: commit `cf2ef66` memigrasi tabel `sessions` (kolom `token` menjadi `token_hash` + `last_used_at`). Kode dari sebelum commit itu tidak bisa membaca tabel baru dan setiap permintaan yang butuh login akan error 500. Rollback ke sebelum `cf2ef66` harus disertai database dari backup sebelum migrasi (`/root/backup/jejak-2026-10-28-125216-sebelum-keamanan.db`), atau tabel `sessions` dikosongkan lalu dibuat ulang dengan skema lama (semua pengguna harus masuk lagi).
 
 ---
 
@@ -292,4 +304,5 @@ Rollback kode jarang membutuhkan rollback database, karena skema hanya bertambah
 - **Header nginx di dalam `location`.** Di nginx, `add_header` di level `server` hanya diwarisi oleh `location` yang tidak punya `add_header` sendiri. Karena itu ketiga header keamanan **diulang** di `location /_expo/` dan `location /` (sejak commit `a273d33`). Bila menambah header baru di level `server`, tambahkan juga ke kedua `location` itu.
 - **Yang dipasang adalah `HEAD` lokal.** `deploy.sh server` tidak melihat branch dan tidak melakukan push. Deploy dari branch fitur memasang branch itu ke produksi.
 - **Hanya satu versi cadangan.** `repo.old/` ditimpa setiap deploy. Untuk kembali lebih jauh, pasang commit lama dari komputer lokal.
+- **Jangan deploy commit dari sebelum pindah ke systemd** (sebelum commit yang menghapus `deploy/ecosystem.config.cjs`). `deploy.sh` versi lama akan menyalakan lagi PM2 `jejak` sebagai root dan berebut port 3014 dengan service systemd. Bila memang perlu, jalankan dulu `systemctl disable --now jejak` dan `chown -R root:root /var/www/jejak.masamune.my.id/data`. Rollback lewat `repo.old/` aman, karena kodenya dijalankan service yang sama.
 - **Satu proses, satu berkas database.** Tidak ada replikasi; backup adalah satu-satunya perlindungan data.

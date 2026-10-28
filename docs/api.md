@@ -102,7 +102,7 @@ Body:
 | --- | --- |
 | `username` | String, 3–20 karakter setelah di-trim, diubah ke huruf kecil, hanya `a-z 0-9 _ .` |
 | `name` | String, 1–50 karakter setelah di-trim. |
-| `password` | String, 6–200 karakter, dipakai **apa adanya** (spasi di awal/akhir tidak dibuang). Bukan string = dianggap kosong. |
+| `password` | String, 6–200 karakter, dipakai **apa adanya** (spasi di awal/akhir tidak dibuang). Bukan string = dianggap kosong. Ditolak bila mudah ditebak (tanpa membedakan huruf besar/kecil): ada di daftar kata sandi umum (mis. `password`, `qwerty`, `sayang`, `bismillah`), satu karakter diulang (`aaaaaa`), deret angka naik/turun (`123456`, `987654`), atau memuat username yang panjangnya 4 karakter atau lebih. Aturan ini hanya untuk daftar; akun lama tetap bisa masuk. |
 
 Respons **201** `AuthResult`:
 
@@ -117,6 +117,7 @@ Respons **201** `AuthResult`:
 | 400 | `Username hanya boleh huruf, angka, titik, dan garis bawah` |
 | 400 | `Nama wajib diisi`, `Nama maksimal 50 karakter` |
 | 400 | `Kata sandi minimal 6 karakter` (termasuk bila kosong/tidak ada), `Kata sandi maksimal 200 karakter` |
+| 400 | `Kata sandi terlalu mudah ditebak. Pakai gabungan kata dan angka yang tidak umum.` |
 | 409 | `Username sudah dipakai` |
 
 ### `POST /auth/login`
@@ -150,7 +151,15 @@ Catatan: path-nya `/logout`, bukan `/auth/logout`, sehingga tidak terkena batas 
 
 ### Batas laju (produksi)
 
-nginx membatasi `location /api/auth/` (daftar dan masuk) per IP asli: **10 permintaan per menit**, `burst=10`, `nodelay`. Kelebihannya dibalas **429** oleh nginx (badan HTML, bukan JSON), sehingga app menampilkan `Permintaan gagal (429)`. Tidak ada batas laju di server lokal.
+nginx membatasi per IP asli (IP dari Cloudflare dipulihkan lebih dulu):
+
+| Zona | Berlaku untuk | Batas |
+| --- | --- | --- |
+| `jejak_auth` | `/api/auth/` (daftar dan masuk) | 10 permintaan per menit, `burst=10`, `nodelay` |
+| `jejak_api` | Semua `/api/` lainnya | 10 permintaan per detik, `burst=100`, `nodelay` |
+| `jejak_write` | `POST`, `PATCH`, `DELETE` di `/api/` (simpan aktivitas, segmen, rute, kudos, komentar, follow, minta rute ke OSRM) | 30 permintaan per menit, `burst=30`, `nodelay` |
+
+Kelebihannya dibalas **429** oleh nginx dengan badan JSON `{ "error": "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi." }`, jadi app menampilkan pesan itu. Karena dihitung per IP, pengguna di balik IP operator seluler yang sama berbagi batas. Batasnya dibuat longgar untuk itu. Tidak ada batas laju di server lokal.
 
 ---
 
@@ -209,7 +218,7 @@ Paginasi: kirim `before` = `startedAt` aktivitas terakhir di halaman sebelumnya.
 | Parameter | Nilai | Bawaan |
 | --- | --- | --- |
 | `type` | `run`, `ride`, `walk`, atau `all` | `run` |
-| `tz` | Selisih zona waktu pengguna dalam menit **di timur UTC** (WIB = `420`, WITA = `480`, WIT = `540`). App mengirim `-new Date().getTimezoneOffset()`. | `420` |
+| `tz` | Selisih zona waktu pengguna dalam menit **di timur UTC** (WIB = `420`, WITA = `480`, WIT = `540`). App mengirim `-new Date().getTimezoneOffset()`. Dibatasi ke `-720`…`840` (UTC−12 s.d. UTC+14); bukan angka dianggap `0`. | `420` |
 
 Respons `Stats`:
 
@@ -532,5 +541,5 @@ Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di
 | 404 | `404 Not Found` (teks biasa, bukan JSON) | Path tidak dikenal dengan token valid (bawaan Hono). |
 | 429 | (HTML dari nginx) | Batas laju `/api/auth/` di produksi. |
 | 413 | (HTML dari nginx) | Badan lebih dari 20 MB di produksi. |
-| 500 | `Terjadi kesalahan di server` | Error tak terduga; detailnya ada di log server (`pm2 logs jejak`). |
+| 500 | `Terjadi kesalahan di server` | Error tak terduga; detailnya ada di log server (`journalctl -u jejak`). |
 | 502/504 | (HTML dari nginx) | Proses Node mati atau tidak menjawab dalam 120 detik. |

@@ -35,8 +35,8 @@ export interface MapProps {
   bottomInset?: number;
 }
 
-/** Alun-alun Wonogiri, dipakai bila posisi belum diketahui. */
-export const DEFAULT_CENTER: LatLon = [-7.8139, 110.9258];
+/** Alun-alun Pati, dipakai bila posisi belum diketahui. */
+export const DEFAULT_CENTER: LatLon = [-6.7535, 111.04];
 
 /** Pin awal & akhir; bila rute berupa putaran (ujungnya berdekatan) cukup satu pin. */
 export function endPins(line: LatLon[], labels: [string, string] = ['A', 'B']): MapPin[] {

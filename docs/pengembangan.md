@@ -174,7 +174,7 @@ Cara kerja (`app/src/lib/sim.ts`):
 
 | Hal | Nilai |
 | --- | --- |
-| Jalur | Garis rute yang dipilih; tanpa rute: persegi sisi 500 m dari posisimu (atau Alun-alun Wonogiri), diputari 3 kali (±6 km). |
+| Jalur | Garis rute yang dipilih; tanpa rute: persegi sisi 500 m dari posisimu (atau Alun-alun Pati), diputari 3 kali (±6 km). |
 | Kecepatan dasar | Lari 3,2 m/s, sepeda 7 m/s, jalan 1,4 m/s (`SIM_SPEED` di `rekam.tsx`). |
 | Variasi | Tiap langkah dikali acak 0,85–1,15. |
 | Jam | Jam simulasi sendiri; satu "detik" simulasi tiap 125 ms nyata (8× lebih cepat). Stopwatch memakai jam ini. |

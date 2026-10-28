@@ -91,7 +91,8 @@ export function Num({
 }) {
   const c = useColors();
   return (
-    <Text style={[{ color: color ?? c.text }, style]} numberOfLines={1}>
+    // Kolom sempit (mis. pace jalan kaki "12:45 /km" di HP 360 dp): huruf mengecil dulu sebelum terpotong "…".
+    <Text style={[{ color: color ?? c.text }, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
       <Text style={{ fontFamily: font.numBold, fontSize: size, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{value}</Text>
       {unit ? (
         <Text style={{ fontFamily: font.medium, fontSize: Math.max(11, size * 0.45), color: c.muted }}>

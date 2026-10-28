@@ -1,57 +1,54 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState, type ComponentRef } from 'react';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AuthResult } from '@shared/api';
-import type { LatLon } from '@shared/geo';
+import { pathDistance, type LatLon } from '@shared/geo';
 
 import StaticMap from '@/components/StaticMap';
 import { Button, Card, ErrorBox, Field, Segmented } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { km } from '@/lib/format';
 import { font, glow, space, useColors } from '@/lib/theme';
+import { OSM_ATTRIBUTION } from '@/lib/tiles';
 
-/** Rute sungguhan "Keliling Giripurwo", Wonogiri (disederhanakan), sebagai sampul halaman masuk. */
-const GIRIPURWO: LatLon[] = [
-  [-7.813612, 110.923116],
-  [-7.813863, 110.924519],
-  [-7.813986, 110.926186],
-  [-7.814421, 110.926166],
-  [-7.814676, 110.929772],
-  [-7.814343, 110.930069],
-  [-7.814338, 110.930473],
-  [-7.813814, 110.931964],
-  [-7.814377, 110.932048],
-  [-7.814997, 110.932207],
-  [-7.816554, 110.932169],
-  [-7.818498, 110.931954],
-  [-7.818379, 110.931477],
-  [-7.818089, 110.931113],
-  [-7.818379, 110.931477],
-  [-7.818498, 110.931954],
-  [-7.816554, 110.932169],
-  [-7.814997, 110.932207],
-  [-7.814377, 110.932048],
-  [-7.813814, 110.931964],
-  [-7.814313, 110.930583],
-  [-7.814676, 110.929772],
-  [-7.814553, 110.92797],
-  [-7.816202, 110.92792],
-  [-7.816606, 110.92769],
-  [-7.81745, 110.927509],
-  [-7.817739, 110.927349],
-  [-7.819084, 110.926837],
-  [-7.818962, 110.925775],
-  [-7.819693, 110.925645],
-  [-7.820072, 110.925404],
-  [-7.819741, 110.923622],
-  [-7.818783, 110.923801],
-  [-7.817481, 110.923938],
-  [-7.813863, 110.924519],
-  [-7.813612, 110.923116],
+/** Rute sungguhan "Keliling Alun-alun Pati" (disederhanakan, dari OSRM), sebagai sampul halaman masuk. */
+const PATI: LatLon[] = [
+  [-6.753384, 111.039597],
+  [-6.753895, 111.03954],
+  [-6.754011, 111.039656],
+  [-6.754187, 111.040601],
+  [-6.753674, 111.040707],
+  [-6.75378, 111.041504],
+  [-6.752949, 111.041648],
+  [-6.752867, 111.041634],
+  [-6.752783, 111.041555],
+  [-6.75199, 111.04171],
+  [-6.751875, 111.040748],
+  [-6.750654, 111.040909],
+  [-6.748939, 111.041306],
+  [-6.748602, 111.037207],
+  [-6.748368, 111.035022],
+  [-6.748291, 111.033555],
+  [-6.749086, 111.03336],
+  [-6.749142, 111.033648],
+  [-6.749229, 111.033722],
+  [-6.749312, 111.03444],
+  [-6.749398, 111.034714],
+  [-6.749948, 111.034668],
+  [-6.750224, 111.035733],
+  [-6.75047, 111.035686],
+  [-6.750609, 111.035297],
+  [-6.75196, 111.03494],
+  [-6.753169, 111.039337],
+  [-6.753253, 111.039496],
+  [-6.753384, 111.039597],
 ];
+
+const PATI_KM = km(pathDistance(PATI), 1);
 
 const HERO = 300;
 
@@ -59,6 +56,8 @@ export default function SignInScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const scrollHeight = useRef(0);
   const [mode, setMode] = useState<'masuk' | 'daftar'>('masuk');
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
@@ -87,16 +86,29 @@ export default function SignInScreen() {
     setError(null);
   };
 
+  // Keyboard muncul → ScrollView memendek. Geser ke bawah supaya form dan tombol ikut naik di atas keyboard.
+  const onScrollLayout = (height: number) => {
+    if (height < scrollHeight.current) scroll.current?.scrollToEnd({ animated: true });
+    scrollHeight.current = height;
+  };
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + space.xl }} keyboardShouldPersistTaps="handled">
+    // Android selalu edge-to-edge (Expo SDK 54+), jadi jendela tidak mengecil sendiri saat keyboard muncul;
+    // "padding" juga perlu di Android supaya form tidak tertutup.
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
+      <ScrollView
+        ref={scroll}
+        onLayout={(e) => onScrollLayout(e.nativeEvent.layout.height)}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + space.xl }}
+        keyboardShouldPersistTaps="handled">
         <View style={{ height: HERO + insets.top }}>
           <StaticMap
-            points={GIRIPURWO}
+            points={PATI}
             height={HERO + insets.top}
             radius={0}
             pad={48}
             color={c.accent}
+            attribution={false}
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
@@ -105,10 +117,16 @@ export default function SignInScreen() {
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
-          <View style={[styles.routeChip, { top: insets.top + space.md, backgroundColor: 'rgba(17,25,22,0.85)', borderColor: c.line }]}>
+          {/* Tepi bawah peta tertutup gradasi dan kartu, jadi atribusi OSM digambar di atasnya. */}
+          <Text style={[styles.attrib, { color: c.muted }]}>{OSM_ATTRIBUTION}</Text>
+          <View
+            style={[
+              styles.routeChip,
+              { top: insets.top + space.md, backgroundColor: 'rgba(17,25,22,0.85)', borderColor: c.line },
+            ]}>
             <View style={[styles.liveDot, { backgroundColor: c.accent }, glow(c.accent, 0.6)]} />
-            <Text style={[styles.routeChipText, { color: c.text }]}>Keliling Giripurwo, Wonogiri</Text>
-            <Text style={[styles.routeChipText, { color: c.accent }]}>4,7 km</Text>
+            <Text style={[styles.routeChipText, { color: c.text }]}>Keliling Alun-alun Pati</Text>
+            <Text style={[styles.routeChipText, { color: c.accent }]}>{PATI_KM} km</Text>
           </View>
         </View>
 
@@ -190,6 +208,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
+  attrib: { position: 'absolute', right: space.lg + 4, bottom: space.xxl + 6, fontFamily: font.medium, fontSize: 10 },
   routeChipText: { fontFamily: font.semibold, fontSize: 12 },
   body: {
     marginTop: -space.xxl,

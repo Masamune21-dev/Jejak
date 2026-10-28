@@ -60,12 +60,12 @@ Kartu utama (Minggu ini, hero profil, CTA rute, waktu terbaik segmen) memakai gr
 
 | Komponen | Isi |
 | --- | --- |
-| Tab bar (`TabBar.tsx`) | Latar `surface` bersudut atas 24; tombol Rekam bulat 62 px hijau bercahaya yang menonjol ke atas, berubah merah saat merekam; tab aktif ikon + label hijau, tanpa kotak |
+| Tab bar (`TabBar.tsx`) | Latar `surface` bersudut atas 24; tombol Rekam bulat 62 px hijau bercahaya (ikon titik rekam) yang menonjol ke atas, berubah merah saat merekam, dan redup tanpa cahaya saat layar Rekam sedang dibuka supaya tidak bersaing dengan tombol Mulai; tab aktif ikon + label hijau, tanpa kotak |
 | Kartu Minggu ini (`WeekCard.tsx`) | Angka km besar, pil perubahan dibanding minggu lalu, ikon jejak bercahaya |
 | Aksi cepat (`ActionTile`) | Empat kotak ikon + label; yang aktif terisi hijau |
-| Grafik mingguan (`WeeklyChart.tsx`) | Grafik area hijau bergradasi, garis halus yang tidak melewati nilai asli, gelembung nilai minggu ini |
+| Grafik mingguan (`WeeklyChart.tsx`) | Grafik area hijau bergradasi, garis halus yang tidak melewati nilai asli, gelembung nilai minggu ini di pita atas dengan garis putus-putus ke titiknya |
 | Banner petunjuk (`GuideBanner.tsx`) | Kartu gelap dengan kotak ikon belokan bercahaya dan jarak besar; merah saat keluar rute |
-| Halaman masuk (`masuk.tsx`) | Peta rute Keliling Giripurwo memudar ke latar, logo hijau bercahaya, kartu form dengan pilihan Masuk / Daftar |
+| Halaman masuk (`masuk.tsx`) | Peta rute Keliling Alun-alun Pati memudar ke latar, logo hijau bercahaya, kartu form dengan pilihan Masuk / Daftar |
 
 ## Peta
 

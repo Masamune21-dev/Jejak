@@ -108,9 +108,9 @@ export default function ActivityScreen() {
 
         <Card style={{ gap: space.lg }}>
           <Row gap={space.lg}>
-            <Stat label="Jarak" value={d.value} unit={d.unit} size={32} />
-            <Stat label={t.label} value={t.value} unit={t.unit} size={32} />
-            <Stat label="Bergerak" value={duration(a.movingS)} size={32} />
+            <Stat label="Jarak" value={d.value} unit={d.unit} size={28} />
+            <Stat label={t.label} value={t.value} unit={t.unit} size={28} />
+            <Stat label="Bergerak" value={duration(a.movingS)} size={28} />
           </Row>
           <Row gap={space.lg}>
             <Stat label="Tanjakan" value={String(Math.round(a.elevGainM))} unit="m" size={22} />

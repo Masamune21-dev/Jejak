@@ -59,6 +59,8 @@ Bila username sudah dipakai, muncul pesan *Username sudah dipakai*.
 
 **Masuk** cukup username dan kata sandi. Huruf besar/kecil pada username tidak berpengaruh. Bila salah: *Username atau kata sandi salah*.
 
+Saat keyboard muncul, layar bergeser ke bawah sehingga kolom yang sedang diketik dan tombol **Masuk**/**Buat akun** tetap terlihat di atas keyboard.
+
 Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi tidak punya masa kedaluwarsa; sesi berakhir saat kamu menekan **Keluar** di Profil.
 
 Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai app. Ini berguna untuk memastikan app terhubung ke server yang benar (produksi atau komputer sendiri).
@@ -146,7 +148,7 @@ Di APK dengan izin lokasi latar, titik GPS yang terkumpul selama app tertutup ik
 Hanya muncul di mode pengembangan (`__DEV__`): sakelar **Simulasi GPS (mode uji)**. Bila aktif, posisi bergerak sendiri 8× lebih cepat dari waktu nyata:
 
 - bila ada rute yang dipilih, simulasi menyusuri garis rute;
-- bila tidak, simulasi berputar tiga kali mengelilingi persegi 500 m di sekitar posisimu (atau Alun-alun Wonogiri bila posisi belum diketahui).
+- bila tidak, simulasi berputar tiga kali mengelilingi persegi 500 m di sekitar posisimu (atau Alun-alun Pati bila posisi belum diketahui).
 
 Kecepatan simulasi: lari 3,2 m/s, sepeda 7 m/s, jalan 1,4 m/s, dengan variasi acak ±15%. Detail lain ada di [pengembangan.md](pengembangan.md#mode-simulasi-gps).
 

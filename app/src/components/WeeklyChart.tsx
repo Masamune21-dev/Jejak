@@ -8,8 +8,13 @@ import { km } from '@/lib/format';
 import { font, useColors } from '@/lib/theme';
 
 const H = 150;
+/** Pita atas khusus gelembung nilai, supaya gelembung tidak pernah menutupi garis. */
 const PAD_TOP = 34;
 const PAD_BOTTOM = 8;
+/** Jarak titik pertama/terakhir dari tepi, supaya lingkaran titik tidak terpotong. */
+const PAD_X = 10;
+const BUBBLE_W = 68;
+const BUBBLE_H = 24;
 
 /**
  * Garis halus (Catmull-Rom → Bézier) melewati semua titik. Titik kendali dijepit di antara
@@ -31,7 +36,10 @@ function smooth(pts: [number, number][]): string {
   return d;
 }
 
-/** Grafik area jarak per minggu (12 minggu) dengan gelembung nilai minggu ini. */
+/**
+ * Grafik area jarak per minggu (12 minggu) dengan gelembung nilai minggu ini. Gelembung selalu di pita atas
+ * dan dihubungkan garis putus-putus ke titiknya, jadi tidak tertukar dengan puncak minggu lain.
+ */
 export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
   const c = useColors();
   const [w, setW] = useState(0);
@@ -43,14 +51,14 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
 
   const n = weeks.length;
   const pts: [number, number][] = weeks.map((x, i) => [
-    n > 1 ? (i / (n - 1)) * w : w / 2,
+    n > 1 ? PAD_X + (i / (n - 1)) * (w - PAD_X * 2) : w / 2,
     PAD_TOP + (1 - x.distanceM / max) * (H - PAD_TOP - PAD_BOTTOM),
   ]);
   const line = smooth(pts);
   const area = pts.length ? `${line} L${pts[pts.length - 1][0]} ${H} L${pts[0][0]} ${H} Z` : '';
   const last = pts[pts.length - 1];
   const lastWeek = weeks[weeks.length - 1];
-  const bubbleX = last ? Math.min(Math.max(last[0], 36), w - 36) : 0;
+  const bubbleLeft = last ? Math.min(Math.max(last[0] - BUBBLE_W / 2, 0), w - BUBBLE_W) : 0;
 
   return (
     <View style={{ gap: 8 }}>
@@ -70,7 +78,7 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
             <Path d={line} fill="none" stroke={c.accent} strokeWidth={3} strokeLinecap="round" />
             {last ? (
               <>
-                <Line x1={last[0]} x2={last[0]} y1={last[1]} y2={H} stroke={c.accent} strokeOpacity={0.4} strokeWidth={1} strokeDasharray="3 3" />
+                <Line x1={last[0]} x2={last[0]} y1={BUBBLE_H} y2={H} stroke={c.accent} strokeOpacity={0.4} strokeWidth={1} strokeDasharray="3 3" />
                 <Circle cx={last[0]} cy={last[1]} r={9} fill={c.accent} fillOpacity={0.25} />
                 <Circle cx={last[0]} cy={last[1]} r={5} fill={c.accent} stroke={c.bg} strokeWidth={2} />
               </>
@@ -78,7 +86,7 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
           </Svg>
         ) : null}
         {w > 0 && last && lastWeek ? (
-          <View style={[styles.bubble, { left: bubbleX - 34, top: Math.max(0, last[1] - 34), backgroundColor: c.text }]}>
+          <View style={[styles.bubble, { left: bubbleLeft, top: 0, backgroundColor: c.text }]}>
             <Text style={[styles.bubbleText, { color: c.bg }]}>{km(lastWeek.distanceM, 1)} km</Text>
           </View>
         ) : null}
@@ -97,7 +105,14 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
 }
 
 const styles = StyleSheet.create({
-  bubble: { position: 'absolute', width: 68, alignItems: 'center', borderRadius: 10, paddingVertical: 4 },
+  bubble: {
+    position: 'absolute',
+    width: BUBBLE_W,
+    height: BUBBLE_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
   bubbleText: { fontFamily: font.bold, fontSize: 12 },
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
   tick: { fontFamily: font.medium, fontSize: 11 },

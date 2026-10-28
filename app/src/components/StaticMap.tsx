@@ -34,6 +34,7 @@ export default function StaticMap({
   style,
   radius = 16,
   pad = 28,
+  attribution = true,
 }: {
   points: LatLon[];
   height?: number;
@@ -42,6 +43,8 @@ export default function StaticMap({
   radius?: number;
   /** Jarak tepi garis rute ke tepi peta (px). */
   pad?: number;
+  /** false bila pemanggil menutup tepi bawah peta (mis. gradasi) dan menggambar atribusi OSM sendiri. */
+  attribution?: boolean;
 }) {
   const c = useColors();
   const [width, setWidth] = useState(0);
@@ -101,7 +104,7 @@ export default function StaticMap({
           <Circle cx={ex} cy={ey} r={5.5} fill={c.finish} stroke="#fff" strokeWidth={2} />
           <Circle cx={sx} cy={sy} r={5.5} fill={c.start} stroke="#fff" strokeWidth={2} />
         </Svg>
-        <Text style={[styles.attrib, { color: c.muted }]}>{OSM_ATTRIBUTION}</Text>
+        {attribution ? <Text style={[styles.attrib, { color: c.muted }]}>{OSM_ATTRIBUTION}</Text> : null}
       </>
     );
   }

@@ -32,18 +32,21 @@ export default function TabBar({ state, navigateToTab }: BottomTabBarProps) {
 
         if (route.name === 'rekam') {
           const color = recording ? c.danger : c.accent;
+          const icon = recording ? 'pulse' : 'radio-button-on';
+          // Di layar Rekam sendiri tombol ini redup tanpa cahaya, supaya tidak bersaing dengan tombol Mulai di atasnya.
           return (
             <View key={route.key} style={styles.slot}>
               <Pressable
                 onPress={go}
                 accessibilityRole="button"
                 accessibilityLabel="Rekam"
+                accessibilityState={{ selected: focused }}
                 style={({ pressed }) => [
                   styles.record,
-                  { backgroundColor: color, borderColor: c.bg, opacity: pressed ? 0.85 : 1 },
-                  glow(color, 0.9),
+                  { backgroundColor: focused ? c.surface2 : color, borderColor: c.bg, opacity: pressed ? 0.85 : 1 },
+                  focused ? null : glow(color, 0.9),
                 ]}>
-                <Ionicons name={recording ? 'pulse' : 'add'} size={32} color={recording ? '#fff' : c.accentInk} />
+                <Ionicons name={icon} size={32} color={focused ? color : recording ? '#fff' : c.accentInk} />
               </Pressable>
             </View>
           );

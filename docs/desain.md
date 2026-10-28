@@ -1,6 +1,6 @@
 # Desain Jejak
 
-Dokumen ini mencatat arah visual dan sistem desain Jejak. Arah sekarang mengikuti gambar referensi dari pemilik: aplikasi gelap kehijauan dengan aksen hijau mint yang menyala, kartu bergradasi halus, dan tombol tengah bulat yang bercahaya. Arah sebelumnya (tema jalan: marka kuning, patok merah, nomor dada) ditolak pemilik dan sudah diganti; hanya template bagikan foto yang masih memakai benda jalan.
+Dokumen ini mencatat arah visual dan sistem desain Jejak. Tata letaknya mengikuti gambar referensi dari pemilik: kartu bergradasi halus dan tombol tengah bulat yang bercahaya. Warnanya kembali ke warna desain jalan atas permintaan pemilik: aspal gelap dengan aksen **marka kuning** `#FFC629`. Warna hijau mint dari desain referensi tidak disukai pemilik dan sudah diganti. Template bagikan foto tetap memakai benda jalan (nomor dada, patok, rambu).
 
 ## Subjek, pengguna, tugas utama
 
@@ -26,19 +26,21 @@ Semua token ada di `app/src/lib/theme.ts`. App selalu gelap, apa pun setelan HP.
 
 | Nama | Nilai | Peran |
 | --- | --- | --- |
-| `bg` | `#080D0B` | Latar layar, hitam kehijauan |
-| `surface` / `surface2` | `#111916` / `#18221E` | Tab bar, panel bawah, kolom isian, tombol sekunder |
-| `cardTop` → `cardBottom` | `#16211D` → `#0E1512` | Gradasi kartu |
-| `line` | `#1E2A25` | Garis tepi tipis kartu dan tombol |
-| `text` / `muted` | `#EEF4F1` / `#86958F` | Teks utama / sekunder |
-| `accent` | `#2EE59D` | Aksi utama, tab aktif, garis aktivitas, angka penting; teks di atasnya `accentInk` `#03170E` |
-| `accentSoft` | hijau 14 % | Latar pil dan kotak ikon |
+| `bg` | `#1E2023` | Latar layar, aspal gelap |
+| `surface` / `surface2` | `#2A2D31` / `#35393E` | Tab bar, panel bawah, kolom isian, tombol sekunder |
+| `cardTop` → `cardBottom` | `#2E3135` → `#24272A` | Gradasi kartu |
+| `heroTop` → `heroBottom` | `#3E3A2A` → `#25272A` | Gradasi kartu utama, aspal bersemu kuning |
+| `line` | `#3A3E43` | Garis tepi tipis kartu dan tombol |
+| `text` / `muted` | `#F1F1EC` / `#A3A6A8` | Teks utama / sekunder |
+| `accent` | `#FFC629` | Marka kuning: aksi utama, tab aktif, garis aktivitas, angka penting; teks di atasnya `accentInk` `#2A2D31` |
+| `accentSoft` | kuning 14 % | Latar pil dan kotak ikon |
 | `route` | `#4DA3FF` | Garis rute rencana |
-| `segment` | `#FFB547` | Sorotan segmen |
+| `segment` | `#A07BFF` | Sorotan segmen (ungu, supaya tidak tertukar dengan garis aktivitas yang kuning) |
+| `start` / `finish` | `#2FA77C` / `#F0554B` | Pin awal dan akhir |
 | `danger` | `#FF5C5C` | Rekaman berjalan, keluar rute, hapus |
 | `gold` / `silver` / `bronze` | | Medali peringkat dan rekor |
 
-Kartu utama (Minggu ini, hero profil, CTA rute, waktu terbaik segmen) memakai gradasi hijau tua `#16372A` → `#0E1A15` dengan garis tepi aksen 19 %.
+Kartu utama (Minggu ini, hero profil, CTA rute, waktu terbaik segmen) memakai gradasi `heroTop` → `heroBottom` dengan garis tepi aksen 19 %. StyleSheet statis yang tidak bisa memakai `useColors()` mengambil warna dari `palette`, dan warna transparan dibuat dengan `alpha(warna, nilai)`; jangan menulis kode warna langsung di komponen.
 
 ### Cahaya
 
@@ -60,12 +62,12 @@ Kartu utama (Minggu ini, hero profil, CTA rute, waktu terbaik segmen) memakai gr
 
 | Komponen | Isi |
 | --- | --- |
-| Tab bar (`TabBar.tsx`) | Latar `surface` bersudut atas 24; tombol Rekam bulat 62 px hijau bercahaya (ikon titik rekam) yang menonjol ke atas, berubah merah saat merekam, dan redup tanpa cahaya saat layar Rekam sedang dibuka supaya tidak bersaing dengan tombol Mulai; tab aktif ikon + label hijau, tanpa kotak |
+| Tab bar (`TabBar.tsx`) | Latar `surface` bersudut atas 24; tombol Rekam bulat 62 px kuning bercahaya (ikon titik rekam) yang menonjol ke atas, berubah merah saat merekam, dan redup tanpa cahaya saat layar Rekam sedang dibuka supaya tidak bersaing dengan tombol Mulai; tab aktif ikon + label kuning, tanpa kotak |
 | Kartu Minggu ini (`WeekCard.tsx`) | Angka km besar, pil perubahan dibanding minggu lalu, ikon jejak bercahaya |
-| Aksi cepat (`ActionTile`) | Empat kotak ikon + label; yang aktif terisi hijau |
-| Grafik mingguan (`WeeklyChart.tsx`) | Grafik area hijau bergradasi, garis halus yang tidak melewati nilai asli, gelembung nilai minggu ini di pita atas dengan garis putus-putus ke titiknya |
+| Aksi cepat (`ActionTile`) | Empat kotak ikon + label; yang aktif terisi kuning |
+| Grafik mingguan (`WeeklyChart.tsx`) | Grafik area kuning bergradasi, garis halus yang tidak melewati nilai asli, gelembung nilai minggu ini di pita atas dengan garis putus-putus ke titiknya |
 | Banner petunjuk (`GuideBanner.tsx`) | Kartu gelap dengan kotak ikon belokan bercahaya dan jarak besar; merah saat keluar rute |
-| Halaman masuk (`masuk.tsx`) | Peta rute Keliling Alun-alun Pati memudar ke latar, logo hijau bercahaya, kartu form dengan pilihan Masuk / Daftar |
+| Halaman masuk (`masuk.tsx`) | Peta rute Keliling Alun-alun Pati memudar ke latar, logo kuning bercahaya, kartu form dengan pilihan Masuk / Daftar |
 
 ## Peta
 
@@ -78,7 +80,7 @@ Google Maps asli butuh kunci API dan akun penagihan Google Cloud. Maps SDK untuk
 
 ## Prinsip
 
-1. **Satu sumber cahaya per layar:** hanya aksi utama yang bercahaya hijau; bagian lain tenang.
-2. **Warna punya arti:** hijau = aksi dan kemajuan, biru = rute rencana, oranye = segmen, merah = rekaman berjalan atau peringatan.
+1. **Satu sumber cahaya per layar:** hanya aksi utama yang bercahaya kuning; bagian lain tenang.
+2. **Warna punya arti:** kuning = aksi dan kemajuan, biru = rute rencana, ungu = segmen, merah = rekaman berjalan atau peringatan.
 3. **Tulisan apa adanya:** tombol menyebut hasilnya ("Simpan aktivitas", "Bagikan"), pesan kesalahan menjelaskan cara memperbaiki, waktu ditulis seperti kalimat ("Lari, kemarin pukul 06.12").
 4. **Lapangan dulu:** layar rekam diuji dengan pertanyaan "apakah terbaca sambil berlari?"

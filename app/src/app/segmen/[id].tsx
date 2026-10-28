@@ -28,7 +28,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, pace, speed, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, palette, radius, space, useColors } from '@/lib/theme';
 
 export default function SegmentScreen() {
   const c = useColors();
@@ -80,7 +80,7 @@ export default function SegmentScreen() {
 
         {s.myBest ? (
           <LinearGradient
-            colors={['#16372A', '#0E1A15']}
+            colors={[c.heroTop, c.heroBottom]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.mine, { borderColor: c.accent + '30' }]}>
@@ -172,9 +172,9 @@ const styles = StyleSheet.create({
     gap: space.lg,
   },
   mine: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderWidth: 1, padding: space.lg },
-  mineLabel: { fontFamily: font.medium, fontSize: 13, color: '#86958F' },
-  mineTime: { fontFamily: font.numBold, fontSize: 40, color: '#2EE59D', lineHeight: 46, letterSpacing: -1 },
-  mineSub: { fontFamily: font.medium, fontSize: 13, color: '#86958F' },
+  mineLabel: { fontFamily: font.medium, fontSize: 13, color: palette.muted },
+  mineTime: { fontFamily: font.numBold, fontSize: 40, color: palette.accent, lineHeight: 46, letterSpacing: -1 },
+  mineSub: { fontFamily: font.medium, fontSize: 13, color: palette.muted },
   mineRank: {
     alignItems: 'center',
     borderWidth: 2,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  mineRankLabel: { fontFamily: font.medium, fontSize: 11, color: '#86958F' },
+  mineRankLabel: { fontFamily: font.medium, fontSize: 11, color: palette.muted },
   mineRankNum: { fontFamily: font.numBold, fontSize: 30 },
   row: { paddingHorizontal: space.lg, paddingVertical: space.md },
 });

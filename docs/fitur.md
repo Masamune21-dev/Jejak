@@ -19,7 +19,7 @@ Panduan pemakaian Jejak per layar, sesuai perilaku kode saat ini. Nama berkas la
 13. [Profil dan statistik](#profil-dan-statistik)
 14. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
 
-App selalu gelap dengan aksen hijau mint (lihat [desain.md](desain.md)): **hijau** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana, **oranye** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan.
+App selalu gelap (aspal) dengan aksen marka kuning (lihat [desain.md](desain.md)): **kuning** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana, **ungu** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan.
 
 ---
 
@@ -237,7 +237,7 @@ Rumus lengkapnya ada di [algoritma.md](algoritma.md).
 
 **Kudos**: jumlah kudos dan nama depan pemberinya (hingga 50 terbaru). Untuk aktivitas orang lain ada tombol **Beri kudos** / **Sudah** (ketuk lagi untuk membatalkan).
 
-**Segmen**: daftar segmen yang dilewati aktivitas ini, berurutan sesuai posisi di jalur. Tiap baris menampilkan nama segmen, panjang, pace/kecepatan, waktu, lencana **PR** bila memecahkan waktu terbaikmu sebelumnya di segmen itu, dan lencana **#peringkat**, yaitu peringkat waktu ini dibanding waktu terbaik atlet lain. Ketuk satu baris untuk menyorot potongan jalurnya di peta (oranye) dan memunculkan tombol **Lihat leaderboard**.
+**Segmen**: daftar segmen yang dilewati aktivitas ini, berurutan sesuai posisi di jalur. Tiap baris menampilkan nama segmen, panjang, pace/kecepatan, waktu, lencana **PR** bila memecahkan waktu terbaikmu sebelumnya di segmen itu, dan lencana **#peringkat**, yaitu peringkat waktu ini dibanding waktu terbaik atlet lain. Ketuk satu baris untuk menyorot potongan jalurnya di peta (ungu) dan memunculkan tombol **Lihat leaderboard**.
 
 **Split per km**: satu baris per kilometer. Nomor km ditampilkan dalam bulatan kecil (hijau untuk km tercepat), diikuti pace (lari/jalan) atau km/j (sepeda) dan sebuah batang:
 
@@ -333,7 +333,7 @@ Layar `aktivitas/[id]/segmen.tsx`, dibuka dari detail aktivitasmu sendiri.
 
 Segmen adalah potongan jalan yang waktunya diadu. Kamu memilih potongan itu dari jalur aktivitasmu:
 
-1. Jalur aktivitas digambar merah, potongan terpilih digambar oranye dengan pin hijau **S** (start) dan pin merah **F** (finish). Awalnya potongan diambil dari 25% sampai 75% jumlah titik.
+1. Jalur aktivitas digambar kuning, potongan terpilih digambar ungu dengan pin hijau **S** (start) dan pin merah **F** (finish). Awalnya potongan diambil dari 25% sampai 75% jumlah titik.
 2. Pilih ujung yang mau diatur: **Titik awal (S)** atau **Titik akhir (F)**.
 3. **Ketuk peta** di dekat jalur: ujung yang aktif pindah ke titik jalur terdekat, lalu pilihan otomatis berpindah ke ujung lainnya.
 4. Untuk penyesuaian halus pakai tombol **−20**, **−5**, **+5**, **+20 titik**.
@@ -359,11 +359,11 @@ Sebuah aktivitas dianggap melewati segmen bila lewat dari S ke F **searah**, mel
 - bila posisimu diketahui, menampilkan 50 segmen **Terdekat dari posisimu** (diukur ke titik awal segmen) beserta jaraknya dari sini;
 - bila tidak, menampilkan 50 segmen **Paling ramai** (atlet terbanyak, lalu yang terbaru).
 
-Setiap kartu: cuplikan peta (garis oranye), nama, lalu panjang dan jumlah atlet (*1,20 km, 4 atlet*).
+Setiap kartu: cuplikan peta (garis ungu), nama, lalu panjang dan jumlah atlet (*1,20 km, 4 atlet*).
 
 **Detail segmen** (`segmen/[id].tsx`):
 
-- peta segmen (garis oranye) dengan pin **S** dan **F** (atau satu pin **S/F** bila ujungnya berjarak kurang dari 30 m);
+- peta segmen (garis ungu) dengan pin **S** dan **F** (atau satu pin **S/F** bila ujungnya berjarak kurang dari 30 m);
 - jenis (lari/bersepeda), nama, pembuat;
 - **Panjang**, **Atlet** (jumlah orang yang punya waktu di segmen ini), **Rekor** (waktu tercepat; hanya diisi pada filter *Semua*);
 - kartu hijau tua **Waktu terbaikmu**: waktu (hijau), lalu *pace/kecepatan, tanggal*, dan **Peringkat** (bingkai emas untuk peringkat 1–3). Peringkat ini selalu dihitung terhadap semua atlet. Bila belum punya waktu: *Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.*;

@@ -33,7 +33,7 @@ export default function RoutesScreen() {
           <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
             <Pressable onPress={() => router.push('/rute/baru')} style={({ pressed }) => pressed && { opacity: 0.9 }}>
               <LinearGradient
-                colors={['#16372A', '#0E1A15']}
+                colors={[c.heroTop, c.heroBottom]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[styles.cta, { borderColor: c.accent + '30' }]}>

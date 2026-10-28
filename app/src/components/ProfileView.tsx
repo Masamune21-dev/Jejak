@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, palette, radius, space, useColors } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
 import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
@@ -62,7 +62,7 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
   const header = (
     <View style={{ gap: space.lg }}>
       <LinearGradient
-        colors={['#16372A', '#0B1310']}
+        colors={[c.heroTop, c.heroBottom]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.6, y: 1 }}
         style={[
@@ -222,14 +222,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.xl,
   },
   heroActions: { position: 'absolute', right: space.lg, flexDirection: 'row', gap: space.sm },
-  name: { color: '#EEF4F1', fontFamily: font.bold, fontSize: 24, letterSpacing: -0.3 },
-  handle: { color: '#86958F', fontFamily: font.medium, fontSize: 14 },
-  count: { color: '#86958F', fontFamily: font.medium, fontSize: 14 },
-  countNum: { color: '#EEF4F1', fontFamily: font.bold },
+  name: { color: palette.text, fontFamily: font.bold, fontSize: 24, letterSpacing: -0.3 },
+  handle: { color: palette.muted, fontFamily: font.medium, fontSize: 14 },
+  count: { color: palette.muted, fontFamily: font.medium, fontSize: 14 },
+  countNum: { color: palette.text, fontFamily: font.bold },
   totals: { flexDirection: 'row', alignSelf: 'stretch', borderTopWidth: 1, paddingTop: space.md, marginTop: space.xs },
-  heroNum: { color: '#2EE59D', fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5 },
-  heroUnit: { color: '#86958F', fontFamily: font.semibold, fontSize: 13 },
-  heroLabel: { color: '#86958F', fontFamily: font.medium, fontSize: 12 },
+  heroNum: { color: palette.accent, fontFamily: font.numBold, fontSize: 26, letterSpacing: -0.5 },
+  heroUnit: { color: palette.muted, fontFamily: font.semibold, fontSize: 13 },
+  heroLabel: { color: palette.muted, fontFamily: font.medium, fontSize: 12 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile: {
     flexGrow: 1,

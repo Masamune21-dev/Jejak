@@ -12,6 +12,7 @@ import { StyleSheet } from 'react-native';
 
 import { bounds } from '@shared/geo';
 
+import { palette } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, OSM_TILES } from '@/lib/tiles';
 
 import { MeDot, PinView } from './map-markers';
@@ -25,7 +26,7 @@ const STYLE: StyleSpecification = {
     osm: { type: 'raster', tiles: [OSM_TILES], tileSize: 256, maxzoom: OSM_MAX_ZOOM, attribution: OSM_ATTRIBUTION },
   },
   layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#080D0B' } },
+    { id: 'bg', type: 'background', paint: { 'background-color': palette.bg } },
     {
       id: 'osm',
       type: 'raster',

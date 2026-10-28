@@ -22,7 +22,7 @@ export default function WeekCard({ weeks, title = 'Minggu ini' }: { weeks: WeekT
   }
   return (
     <LinearGradient
-      colors={['#16372A', '#0E1A15']}
+      colors={[c.heroTop, c.heroBottom]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.card, { borderColor: c.accent + '30' }]}>

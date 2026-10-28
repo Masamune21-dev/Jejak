@@ -12,7 +12,7 @@ import { Button, Card, ErrorBox, Field, Segmented } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { km } from '@/lib/format';
-import { font, glow, space, useColors } from '@/lib/theme';
+import { alpha, font, glow, space, useColors } from '@/lib/theme';
 import { OSM_ATTRIBUTION } from '@/lib/tiles';
 
 /** Rute sungguhan "Keliling Alun-alun Pati" (disederhanakan, dari OSRM), sebagai sampul halaman masuk. */
@@ -112,7 +112,7 @@ export default function SignInScreen() {
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
-            colors={['rgba(8,13,11,0.55)', 'rgba(8,13,11,0)', 'rgba(8,13,11,0)', c.bg]}
+            colors={[alpha(c.bg, 0.55), alpha(c.bg, 0), alpha(c.bg, 0), c.bg]}
             locations={[0, 0.3, 0.6, 1]}
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
@@ -122,7 +122,7 @@ export default function SignInScreen() {
           <View
             style={[
               styles.routeChip,
-              { top: insets.top + space.md, backgroundColor: 'rgba(17,25,22,0.85)', borderColor: c.line },
+              { top: insets.top + space.md, backgroundColor: alpha(c.surface, 0.85), borderColor: c.line },
             ]}>
             <View style={[styles.liveDot, { backgroundColor: c.accent }, glow(c.accent, 0.6)]} />
             <Text style={[styles.routeChipText, { color: c.text }]}>Keliling Alun-alun Pati</Text>

@@ -5,7 +5,7 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import type { LatLon } from '@shared/geo';
 
-import { DARK_MAP_FILTER, useColors } from '@/lib/theme';
+import { alpha, DARK_MAP_FILTER, useColors } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, osmTile, TILE_HEADERS } from '@/lib/tiles';
 
 const TILE = 256;
@@ -89,7 +89,7 @@ export default function StaticMap({
             />
           ))}
         </View>
-        {FILTER_OK ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,13,11,0.55)' }]} />}
+        {FILTER_OK ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(c.bg, 0.55) }]} />}
         <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
           <Polyline
             points={line}

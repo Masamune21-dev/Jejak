@@ -3,6 +3,7 @@
 #   deploy/deploy.sh          server dan versi web
 #   deploy/deploy.sh server   hanya server
 #   deploy/deploy.sh web      hanya versi web
+#   deploy/deploy.sh apk      APK Android terbaru dari EAS ke /unduh/jejak.apk (tombol Unduh di landing page)
 # Kode server dikirim lewat SSH dari commit HEAD (git archive), jadi server tidak
 # butuh akses ke GitHub (repo boleh private). Commit dulu perubahan yang mau dipasang.
 set -euo pipefail
@@ -72,4 +73,30 @@ if [[ "$WHAT" == all || "$WHAT" == web ]]; then
   (cd "$HERE/app" && rm -rf dist && EXPO_PUBLIC_API_URL=https://jejak.masamune.my.id/api npx expo export --platform web --output-dir dist >/dev/null)
   rsync -az --no-owner --no-group --delete "$HERE/app/dist/" "$HOST:$ROOT/web/"
   echo "  ← web terpasang"
+fi
+
+if [[ "$WHAT" == apk ]]; then
+  # Build APK terbaru (profil preview) yang sudah selesai di EAS. Diunduh di komputer ini lalu dikirim lewat SSH,
+  # jadi server tidak butuh akun Expo. versi.json dibaca landing page untuk menampilkan versi dan ukuran.
+  echo "→ apk: cari build EAS terbaru"
+  json="$(cd "$HERE/app" && npx --yes eas-cli@latest build:list --platform android --build-profile preview --status finished --limit 1 --json --non-interactive 2>/dev/null)"
+  read -r url versi build commit < <(node -e '
+    const b = JSON.parse(process.argv[1])[0];
+    if (!b) { console.error("Belum ada build APK preview yang selesai."); process.exit(1); }
+    console.log(b.artifacts.applicationArchiveUrl ?? b.artifacts.buildUrl, b.appVersion, b.appBuildVersion || "-", (b.gitCommitHash || "-").slice(0, 7));
+  ' "$json")
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL "$url" -o "$tmp/jejak.apk"
+  node -e '
+    const [versi, build, commit, bytes] = process.argv.slice(1);
+    const info = { versi, build: build === "-" ? undefined : Number(build), commit, ukuranMB: Math.round((Number(bytes) / 1048576) * 10) / 10, tanggal: new Date().toISOString().slice(0, 10) };
+    require("node:fs").writeFileSync(process.argv[5], JSON.stringify(info));
+  ' "$versi" "$build" "$commit" "$(wc -c < "$tmp/jejak.apk" | tr -d " ")" "$tmp/versi.json"
+  ssh "$HOST" "mkdir -p $ROOT/unduh"
+  # Kirim sebagai berkas sementara lalu ganti nama, supaya pengunjung tidak mengunduh APK yang setengah jadi.
+  rsync -az --no-owner --no-group "$tmp/jejak.apk" "$HOST:$ROOT/unduh/jejak.apk.baru"
+  rsync -az --no-owner --no-group "$tmp/versi.json" "$HOST:$ROOT/unduh/versi.json.baru"
+  ssh "$HOST" "cd $ROOT/unduh && chmod 644 jejak.apk.baru versi.json.baru && mv jejak.apk.baru jejak.apk && mv versi.json.baru versi.json"
+  echo "  ← APK $versi (build $build, $commit) terpasang di /unduh/jejak.apk"
 fi

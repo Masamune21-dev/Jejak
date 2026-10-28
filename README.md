@@ -28,7 +28,7 @@ jejak/
               pencocokan segmen, progres di rute) dan tipe data API.
 ```
 
-Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://jejak.masamune.my.id/api`.
+Versi produksi: **https://jejak.masamune.my.id** (web; pengunjung yang belum masuk melihat halaman depan dengan tombol unduh APK) dengan API di `https://jejak.masamune.my.id/api`. APK terbaru: `https://jejak.masamune.my.id/unduh/jejak.apk`.
 
 ## Menjalankan untuk pengembangan
 

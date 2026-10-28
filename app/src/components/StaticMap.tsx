@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
-import type { LatLon } from '@shared/geo';
+import { cumulativeDistance, type LatLon } from '@shared/geo';
 
 import { alpha, DARK_MAP_FILTER, useColors, useIsDark } from '@/lib/theme';
 import { OSM_ATTRIBUTION, OSM_MAX_ZOOM, osmTile, TILE_HEADERS } from '@/lib/tiles';
@@ -35,6 +35,7 @@ export default function StaticMap({
   radius = 16,
   pad = 28,
   attribution = true,
+  progress,
 }: {
   points: LatLon[];
   height?: number;
@@ -45,6 +46,8 @@ export default function StaticMap({
   pad?: number;
   /** false bila pemanggil menutup tepi bawah peta (mis. gradasi) dan menggambar atribusi OSM sendiri. */
   attribution?: boolean;
+  /** 0..1: gambar sebagian garis (demo rekaman berjalan) dengan titik posisi di ujungnya. Zoom tetap dari garis penuh. */
+  progress?: number;
 }) {
   const c = useColors();
   const dark = useIsDark();
@@ -74,9 +77,11 @@ export default function StaticMap({
         tiles.push({ key: `${z}/${tx}/${ty}`, uri: osmTile(z, wx, ty), left: tx * TILE - ox, top: ty * TILE - oy });
       }
     }
-    const line = px.map(([x, y]) => `${(x - ox).toFixed(1)},${(y - oy).toFixed(1)}`).join(' ');
+    const shown = progress == null || progress >= 1 ? px : partial(points, px, progress);
+    const line = shown.map(([x, y]) => `${(x - ox).toFixed(1)},${(y - oy).toFixed(1)}`).join(' ');
     const [sx, sy] = [px[0][0] - ox, px[0][1] - oy];
-    const [ex, ey] = [px[px.length - 1][0] - ox, px[px.length - 1][1] - oy];
+    const [ex, ey] = [shown[shown.length - 1][0] - ox, shown[shown.length - 1][1] - oy];
+    const live = progress != null && progress < 1;
     content = (
       <>
         <View style={[StyleSheet.absoluteFill, dark && FILTER_OK && { filter: DARK_MAP_FILTER }]}>
@@ -102,8 +107,18 @@ export default function StaticMap({
             strokeLinejoin="round"
           />
           <Polyline points={line} fill="none" stroke={lineColor} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
-          <Circle cx={ex} cy={ey} r={5.5} fill={c.finish} stroke="#fff" strokeWidth={2} />
-          <Circle cx={sx} cy={sy} r={5.5} fill={c.start} stroke="#fff" strokeWidth={2} />
+          {live ? (
+            <>
+              <Circle cx={sx} cy={sy} r={5.5} fill={c.start} stroke="#fff" strokeWidth={2} />
+              <Circle cx={ex} cy={ey} r={11} fill={lineColor} fillOpacity={0.25} />
+              <Circle cx={ex} cy={ey} r={6} fill={lineColor} stroke="#fff" strokeWidth={2.5} />
+            </>
+          ) : (
+            <>
+              <Circle cx={ex} cy={ey} r={5.5} fill={c.finish} stroke="#fff" strokeWidth={2} />
+              <Circle cx={sx} cy={sy} r={5.5} fill={c.start} stroke="#fff" strokeWidth={2} />
+            </>
+          )}
         </Svg>
         {attribution ? <Text style={[styles.attrib, { color: c.muted }]}>{OSM_ATTRIBUTION}</Text> : null}
       </>
@@ -117,6 +132,18 @@ export default function StaticMap({
       {content}
     </View>
   );
+}
+
+/** Potongan garis (dalam piksel) sepanjang `f` dari jarak total, dengan titik ujung yang diinterpolasi. */
+function partial(points: LatLon[], px: [number, number][], f: number): [number, number][] {
+  const cum = cumulativeDistance(points);
+  const target = Math.max(0, f) * cum[cum.length - 1];
+  let i = 1;
+  while (i < cum.length - 1 && cum[i] < target) i++;
+  const span = cum[i] - cum[i - 1];
+  const t = span > 0 ? Math.min(1, Math.max(0, (target - cum[i - 1]) / span)) : 1;
+  const head: [number, number] = [px[i - 1][0] + (px[i][0] - px[i - 1][0]) * t, px[i - 1][1] + (px[i][1] - px[i - 1][1]) * t];
+  return [...px.slice(0, i), head];
 }
 
 const styles = StyleSheet.create({

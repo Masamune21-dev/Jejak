@@ -116,6 +116,8 @@ Catatan pemasangan:
 
 ---
 
+**Lewat situs Jejak:** setelah build `preview` selesai, jalankan `deploy/deploy.sh apk` (lihat [deploy.md](deploy.md#bagian-apk-deploysh-apk)). APK terbaru tersedia di https://jejak.masamune.my.id/unduh/jejak.apk dan tombol **Unduh** di halaman depan versi web, dengan versi dan ukurannya. Alamat ini tetap sama untuk setiap versi, berbeda dengan tautan EAS yang berganti di setiap build.
+
 ## Ukuran APK: hanya arm64-v8a
 
 Plugin `expo-build-properties` di `app.json`:

@@ -28,6 +28,8 @@ Host SSH bawaan di `deploy/deploy.sh` adalah `root@103.189.249.115`; bisa digant
 ├── repo.old/   Versi sebelumnya (dari deploy terakhir), untuk rollback cepat.
 ├── repo.new/   Hanya ada sementara selama deploy berlangsung (atau tertinggal bila deploy gagal).
 ├── web/        Hasil `expo export --platform web` (diunggah dengan rsync).
+├── unduh/      jejak.apk + versi.json untuk tombol Unduh di halaman depan (diisi `deploy.sh apk`).
+│               Di luar web/ supaya tidak terhapus rsync --delete.
 └── data/       Database SQLite: jejak.db, jejak.db-wal, jejak.db-shm. Milik user `jejak`,
     │           izin 700/600: hanya proses API (dan root) yang bisa membacanya.
     └── uploads/    Foto profil, sampul, dan postingan (<32 hex>.jpg) + .kunci-media
@@ -119,6 +121,7 @@ Lokasi:
 | `/api/` | Batas laju zona `jejak_api` (10 permintaan/detik per IP, `burst=100`) dan `jejak_write` (hanya `POST`/`PUT`/`PATCH`/`DELETE`: 30/menit per IP, `burst=30`; `map $request_method` memberi kunci kosong untuk metode lain, yang tidak dihitung nginx). Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
 | `@jejak_terlalu_banyak` | `error_page 429` untuk semua lokasi: badan JSON `{"error":"Terlalu banyak permintaan. …"}` supaya app menampilkan pesannya. |
 | `/_expo/` | Berkas build web ber-hash: `expires 1y`, `Cache-Control: public, immutable`, 404 bila tidak ada. |
+| `/unduh/` | `alias` ke folder `unduh/`: `jejak.apk` (tipe `application/vnd.android.package-archive`) dan `versi.json`. `Cache-Control: no-cache`, header keamanan diulang. |
 | `/` | Berkas web; bila tidak ada, `$uri.html`, lalu `/index.html` (aplikasi satu halaman). `Cache-Control: no-cache`. |
 
 ### Akibat Authenticated Origin Pulls
@@ -155,7 +158,18 @@ Prasyarat di komputer pengembang:
 deploy/deploy.sh          # server + web
 deploy/deploy.sh server   # hanya server
 deploy/deploy.sh web      # hanya web
+deploy/deploy.sh apk      # APK Android terbaru dari EAS ke /unduh/jejak.apk
 ```
+
+### Bagian APK (`deploy.sh apk`)
+
+Tidak ikut `deploy.sh` tanpa argumen; jalankan sendiri setelah build APK `preview` selesai di EAS.
+
+1. Di komputer lokal: `eas build:list --platform android --build-profile preview --status finished --limit 1 --json` mencari build terbaru yang sudah selesai (butuh `eas login`). Bila belum ada, berhenti dengan *Belum ada build APK preview yang selesai.*
+2. APK diunduh ke folder sementara, lalu `versi.json` ditulis: `{ versi, build, commit, ukuranMB, tanggal }`. Halaman depan membacanya untuk menampilkan versi dan ukuran.
+3. Keduanya dikirim dengan rsync sebagai `*.baru`, lalu diganti nama di server. Pengunjung tidak pernah mengunduh APK yang belum selesai terkirim.
+
+Folder `unduh/` tidak perlu ikut backup: isinya selalu bisa dibuat ulang dari EAS.
 
 ### Bagian server
 

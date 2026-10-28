@@ -28,7 +28,7 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 
 | Bagian | Lokasi | Peran |
 | --- | --- | --- |
-| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, tema, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `masuk` hanya untuk yang belum). Tab ada di `(tabs)/`. |
+| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, tema, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `sambut` dan `masuk` hanya untuk yang belum). Grup layar utama memakai `redirectTo`: tamu di web diarahkan ke halaman depan `/sambut`, di HP ke `/masuk`. Tab ada di `(tabs)/`. |
 | Komponen | `src/components/` | UI bersama (`ui.tsx`, termasuk `Avatar` dengan foto), kartu aktivitas, kartu postingan (`PostCard.tsx`), profil, grafik, tab bar, peta, menu bawah (`Sheet.tsx`), banner petunjuk arah (`GuideBanner.tsx`), stiker bagikan (`ShareStickers.tsx`), template bagikan lama (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
 | Perekam | `src/lib/recorder.ts` | Mesin status perekaman, filter titik GPS, stopwatch, penyimpanan lokal, pemandu rute. |
 | Lokasi | `src/lib/gps.ts`, `location-task.ts`, `sim.ts`, `location-source.ts` | Sumber posisi: GPS latar, GPS layar menyala, atau simulasi. |

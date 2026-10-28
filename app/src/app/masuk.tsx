@@ -1,52 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AuthResult } from '@shared/api';
-import { pathDistance, type LatLon } from '@shared/geo';
+import { pathDistance } from '@shared/geo';
 
 import StaticMap from '@/components/StaticMap';
 import { Button, Card, ErrorBox, Field, Segmented } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { PATI } from '@/lib/demo-route';
 import { km } from '@/lib/format';
 import { alpha, font, glow, space, useColors } from '@/lib/theme';
 import { OSM_ATTRIBUTION } from '@/lib/tiles';
-
-/** Rute sungguhan "Keliling Alun-alun Pati" (disederhanakan, dari OSRM), sebagai sampul halaman masuk. */
-const PATI: LatLon[] = [
-  [-6.753384, 111.039597],
-  [-6.753895, 111.03954],
-  [-6.754011, 111.039656],
-  [-6.754187, 111.040601],
-  [-6.753674, 111.040707],
-  [-6.75378, 111.041504],
-  [-6.752949, 111.041648],
-  [-6.752867, 111.041634],
-  [-6.752783, 111.041555],
-  [-6.75199, 111.04171],
-  [-6.751875, 111.040748],
-  [-6.750654, 111.040909],
-  [-6.748939, 111.041306],
-  [-6.748602, 111.037207],
-  [-6.748368, 111.035022],
-  [-6.748291, 111.033555],
-  [-6.749086, 111.03336],
-  [-6.749142, 111.033648],
-  [-6.749229, 111.033722],
-  [-6.749312, 111.03444],
-  [-6.749398, 111.034714],
-  [-6.749948, 111.034668],
-  [-6.750224, 111.035733],
-  [-6.75047, 111.035686],
-  [-6.750609, 111.035297],
-  [-6.75196, 111.03494],
-  [-6.753169, 111.039337],
-  [-6.753253, 111.039496],
-  [-6.753384, 111.039597],
-];
 
 const PATI_KM = km(pathDistance(PATI), 1);
 
@@ -58,7 +27,8 @@ export default function SignInScreen() {
   const { signIn } = useAuth();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const scrollHeight = useRef(0);
-  const [mode, setMode] = useState<'masuk' | 'daftar'>('masuk');
+  // ?mode=daftar dari landing page membuka form daftar langsung.
+  const [mode, setMode] = useState<'masuk' | 'daftar'>(useLocalSearchParams<{ mode?: string }>().mode === 'daftar' ? 'daftar' : 'masuk');
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -189,6 +159,11 @@ export default function SignInScreen() {
               <Text style={{ color: c.accentText, fontFamily: font.bold }}>{daftar ? 'Masuk' : 'Daftar sekarang'}</Text>
             </Text>
           </Pressable>
+          {Platform.OS === 'web' ? (
+            <Pressable onPress={() => router.replace('/sambut')} hitSlop={8} style={styles.switch} accessibilityRole="link">
+              <Text style={[styles.switchText, { color: c.muted }]}>Kenali Jejak lebih dulu</Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -20,6 +20,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import CrashReportView from '@/components/CrashReport';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -102,7 +103,8 @@ function Root() {
           // Halaman detail masuk dari kanan seperti iOS, juga di Android (bawaan Android hanya memudar sekilas).
           animation: 'ios_from_right',
         }}>
-        <Stack.Protected guard={!!user}>
+        {/* Tamu di web melihat landing page dulu; di HP langsung ke halaman masuk. */}
+        <Stack.Protected guard={!!user} redirectTo={Platform.OS === 'web' ? '/sambut' : '/masuk'}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="aktivitas/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="aktivitas/[id]/segmen" options={{ title: 'Buat segmen' }} />
@@ -120,6 +122,7 @@ function Root() {
           <Stack.Screen name="postingan/[id]" options={{ title: 'Postingan' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
+          <Stack.Screen name="sambut" options={{ headerShown: false, animation: 'fade', title: 'Jejak' }} />
           <Stack.Screen name="masuk" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>

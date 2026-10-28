@@ -5,23 +5,24 @@ Panduan pemakaian Jejak per layar, sesuai perilaku kode saat ini. Nama berkas la
 ## Daftar isi
 
 1. [Navigasi utama](#navigasi-utama)
-2. [Daftar dan masuk](#daftar-dan-masuk)
-3. [Beranda (feed)](#beranda-feed)
-4. [Rekam aktivitas](#rekam-aktivitas)
-5. [Mengikuti rute saat merekam](#mengikuti-rute-saat-merekam)
-6. [Rute: daftar dan detail](#rute-daftar-dan-detail)
-7. [Membuat rute](#membuat-rute)
-8. [Detail aktivitas](#detail-aktivitas)
-9. [Bagikan ke foto](#bagikan-ke-foto)
-10. [Ekspor GPX](#ekspor-gpx)
-11. [Membuat segmen](#membuat-segmen)
-12. [Segmen dan leaderboard](#segmen-dan-leaderboard)
-13. [Profil dan statistik](#profil-dan-statistik)
-14. [Pengikut dan mengikuti](#pengikut-dan-mengikuti)
-15. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
-16. [Postingan](#postingan)
-17. [Pesan (chat)](#pesan-chat)
-18. [Pengaturan](#pengaturan)
+2. [Halaman depan (versi web)](#halaman-depan-versi-web)
+3. [Daftar dan masuk](#daftar-dan-masuk)
+4. [Beranda (feed)](#beranda-feed)
+5. [Rekam aktivitas](#rekam-aktivitas)
+6. [Mengikuti rute saat merekam](#mengikuti-rute-saat-merekam)
+7. [Rute: daftar dan detail](#rute-daftar-dan-detail)
+8. [Membuat rute](#membuat-rute)
+9. [Detail aktivitas](#detail-aktivitas)
+10. [Bagikan ke foto](#bagikan-ke-foto)
+11. [Ekspor GPX](#ekspor-gpx)
+12. [Membuat segmen](#membuat-segmen)
+13. [Segmen dan leaderboard](#segmen-dan-leaderboard)
+14. [Profil dan statistik](#profil-dan-statistik)
+15. [Pengikut dan mengikuti](#pengikut-dan-mengikuti)
+16. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
+17. [Postingan](#postingan)
+18. [Pesan (chat)](#pesan-chat)
+19. [Pengaturan](#pengaturan)
 
 Bawaannya app gelap (aspal) dengan aksen marka kuning. Sejak 0.2.0 tema (Ikuti HP / Gelap / Terang) dan warna aksen (kuning, mint, biru, oranye, pink) bisa diganti di [Pengaturan](#pengaturan) (lihat [desain.md](desain.md)). Arti warna tetap sama: **warna aksen** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana (**toska** bila aksennya biru), **ungu** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan. Di bawah, "warna aksen" berarti warna yang kamu pilih.
 
@@ -43,7 +44,28 @@ Tombol Rekam di tengah tab bar berwarna aksen dan bercahaya saat tidak ada rekam
 
 Layar lain dibuka di atas tab: detail aktivitas (`aktivitas/[id]`), buat segmen (`aktivitas/[id]/segmen`), bagikan (`aktivitas/[id]/bagikan`), detail segmen (`segmen/[id]`), rute baru (`rute/baru`), detail rute (`rute/[id]`), profil atlet lain (`atlet/[id]`), cari teman (`cari`), pengikut/mengikuti (`koneksi/[id]`), tulis postingan (`tulis`), detail postingan (`postingan/[id]`), daftar pesan (`pesan/index`), percakapan (`pesan/[id]`), dan pengaturan (`pengaturan`).
 
-Semua layar itu hanya bisa dibuka setelah masuk. Selama belum masuk, satu-satunya layar adalah `masuk`.
+Semua layar itu hanya bisa dibuka setelah masuk. Selama belum masuk, layarnya hanya `masuk`, ditambah [halaman depan](#halaman-depan-versi-web) `sambut` di versi web.
+
+---
+
+## Halaman depan (versi web)
+
+Pengunjung versi web yang belum masuk melihat halaman depan `sambut.tsx` (alamat `/sambut`); semua alamat lain yang butuh login diarahkan ke sana. Di aplikasi HP, pengguna yang belum masuk langsung ke halaman masuk. Dari halaman masuk versi web ada tautan *Kenali Jejak lebih dulu* untuk kembali ke halaman depan.
+
+Isi halaman, dari atas:
+
+| Bagian | Isi |
+| --- | --- |
+| Navigasi | Wordmark, tautan **Fitur**, **Cara pakai**, **Privasi**, **Unduh** (hanya di layar lebar, menggulir ke bagiannya), dan tombol **Masuk**. Menempel di atas saat digulir. |
+| Hero | Judul *Setiap jalan dekat rumah bisa jadi lintasanmu.*, penjelasan singkat, tombol **Unduh untuk Android** dan **Masuk atau daftar**. Di sampingnya demo rekaman: rute Keliling Alun-alun Pati tergambar sendiri di peta selama ±9 detik sementara Waktu dan Jarak berjalan, lalu berhenti dengan status *Tersimpan*. Bila perangkat memakai pengaturan "kurangi gerakan", rute langsung tampil utuh. |
+| Fitur | Lima baris berselang-seling, masing-masing dengan potongan tampilan asli app: layar kunci dengan notifikasi rekaman, banner belok dan keluar rute, papan peringkat segmen, stiker transparan (komponen yang sama dengan layar Bagikan), dan gelembung chat. |
+| Cara pakai | Tiga langkah berurutan di atas patok KM 0, 1, 2: pasang dan daftar, rekam, bagikan dan adu waktu. |
+| Privasi | Papan rambu hijau: zona privasi 300 m, lokasi di foto dihapus, foto dan postingan hanya untuk yang masuk, pesan tidak terenkripsi ujung-ke-ujung. |
+| Unduh | Latar beton. Versi, nomor build, dan ukuran APK dibaca dari `/unduh/versi.json` (bila belum ada, tertulis *Versi terbaru*). Tombol **Unduh APK** mengunduh `/unduh/jejak.apk`, diikuti tiga langkah pemasangan. |
+| Sering ditanyakan | Lima pertanyaan yang bisa dibuka-tutup: gratis, kenapa tidak di Play Store, iPhone, izin lokasi "sepanjang waktu", dan garis yang melenceng dari jalan. |
+| Kaki halaman | Pembuat, atribusi peta dan rute, tautan **Masuk**, **Daftar** (membuka form daftar), dan **Unduh APK**. |
+
+Warna halaman depan tetap aspal + marka kuning, apa pun tema yang dipilih pengguna. Lebar 960 px ke atas memakai dua kolom; di bawahnya semua bertumpuk dan tombol di hero selebar layar.
 
 ---
 

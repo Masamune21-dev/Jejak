@@ -12,7 +12,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
-import { useRefetchOnFocus } from '@/lib/hooks';
+import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
 import { font, radius, space, useColors } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
@@ -41,12 +41,9 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
     initialPageParam: '',
     getNextPageParam: (last) => (last.length === PAGE ? last[last.length - 1].startedAt : undefined),
   });
-  const refetchAll = () => {
-    void profile.refetch();
-    void stats.refetch();
-    void acts.refetch();
-  };
+  const refetchAll = () => Promise.all([profile.refetch(), stats.refetch(), acts.refetch()]);
   useRefetchOnFocus(refetchAll);
+  const pull = usePullToRefresh(refetchAll);
 
   const follow = useMutation({
     mutationFn: (on: boolean) => api<Profile>(`/users/${userId}/follow`, { method: on ? 'POST' : 'DELETE' }),
@@ -194,7 +191,7 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
       keyExtractor={(a) => String(a.id)}
       renderItem={({ item }) => <ActivityCard a={item} />}
       ListHeaderComponent={header}
-      refreshControl={<RefreshControl refreshing={profile.isRefetching} onRefresh={refetchAll} tintColor={c.text} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.text} />}
       onEndReached={() => acts.hasNextPage && !acts.isFetchingNextPage && acts.fetchNextPage()}
       ListEmptyComponent={acts.isPending ? undefined : <Empty icon="walk" title="Belum ada aktivitas" />}
     />

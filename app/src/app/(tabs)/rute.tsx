@@ -10,13 +10,14 @@ import StaticMap from '@/components/StaticMap';
 import { Card, Empty, ErrorBox, Header, Loading, Row, SectionTitle, Stat, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { distanceParts, durationShort, TYPE_ICON, TYPE_LABEL, TYPE_SPEED } from '@/lib/format';
-import { useRefetchOnFocus } from '@/lib/hooks';
+import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
 import { font, glow, radius, space, useColors } from '@/lib/theme';
 
 export default function RoutesScreen() {
   const c = useColors();
   const q = useQuery({ queryKey: ['routes'], queryFn: () => api<RouteSummary[]>('/routes') });
   useRefetchOnFocus(q.refetch);
+  const pull = usePullToRefresh(q.refetch);
   if (q.isPending) return <Loading />;
   const routes = q.data ?? [];
   return (
@@ -25,7 +26,7 @@ export default function RoutesScreen() {
       contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.lg }}
       data={routes}
       keyExtractor={(r) => String(r.id)}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.text} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.text} />}
       ListHeaderComponent={
         <View style={{ gap: space.lg, marginHorizontal: -space.lg }}>
           <Header subtitle="Rencanakan jalurmu" title="Rute" />

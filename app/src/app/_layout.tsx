@@ -97,9 +97,11 @@ function Root() {
           headerTitleStyle: { fontFamily: font.bold, fontSize: 17 },
           headerBackButtonDisplayMode: 'minimal',
           contentStyle: { backgroundColor: c.bg },
+          // Halaman detail masuk dari kanan seperti iOS, juga di Android (bawaan Android hanya memudar sekilas).
+          animation: 'ios_from_right',
         }}>
         <Stack.Protected guard={!!user}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="aktivitas/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="aktivitas/[id]/segmen" options={{ title: 'Buat segmen' }} />
           <Stack.Screen name="aktivitas/[id]/bagikan" options={{ title: 'Bagikan' }} />
@@ -110,7 +112,7 @@ function Root() {
           <Stack.Screen name="cari" options={{ title: 'Cari teman' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
-          <Stack.Screen name="masuk" options={{ headerShown: false }} />
+          <Stack.Screen name="masuk" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
     </ThemeProvider>

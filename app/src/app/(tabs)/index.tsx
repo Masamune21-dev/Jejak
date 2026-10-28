@@ -11,7 +11,7 @@ import WeekCard from '@/components/WeekCard';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { greeting, today } from '@/lib/format';
-import { useRefetchOnFocus } from '@/lib/hooks';
+import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
 import { space, useColors } from '@/lib/theme';
 
 const PAGE = 20;
@@ -30,10 +30,9 @@ export default function FeedScreen() {
     queryKey: ['stats', me.id, 'all'],
     queryFn: () => api<Stats>(`/users/${me.id}/stats?type=all&tz=${-new Date().getTimezoneOffset()}`),
   });
-  useRefetchOnFocus(() => {
-    void q.refetch();
-    void week.refetch();
-  });
+  const refetchAll = () => Promise.all([q.refetch(), week.refetch()]);
+  useRefetchOnFocus(refetchAll);
+  const pull = usePullToRefresh(refetchAll);
 
   if (q.isPending) return <Loading />;
   const items = q.data?.pages.flat() ?? [];
@@ -46,16 +45,7 @@ export default function FeedScreen() {
       data={items}
       keyExtractor={(a) => String(a.id)}
       renderItem={({ item }) => <ActivityCard a={item} />}
-      refreshControl={
-        <RefreshControl
-          refreshing={q.isRefetching}
-          onRefresh={() => {
-            void q.refetch();
-            void week.refetch();
-          }}
-          tintColor={c.text}
-        />
-      }
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.text} />}
       onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
       onEndReachedThreshold={0.5}
       ListHeaderComponent={

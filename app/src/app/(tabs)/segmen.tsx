@@ -12,7 +12,7 @@ import { Card, Empty, ErrorBox, Header, Loading, Row, T } from '@/components/ui'
 import { api } from '@/lib/api';
 import { distance, TYPE_ICON } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
-import { useRefetchOnFocus } from '@/lib/hooks';
+import { usePullToRefresh, useRefetchOnFocus } from '@/lib/hooks';
 import { space, useColors } from '@/lib/theme';
 
 export default function SegmentsScreen() {
@@ -30,6 +30,7 @@ export default function SegmentsScreen() {
     enabled: located,
   });
   useRefetchOnFocus(q.refetch);
+  const pull = usePullToRefresh(q.refetch);
   if (!located || q.isPending) return <Loading />;
   return (
     <FlatList
@@ -37,7 +38,7 @@ export default function SegmentsScreen() {
       contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.md }}
       data={q.data ?? []}
       keyExtractor={(s) => String(s.id)}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.text} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.text} />}
       ListHeaderComponent={
         <View style={{ marginHorizontal: -space.lg, gap: space.sm }}>
           <Header subtitle={here ? 'Terdekat dari posisimu' : 'Paling ramai'} title="Segmen" />

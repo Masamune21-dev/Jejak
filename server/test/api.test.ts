@@ -45,6 +45,13 @@ test('akun: daftar, masuk, salah sandi, tanpa token', async () => {
   const ok = await call<AuthResult>('POST', '/auth/login', undefined, { username: 'Ika', password: 'rahasia1' });
   assert.equal(ok.status, 200);
   assert.equal((await call('GET', '/feed')).status, 401);
+  // Kata sandi dengan spasi di tepi dipakai apa adanya saat daftar maupun masuk.
+  await call('POST', '/auth/register', undefined, { username: 'spasi', name: 'Spasi', password: ' rahasia1 ' });
+  assert.equal((await call('POST', '/auth/login', undefined, { username: 'spasi', password: ' rahasia1 ' })).status, 200);
+  assert.equal(
+    (await call('POST', '/auth/register', undefined, { username: 'pendek', name: 'P', password: '12345' })).status,
+    400,
+  );
   const me = await call<Profile>('GET', '/me', ok.body.token);
   assert.equal(me.body.username, 'ika');
 });

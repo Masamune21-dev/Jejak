@@ -17,7 +17,11 @@ if [[ "$WHAT" == all || "$WHAT" == server ]]; then
     echo "Ada perubahan server/shared/deploy yang belum di-commit. Commit & push dulu." >&2
     exit 1
   fi
-  git -C "$HERE" push --quiet
+  if [[ "$(git -C "$HERE" branch --show-current)" != main ]]; then
+    echo "Server selalu memasang origin/main. Pindah ke branch main dulu." >&2
+    exit 1
+  fi
+  git -C "$HERE" push --quiet origin main
   echo "→ server: git pull + npm ci + pm2"
   ssh "$HOST" bash -s <<EOF
 set -euo pipefail
@@ -42,6 +46,9 @@ EOF
 fi
 
 if [[ "$WHAT" == all || "$WHAT" == web ]]; then
+  if [[ -n "$(git -C "$HERE" status --porcelain -- app shared)" ]]; then
+    echo "Peringatan: versi web dibangun dari folder kerja, termasuk perubahan app/shared yang belum di-commit."
+  fi
   echo "→ web: expo export"
   (cd "$HERE/app" && rm -rf dist && EXPO_PUBLIC_API_URL=https://jejak.masamune.my.id/api npx expo export --platform web --output-dir dist >/dev/null)
   rsync -az --no-owner --no-group --delete "$HERE/app/dist/" "$HOST:$ROOT/web/"

@@ -467,7 +467,10 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const username = str(b.username, 'Username', 3, 20).toLowerCase();
     if (!/^[a-z0-9_.]+$/.test(username)) fail(400, 'Username hanya boleh huruf, angka, titik, dan garis bawah');
     const name = str(b.name, 'Nama', 1, 50);
-    const password = str(b.password, 'Kata sandi', 6, 200);
+    // Kata sandi dipakai apa adanya (tidak di-trim), sama seperti saat masuk.
+    const password = typeof b.password === 'string' ? b.password : '';
+    if (password.length < 6) fail(400, 'Kata sandi minimal 6 karakter');
+    if (password.length > 200) fail(400, 'Kata sandi maksimal 200 karakter');
     if (one('select 1 from users where username = ?', username)) fail(409, 'Username sudah dipakai');
     const id = Number(
       run('insert into users (username, name, password_hash) values (?, ?, ?)', username, name, hashPassword(password))
@@ -481,7 +484,9 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const username = str(b.username, 'Username', 1, 50).toLowerCase();
     const password = typeof b.password === 'string' ? b.password : '';
     const u = one('select id, username, name, password_hash from users where username = ?', username);
-    if (!u || !verifyPassword(password, u.password_hash)) fail(401, 'Username atau kata sandi salah');
+    // Akun lama didaftarkan dengan kata sandi yang di-trim, jadi coba juga versi tanpa spasi tepi.
+    const ok = u && (verifyPassword(password, u.password_hash) || verifyPassword(password.trim(), u.password_hash));
+    if (!u || !ok) fail(401, 'Username atau kata sandi salah');
     return c.json(startSession({ id: u.id, username: u.username, name: u.name }));
   });
 

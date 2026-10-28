@@ -186,10 +186,18 @@ export const recorder = {
 
   async start(makeSource: () => Promise<LocationSource>) {
     if (state.status !== 'idle') return;
-    source = await makeSource();
+    const src = await makeSource();
+    source = src;
     loadRoute(state.route);
-    set({ status: 'recording', parts: [[]], distanceM: 0, activeMs: 0, runningSince: clock(), sourceKind: source.kind });
-    await source.start(addFixes);
+    set({ status: 'recording', parts: [[]], distanceM: 0, activeMs: 0, runningSince: clock(), sourceKind: src.kind });
+    try {
+      await src.start(addFixes);
+    } catch (e) {
+      // GPS gagal menyala: jangan tampil seolah sedang merekam.
+      source = null;
+      set({ status: 'idle', parts: [], runningSince: null, sourceKind: null });
+      throw e;
+    }
     await save();
   },
 
@@ -204,9 +212,17 @@ export const recorder = {
   /** Lanjut setelah jeda atau setelah menekan Selesai. Sumber lokasi dibuat ulang bila perlu. */
   async resume(makeSource: () => Promise<LocationSource>) {
     if (state.status !== 'paused' && state.status !== 'finished') return;
-    if (!source) source = await makeSource();
-    set({ status: 'recording', parts: [...state.parts, []], runningSince: clock(), sourceKind: source.kind });
-    await source.start(addFixes);
+    const before = state;
+    const src = source ?? (await makeSource());
+    source = src;
+    set({ status: 'recording', parts: [...state.parts, []], runningSince: clock(), sourceKind: src.kind });
+    try {
+      await src.start(addFixes);
+    } catch (e) {
+      source = null;
+      set({ status: before.status, parts: before.parts, runningSince: null, sourceKind: null });
+      throw e;
+    }
   },
 
   async finish() {

@@ -84,7 +84,8 @@
             "buildArchs": [
               "arm64-v8a"
             ],
-            "useLegacyPackaging": true
+            "useLegacyPackaging": true,
+            "extraProguardRules": "# WorkManager membuat database Room lewat refleksi saat app dibuka; jangan diacak R8.\n-keep class androidx.work.** { *; }\n-keep class androidx.room.** { *; }\n-keep class * extends androidx.room.RoomDatabase { *; }"
           }
         }
       ]

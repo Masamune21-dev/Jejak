@@ -4,12 +4,13 @@ import { Platform } from 'react-native';
 const API_PORT = 4000;
 
 /**
- * Alamat server: EXPO_PUBLIC_API_URL bila diisi; kalau tidak, pakai IP komputer
- * yang menjalankan `expo start` (HP di Expo Go otomatis tahu alamat itu).
+ * Alamat server dari EXPO_PUBLIC_API_URL (app/.env berisi server produksi).
+ * Nilai `lan` (mis. di app/.env.local) berarti server di komputer yang menjalankan
+ * `expo start`; HP di Expo Go otomatis tahu IP komputer itu.
  */
 function resolveApiUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  if (fromEnv && fromEnv !== 'lan') return fromEnv.replace(/\/$/, '');
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
   }

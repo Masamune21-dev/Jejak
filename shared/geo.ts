@@ -426,3 +426,53 @@ export function progressOnRoute(route: readonly LatLon[], cum: readonly number[]
   const global = search(-Infinity, Infinity);
   return global.offM < local.offM ? global : local;
 }
+
+// --- Zona privasi ---
+
+/** Panjang yang disembunyikan di awal dan di akhir garis: `maxM`, tetapi paling banyak seperempat panjangnya. */
+export function privacyZoneM(totalM: number, maxM = 300): number {
+  return Math.max(0, Math.min(maxM, totalM / 4));
+}
+
+/**
+ * Indeks titik pertama dan terakhir yang masih terlihat bila `zoneM` pertama dan terakhir (menurut jarak
+ * kumulatif `dist`) disembunyikan. `from > to` berarti tidak ada titik yang tersisa.
+ */
+export function visibleRange(dist: readonly number[], zoneM: number): { from: number; to: number } {
+  const total = dist[dist.length - 1] ?? 0;
+  let from = 0;
+  while (from < dist.length && dist[from] < zoneM) from++;
+  let to = dist.length - 1;
+  while (to >= 0 && dist[to] > total - zoneM) to--;
+  return { from, to };
+}
+
+/** Garis tanpa `zoneM` pertama dan terakhir. Ujung barunya diinterpolasi tepat di batas zona (penting untuk garis jarang). */
+export function hideEnds(pts: readonly Pt[], zoneM: number): LatLon[] {
+  if (pts.length < 2 || zoneM <= 0) return toLatLon(pts);
+  const cum = cumulativeDistance(pts);
+  const total = cum[cum.length - 1];
+  if (total <= zoneM * 2) return [];
+  const { from, to } = visibleRange(cum, zoneM);
+  const edge = (d: number): LatLon => pointAtDistance(pts, cum, d).map(round6) as LatLon;
+  return [edge(zoneM), ...toLatLon(pts.slice(from, to + 1)), edge(total - zoneM)];
+}
+
+/**
+ * Track tanpa `zoneM` pertama dan terakhir (diukur seperti `cumulative`, tanpa perpindahan saat jeda).
+ * Batas bagian tetap; `dropped` = jumlah titik yang dibuang di depan, untuk menggeser indeks pada track.
+ */
+export function hideTrackEnds(track: readonly TrackPoint[][], zoneM: number): { track: TrackPoint[][]; dropped: number } {
+  const { from, to } = visibleRange(cumulative(track).dist, zoneM);
+  const out: TrackPoint[][] = [];
+  let i = 0;
+  for (const part of track) {
+    const kept: TrackPoint[] = [];
+    for (const p of part) {
+      if (i >= from && i <= to) kept.push(p);
+      i++;
+    }
+    if (kept.length) out.push(kept);
+  }
+  return { track: out, dropped: from };
+}

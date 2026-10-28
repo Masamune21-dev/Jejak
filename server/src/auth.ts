@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const KEY_LEN = 32;
 
@@ -18,4 +18,9 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 export function newToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+/** Database hanya menyimpan hash token, jadi bocornya database/backup tidak membuka sesi siapa pun. */
+export function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }

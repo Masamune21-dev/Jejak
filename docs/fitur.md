@@ -61,7 +61,7 @@ Bila username sudah dipakai, muncul pesan *Username sudah dipakai*.
 
 Saat keyboard muncul, layar bergeser ke bawah sehingga kolom yang sedang diketik dan tombol **Masuk**/**Buat akun** tetap terlihat di atas keyboard.
 
-Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi tidak punya masa kedaluwarsa; sesi berakhir saat kamu menekan **Keluar** di Profil.
+Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi berakhir saat kamu menekan **Keluar** di Profil, atau bila app tidak dipakai selama 90 hari (lalu kamu diminta masuk lagi).
 
 Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai app. Ini berguna untuk memastikan app terhubung ke server yang benar (produksi atau komputer sendiri).
 
@@ -136,6 +136,8 @@ Layar **Simpan aktivitas** menampilkan cuplikan peta, Jarak, Waktu, dan Pace/Kec
 - **Buang**: menghapus rekaman setelah konfirmasi. Tidak bisa dikembalikan.
 
 Aktivitas butuh minimal 2 titik GPS. Rekaman yang terlalu pendek ditolak dengan pesan *Aktivitas terlalu pendek untuk disimpan*.
+
+Rekaman yang kecepatannya mustahil, misalnya lari 1 km kurang dari 2 menit (biasanya karena lupa berhenti merekam saat naik kendaraan), ditolak dengan pesan *Kecepatan tidak masuk akal untuk lari (…)*. Begitu juga rekaman bertanggal sebelum 2020 atau di masa depan (jam HP salah). Rekamannya tetap ada di HP dan bisa dibuang. Batas lengkapnya ada di [api.md](api.md#post-activities).
 
 ### Bila app tertutup
 
@@ -217,6 +219,8 @@ Isi **nama rute** (maksimal 80 karakter), lalu **Simpan rute**. Tombol aktif bil
 Layar `aktivitas/[id]/index.tsx`.
 
 **Peta** menampilkan jalur (hijau, tiap bagian setelah jeda digambar terpisah) dengan titik hijau di awal dan merah di akhir.
+
+**Zona privasi**: di aktivitas orang lain, 300 m pertama dan terakhir jalur (paling banyak seperempat jaraknya) tidak ditampilkan, baik di detail maupun di kartu feed, supaya letak rumah tidak terlihat. Angka jarak, waktu, dan split tetap untuk seluruh aktivitas. Aktivitasmu sendiri selalu tampil utuh. Detail di [api.md](api.md#zona-privasi).
 
 **Kepala**: atlet (ketuk untuk membuka profilnya), kalimat jenis + waktu (*Lari, hari ini pukul 06.12*), dan judul.
 

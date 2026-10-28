@@ -143,9 +143,10 @@ Catatan: path-nya `/logout`, bukan `/auth/logout`, sehingga tidak terkena batas 
 
 ### Token dan sesi
 
-- Token: 32 byte acak, base64url. Disimpan di tabel `sessions`.
-- **Tidak ada masa kedaluwarsa.** Sesi hanya hilang lewat `POST /logout` atau bila penggunanya dihapus dari database.
-- Token kosong, salah, atau sudah dihapus → **401** `Sesi berakhir, silakan masuk lagi`. App menanggapi 401 dengan mengeluarkan pengguna.
+- Token: 32 byte acak, base64url. Tabel `sessions` hanya menyimpan **hash SHA-256**-nya (`token_hash`), jadi database atau backup yang bocor tidak bisa dipakai untuk masuk sebagai siapa pun.
+- **Kedaluwarsa bila 90 hari tidak dipakai.** Setiap permintaan yang berhasil memperpanjang sesi (`last_used_at` dicatat paling sering sekali sehari). Sesi yang sudah lewat dihapus saat dipakai lagi dan saat ada yang masuk/daftar. Sesi juga hilang lewat `POST /logout` atau bila penggunanya dihapus.
+- Token kosong, salah, sudah dihapus, atau kedaluwarsa → **401** `Sesi berakhir, silakan masuk lagi`. App menanggapi 401 dengan mengeluarkan pengguna.
+- Database lama yang masih menyimpan token mentah (kolom `sessions.token`) dimigrasi otomatis saat server mulai: token di-hash dalam satu transaksi, jadi tidak ada yang ter-logout, dan masa 90 hari dihitung sejak migrasi.
 
 ### Batas laju (produksi)
 
@@ -241,7 +242,7 @@ Aktivitas milikmu dan milik orang yang kamu ikuti, terbaru dulu, 20 per halaman.
 | `elapsedS` | Dari titik pertama sampai terakhir, termasuk jeda. |
 | `movingS` | Waktu bergerak. |
 | `distanceM`, `elevGainM` | Jarak dan total tanjakan. |
-| `preview` | Garis ringkas maksimal 80 titik `LatLon`. |
+| `preview` | Garis ringkas maksimal 80 titik `LatLon`. Untuk aktivitas orang lain, ujungnya dipotong [zona privasi](#zona-privasi). |
 | `kudos`, `hasKudo`, `comments` | Jumlah kudos, apakah kamu sudah memberi, jumlah komentar. |
 | `routeId` | Rute yang diikuti atau `null`. |
 | `prCount` | Jumlah PR (waktu terbaik + segmen) saat diunggah. |
@@ -269,7 +270,7 @@ Body `NewActivity`:
 | `type` | `run`, `ride`, atau `walk`. |
 | `title` | 1–100 karakter setelah di-trim. |
 | `track` | Array bagian; tiap bagian array `TrackPoint`. Bagian baru dimulai setiap kali rekaman dilanjutkan setelah jeda. Bagian kosong dibuang. Waktu di dalam satu bagian tidak boleh mundur. Total titik 2–60.000. |
-| `routeId` | Opsional. Bila rute tidak ditemukan, diam-diam disimpan sebagai `null`. |
+| `routeId` | Opsional. Bila rute tidak ditemukan atau bukan milikmu, diam-diam disimpan sebagai `null`. |
 
 Respons **201** `Activity` (lihat `GET /activities/:id`).
 
@@ -280,25 +281,46 @@ Respons **201** `Activity` (lihat `GET /activities/:id`).
 | 400 | `Judul wajib diisi`, `Judul maksimal 100 karakter` |
 | 400 | `Track tidak valid` (bukan array / bagian bukan array) |
 | 400 | `Titik track tidak valid` (lat/lon di luar rentang, waktu bukan angka, ketinggian bukan angka/null) |
+| 400 | `Tanggal aktivitas tidak masuk akal. Periksa jam dan tanggal di HP.` (ada titik sebelum 1 Januari 2020 atau lebih dari sehari ke depan; aktivitas bertanggal masa depan akan menempel di atas feed semua orang) |
 | 400 | `Waktu titik track harus urut` |
+| 400 | `Waktu titik track tidak bertambah` (semua titik berwaktu sama) |
+| 400 | `Kecepatan tidak masuk akal untuk lari (1 km dalam 1:05). Mungkin rekaman terbawa kendaraan.` Lihat batasnya di bawah. |
 | 400 | `Aktivitas terlalu pendek untuk disimpan` (kurang dari 2 titik) |
 | 400 | `Track terlalu panjang` (lebih dari 60.000 titik) |
 | 413 | Dari nginx bila badan lebih dari 20 MB (produksi). |
 
+Batas kecepatan, dihitung dari waktu tercepat di mana saja dalam aktivitas (seperti waktu terbaik, tanpa jeda). Lebih cepat dari ini hampir pasti terbawa kendaraan atau dipalsukan, dan akan merusak rekor serta leaderboard segmen:
+
+| Jenis | Ditolak bila |
+| --- | --- |
+| `run`, `walk` | 1 km kurang dari 2:00. Aktivitas 200 m–1 km: rata-rata lebih dari 30 km/j. |
+| `ride` | 1 km kurang dari 0:36 (100 km/j) atau 10 km kurang dari 10:00 (60 km/j). Aktivitas 200 m–1 km: rata-rata lebih dari 100 km/j. |
+
+Bila ditolak, rekaman di HP tidak hilang (statusnya tetap *selesai*), jadi pengguna bisa membuangnya.
+
 ### `GET /activities/:id`
 
-Semua pengguna yang login bisa membaca aktivitas siapa pun. Respons `Activity` = `ActivitySummary` ditambah:
+Semua pengguna yang login bisa membaca aktivitas siapa pun, tetapi jejak orang lain dipotong [zona privasi](#zona-privasi). Respons `Activity` = `ActivitySummary` ditambah:
 
 | Field | Arti |
 | --- | --- |
-| `track` | `TrackPoint[][]` lengkap. |
+| `track` | `TrackPoint[][]`. Lengkap untuk pemilik; untuk orang lain tanpa zona privasi di awal dan akhir (batas bagian tetap). |
 | `maxSpeedMps` | Kecepatan maksimum (jendela ≥5 detik). |
 | `splits` | `Split[]`: `{ index, distanceM, elapsedS }` per km. |
 | `bestEfforts` | `BestEffort[]`: `{ name, distanceM, elapsedS, isPr }`, urut jarak. |
-| `efforts` | `SegmentEffort[]`: `{ id, segmentId, segmentName, elapsedS, distanceM, startIndex, endIndex, rank, isPr }`, urut posisi di track. `startIndex`/`endIndex` adalah indeks pada track yang sudah diratakan. `rank` = 1 + jumlah atlet lain yang waktu terbaiknya lebih cepat dari waktu **effort ini**. |
+| `efforts` | `SegmentEffort[]`: `{ id, segmentId, segmentName, elapsedS, distanceM, startIndex, endIndex, rank, isPr }`, urut posisi di track. `startIndex`/`endIndex` adalah indeks pada track yang sudah diratakan (untuk orang lain: track yang sudah dipotong, di-clamp ke titik yang terlihat). `rank` = 1 + jumlah atlet lain yang waktu terbaiknya lebih cepat dari waktu **effort ini**. |
 | `kudosBy` | Hingga 50 pemberi kudos terbaru. |
 
 Error: **404** `Aktivitas tidak ditemukan`.
+
+### Zona privasi
+
+Awal dan akhir aktivitas sering berada di rumah. Karena itu, untuk aktivitas **orang lain**, server menyembunyikan bagian awal dan akhir jejak sepanjang **300 m**, tetapi paling banyak **seperempat jarak aktivitas** (aktivitas 800 m dipotong 200 m di tiap ujung). Panjangnya diukur di sepanjang jejak.
+
+- Berlaku untuk `track` di `GET /activities/:id` dan `preview` di feed serta daftar aktivitas pengguna. Ujung `preview` yang baru diinterpolasi tepat di batas zona.
+- Mengikuti seseorang tidak membuka zona ini, karena follow tidak butuh persetujuan.
+- Pemilik selalu menerima jejak penuh, termasuk dari `POST`/`PATCH /activities`. Layar buat segmen memakai indeks track penuh.
+- Angka ringkasan (jarak, waktu, split, waktu terbaik), pencocokan segmen, dan leaderboard tetap dihitung dari jejak penuh.
 
 ### `PATCH /activities/:id`
 
@@ -425,7 +447,7 @@ Respons **201** `PlannedRoute` = `RouteSummary` + `waypoints`, `geometry`, `step
 
 ### `GET /routes/:id`
 
-Respons `PlannedRoute`. Semua pengguna yang login bisa membaca rute siapa pun (daftar `GET /routes` tetap hanya milik sendiri). Error: **404** `Rute tidak ditemukan`.
+Respons `PlannedRoute`. Hanya pembuat rute yang bisa membacanya, karena rute rencana sering dimulai dari rumah. Rute orang lain dibalas sama seperti rute yang tidak ada: **404** `Rute tidak ditemukan`.
 
 ### `DELETE /routes/:id`
 

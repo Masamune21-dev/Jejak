@@ -2,7 +2,18 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { hashToken } from './auth.ts';
+
 const NOW = `(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
+
+/** Sesi menyimpan hash token (bukan token mentah); kedaluwarsa bila lama tidak dipakai (`last_used_at`). */
+const sessionsTable = (name: string) => `
+create table if not exists ${name} (
+  token_hash text primary key,
+  user_id integer not null references users(id) on delete cascade,
+  created_at text not null default ${NOW},
+  last_used_at text not null default ${NOW}
+);`;
 
 const SCHEMA = `
 create table if not exists users (
@@ -13,11 +24,7 @@ create table if not exists users (
   created_at text not null default ${NOW}
 );
 
-create table if not exists sessions (
-  token text primary key,
-  user_id integer not null references users(id) on delete cascade,
-  created_at text not null default ${NOW}
-);
+${sessionsTable('sessions')}
 
 create table if not exists follows (
   follower_id integer not null references users(id) on delete cascade,
@@ -124,8 +131,29 @@ export function openDb(path: string): DB {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
+  migrateSessions(db);
   db.exec(SCHEMA);
   return db;
+}
+
+/**
+ * Database lama menyimpan token mentah di kolom `sessions.token`. Ganti dengan hash-nya dalam satu transaksi,
+ * jadi tidak ada pengguna yang ter-logout; `last_used_at` dihitung mulai saat migrasi.
+ */
+function migrateSessions(db: DB) {
+  const cols = db.prepare('pragma table_info(sessions)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'token')) return;
+  tx(db, () => {
+    db.exec(sessionsTable('sessions_new'));
+    const insert = db.prepare('insert into sessions_new (token_hash, user_id, created_at) values (?, ?, ?)');
+    const old = db.prepare('select token, user_id, created_at from sessions').all() as {
+      token: string;
+      user_id: number;
+      created_at: string;
+    }[];
+    for (const r of old) insert.run(hashToken(r.token), r.user_id, r.created_at);
+    db.exec('drop table sessions; alter table sessions_new rename to sessions;');
+  });
 }
 
 /** Jalankan `fn` dalam satu transaksi. */

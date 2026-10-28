@@ -54,7 +54,37 @@ export function tempo(type: ActivityType, distanceM: number, seconds: number): {
     : { label: 'Pace', value: pace(distanceM, seconds) };
 }
 
+/** Angka dan satuan dipisah supaya angka bisa tampil besar. */
+export interface Parts {
+  value: string;
+  unit: string;
+}
+
+export function distanceParts(m: number): Parts {
+  return m < 1000 ? { value: String(Math.round(m)), unit: 'm' } : { value: km(m), unit: 'km' };
+}
+
+export function tempoParts(type: ActivityType, distanceM: number, seconds: number): Parts & { label: string } {
+  if (type === 'ride') {
+    const v = seconds > 0 ? ((distanceM / seconds) * 3.6).toFixed(1).replace('.', ',') : '–';
+    return { label: 'Kecepatan', value: v, unit: 'km/j' };
+  }
+  const p = pace(distanceM, seconds);
+  return { label: 'Pace', value: p.replace(' /km', ''), unit: p === '–' ? '' : '/km' };
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** "Rabu, 28 Okt" */
+export function today(d = new Date()): string {
+  return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+export function greeting(d = new Date()): string {
+  const h = d.getHours();
+  return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+}
 
 export function dateShort(iso: string): string {
   const d = new Date(iso);

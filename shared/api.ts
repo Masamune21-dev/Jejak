@@ -197,7 +197,7 @@ export interface Record {
 }
 
 export interface Stats {
-  type: ActivityType;
+  type: ActivityType | 'all';
   weeks: WeekTotal[];
   thisYear: Totals;
   allTime: Totals;

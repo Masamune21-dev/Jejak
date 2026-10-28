@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { Activity, Segment } from '@shared/api';
 import { flatten, haversine, pathDistance, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import type { MapLine, MapPin } from '@/components/map-types';
-import { Button, ErrorBox, Field, Loading, Row, Stat, T } from '@/components/ui';
+import { Button, ErrorBox, Field, Loading, Row, Segmented, Sheet, Stat, T, ToolButton } from '@/components/ui';
 import { api } from '@/lib/api';
-import { distance, duration } from '@/lib/format';
-import { radius, space, useColors } from '@/lib/theme';
+import { distanceParts, duration } from '@/lib/format';
+import { space, useColors } from '@/lib/theme';
 
 type Which = 'start' | 'end';
 
@@ -32,7 +32,7 @@ export default function CreateSegmentScreen() {
   const fit = useMemo<LatLon[] | null>(() => (n ? toLatLon(points) : null), [points, n]);
   const lines = useMemo<MapLine[]>(
     () => [
-      { id: 'all', coords: toLatLon(points), color: c.muted, width: 4 },
+      { id: 'all', coords: toLatLon(points), color: c.track, width: 4 },
       { id: 'seg', coords: slice, color: c.segment, width: 7 },
     ],
     [points, slice, c],
@@ -41,15 +41,16 @@ export default function CreateSegmentScreen() {
     () =>
       n
         ? [
-            { id: 's', at: [points[start][0], points[start][1]], color: '#22A45D', label: 'S' },
-            { id: 'e', at: [points[end][0], points[end][1]], color: '#D93B30', label: 'F' },
+            { id: 's', at: [points[start][0], points[start][1]], color: c.start, label: 'S' },
+            { id: 'e', at: [points[end][0], points[end][1]], color: c.finish, label: 'F' },
           ]
         : [],
-    [points, start, end, n],
+    [points, start, end, n, c],
   );
 
   const create = useMutation({
-    mutationFn: () => api<Segment>('/segments', { body: { activityId: id, startIndex: start, endIndex: end, name: name.trim() } }),
+    mutationFn: () =>
+      api<Segment>('/segments', { body: { activityId: id, startIndex: start, endIndex: end, name: name.trim() } }),
     onSuccess: (seg) => {
       void qc.invalidateQueries({ queryKey: ['activity', id] });
       void qc.invalidateQueries({ queryKey: ['segments'] });
@@ -84,37 +85,50 @@ export default function CreateSegmentScreen() {
   const lengthM = pathDistance(slice);
   const timeS = n ? (points[end][2] - points[start][2]) / 1000 : 0;
   const idx = which === 'start' ? start : end;
+  const len = distanceParts(lengthM);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} fit={fit} onPress={onPress} />
-      <View style={[styles.panel, { backgroundColor: c.card }]}>
-        <Row>
-          {(['start', 'end'] as Which[]).map((w) => (
-            <Pressable
-              key={w}
-              onPress={() => setWhich(w)}
-              style={[styles.tab, { borderColor: which === w ? c.primary : c.border, backgroundColor: which === w ? c.primarySoft : 'transparent' }]}>
-              <T weight="700" style={{ color: which === w ? c.primary : c.text }}>
-                {w === 'start' ? 'Titik awal (S)' : 'Titik akhir (F)'}
-              </T>
-            </Pressable>
-          ))}
-        </Row>
-        <T muted size={13}>
-          Ketuk peta di dekat jalurmu untuk memindahkan {which === 'start' ? 'titik awal' : 'titik akhir'}, atau geser sedikit-sedikit:
+      <Sheet>
+        <Segmented
+          options={[
+            { key: 'start', label: 'Titik awal (S)' },
+            { key: 'end', label: 'Titik akhir (F)' },
+          ]}
+          value={which}
+          onChange={setWhich}
+        />
+        <T v="small">
+          Ketuk peta di dekat jalurmu untuk memindahkan {which === 'start' ? 'titik awal' : 'titik akhir'}, atau geser
+          sedikit-sedikit.
         </T>
-        <Row gap={space.sm}>
+        <Row gap={0}>
           {[-20, -5, 5, 20].map((step) => (
-            <Button key={step} small kind="secondary" style={{ flex: 1 }} title={step > 0 ? `+${step}` : String(step)} onPress={() => set(which, idx + step)} />
+            <ToolButton
+              key={step}
+              icon={step < 0 ? (step < -10 ? 'play-back' : 'caret-back') : step > 10 ? 'play-forward' : 'caret-forward'}
+              label={step > 0 ? `+${step} titik` : `${step} titik`}
+              onPress={() => set(which, idx + step)}
+            />
           ))}
         </Row>
-        <Row>
-          <Stat label="Panjang segmen" value={distance(lengthM)} />
-          <Stat label="Waktumu" value={duration(timeS)} />
+        <Row gap={space.lg}>
+          <Stat label="Panjang" value={len.value} unit={len.unit} size={32} />
+          <Stat label="Waktumu" value={duration(timeS)} size={32} />
         </Row>
-        {lengthM < 100 ? <T style={{ color: c.danger }}>Segmen minimal 100 m.</T> : null}
-        <Field value={name} onChangeText={setName} placeholder="Nama segmen, mis. Tanjakan Gunung Gandul" maxLength={80} />
+        {lengthM < 100 ? (
+          <T v="small" color={c.danger}>
+            Segmen minimal 100 m.
+          </T>
+        ) : null}
+        <Field
+          icon="flag-outline"
+          value={name}
+          onChangeText={setName}
+          placeholder="Nama segmen, mis. Tanjakan Gunung Gandul"
+          maxLength={80}
+        />
         {create.error ? <ErrorBox error={create.error} /> : null}
         <Button
           title="Buat segmen"
@@ -123,21 +137,7 @@ export default function CreateSegmentScreen() {
           loading={create.isPending}
           onPress={() => create.mutate()}
         />
-      </View>
+      </Sheet>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  panel: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
-    gap: space.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5 },
-});

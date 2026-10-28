@@ -1,19 +1,33 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { LeaderboardRow, Segment } from '@shared/api';
 
 import JejakMap from '@/components/Map';
 import { endPins } from '@/components/map-types';
-import { Avatar, Button, Card, Empty, ErrorBox, Loading, Row, Screen, Stat, T } from '@/components/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  Empty,
+  ErrorBox,
+  Loading,
+  Rank,
+  Row,
+  Screen,
+  SectionTitle,
+  Segmented,
+  Stat,
+  T,
+} from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
-import { dateShort, distance, duration, pace, speed, TYPE_ICON } from '@/lib/format';
-import { radius, space, useColors } from '@/lib/theme';
+import { dateShort, distanceParts, duration, pace, speed, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 export default function SegmentScreen() {
   const c = useColors();
@@ -38,96 +52,138 @@ export default function SegmentScreen() {
   if (q.error) return <ErrorBox error={q.error} onRetry={() => q.refetch()} />;
   const s = q.data;
   const g = s.geometry;
+  const len = distanceParts(s.distanceM);
   const tempoOf = (r: LeaderboardRow) => (s.type === 'ride' ? speed(s.distanceM, r.elapsedS) : pace(s.distanceM, r.elapsedS));
 
   return (
-    <Screen>
-      <Stack.Screen options={{ title: s.name }} />
-      <View style={{ height: 240, borderRadius: 12, overflow: 'hidden' }}>
-        <JejakMap
-          lines={[{ id: 'seg', coords: g, color: c.segment, width: 6 }]}
-          pins={endPins(g, ['S', 'F'])}
-          fit={g}
-        />
+    <Screen padded={false}>
+      <View style={{ height: 260 }}>
+        <JejakMap lines={[{ id: 'seg', coords: g, color: c.segment, width: 6 }]} pins={endPins(g, ['S', 'F'])} fit={g} />
       </View>
-      <T weight="800" size={22}>
-        {s.name}
-      </T>
-      <Row gap={6}>
-        <Ionicons name={TYPE_ICON[s.type]} size={15} color={c.muted} />
-        <T muted>
-          {distance(s.distanceM)} · {s.athletes} atlet · dibuat {s.createdBy.name}
-        </T>
-      </Row>
 
-      {s.myBest ? (
-        <Card style={{ borderColor: c.gold, borderWidth: 1.5 }}>
-          <T weight="800">Waktu terbaikmu</T>
-          <Row>
-            <Stat label="Waktu" value={duration(s.myBest.elapsedS)} />
-            <Stat label="Peringkat" value={`#${s.myBest.rank}`} />
-            <Stat label={s.type === 'ride' ? 'Kecepatan' : 'Pace'} value={tempoOf(s.myBest)} />
+      <View style={[styles.body, { backgroundColor: c.bg }]}>
+        <View style={{ gap: 4 }}>
+          <Row gap={6}>
+            <Ionicons name={TYPE_ICON[s.type]} size={14} color={c.muted} />
+            <T v="label">Segmen {TYPE_LABEL[s.type].toLowerCase()}</T>
           </Row>
-        </Card>
-      ) : (
-        <T muted>Kamu belum punya waktu di segmen ini. Lewati dari S ke F saat merekam.</T>
-      )}
+          <T v="h1">{s.name}</T>
+          <T v="small">Dibuat {s.createdBy.name}</T>
+        </View>
 
-      <Row>
-        {(['all', 'following'] as const).map((f) => (
-          <Pressable
-            key={f}
-            onPress={() => setFilter(f)}
-            style={[styles.tab, { borderColor: filter === f ? c.primary : c.border, backgroundColor: filter === f ? c.primarySoft : 'transparent' }]}>
-            <T weight="700" style={{ color: filter === f ? c.primary : c.text }}>
-              {f === 'all' ? 'Semua' : 'Yang kuikuti'}
-            </T>
-          </Pressable>
-        ))}
-      </Row>
+        <Row gap={space.lg}>
+          <Stat label="Panjang" value={len.value} unit={len.unit} />
+          <Stat label="Atlet" value={String(s.athletes)} />
+          <Stat label="Rekor" value={s.leaderboard[0] && filter === 'all' ? duration(s.leaderboard[0].elapsedS) : '–'} />
+        </Row>
 
-      <Card style={{ padding: 0, gap: 0 }}>
-        {s.leaderboard.length === 0 ? <Empty icon="trophy-outline" title="Belum ada waktu tercatat" /> : null}
-        {s.leaderboard.map((r) => (
-          <Pressable key={r.user.id} onPress={() => router.push(`/aktivitas/${r.activityId}`)}>
-            <Row style={[styles.row, { borderColor: c.border, backgroundColor: r.user.id === me.id ? c.primarySoft : 'transparent' }]}>
-              <T weight="800" style={{ width: 30, color: r.rank <= 3 ? c.gold : c.text }}>
-                {r.rank}
-              </T>
-              <Avatar name={r.user.name} size={32} />
-              <View style={{ flex: 1 }}>
-                <T weight="700" numberOfLines={1}>
-                  {r.user.name}
-                </T>
-                <T muted size={12}>
-                  {dateShort(r.date)} · {tempoOf(r)}
-                </T>
-              </View>
-              <T weight="800" style={{ fontVariant: ['tabular-nums'] }}>
-                {duration(r.elapsedS)}
+        {s.myBest ? (
+          <View style={[styles.mine, { backgroundColor: c.slab }]}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.mineLabel}>Waktu terbaikmu</Text>
+              <Text style={styles.mineTime}>{duration(s.myBest.elapsedS)}</Text>
+              <Text style={styles.mineSub}>
+                {tempoOf(s.myBest)} · {dateShort(s.myBest.date)}
+              </Text>
+            </View>
+            <View style={[styles.mineRank, { borderColor: s.myBest.rank <= 3 ? c.gold : 'rgba(255,255,255,0.25)' }]}>
+              <Text style={styles.mineRankLabel}>Peringkat</Text>
+              <Text style={[styles.mineRankNum, { color: s.myBest.rank <= 3 ? c.gold : '#fff' }]}>#{s.myBest.rank}</Text>
+            </View>
+          </View>
+        ) : (
+          <Card flat style={{ backgroundColor: c.surface2, borderWidth: 0 }}>
+            <Row>
+              <Ionicons name="flag-outline" size={22} color={c.text} />
+              <T v="small" style={{ flex: 1 }}>
+                Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.
               </T>
             </Row>
-          </Pressable>
-        ))}
-      </Card>
+          </Card>
+        )}
 
-      {s.createdBy.id === me.id ? (
-        <Button
-          kind="ghost"
-          icon="trash-outline"
-          title="Hapus segmen"
-          loading={del.isPending}
-          onPress={async () => {
-            if (await confirm('Hapus segmen', 'Leaderboard segmen ini ikut terhapus.', 'Hapus')) del.mutate();
-          }}
+        <SectionTitle>Leaderboard</SectionTitle>
+        <Segmented
+          options={[
+            { key: 'all', label: 'Semua' },
+            { key: 'following', label: 'Yang kuikuti' },
+          ]}
+          value={filter}
+          onChange={setFilter}
         />
-      ) : null}
-      {del.error ? <ErrorBox error={del.error} /> : null}
+        <Card style={{ padding: 0, gap: 0 }}>
+          {s.leaderboard.length === 0 ? <Empty icon="trophy" title="Belum ada waktu" /> : null}
+          {s.leaderboard.map((r, i) => (
+            <Pressable key={r.user.id} onPress={() => router.push(`/aktivitas/${r.activityId}`)}>
+              <Row
+                style={[
+                  styles.row,
+                  { borderTopColor: c.line, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth },
+                  r.user.id === me.id && { backgroundColor: c.accent + '30' },
+                ]}>
+                <Rank rank={r.rank} />
+                <Avatar name={r.user.name} size={36} />
+                <View style={{ flex: 1 }}>
+                  <T v="strong" numberOfLines={1}>
+                    {r.user.name}
+                    {r.user.id === me.id ? ' (kamu)' : ''}
+                  </T>
+                  <T v="small">
+                    {dateShort(r.date)} · {tempoOf(r)}
+                  </T>
+                </View>
+                <T v="num" size={24}>
+                  {duration(r.elapsedS)}
+                </T>
+              </Row>
+            </Pressable>
+          ))}
+        </Card>
+
+        {s.createdBy.id === me.id ? (
+          <Button
+            kind="ghost"
+            icon="trash-outline"
+            title="Hapus segmen"
+            loading={del.isPending}
+            onPress={async () => {
+              if (await confirm('Hapus segmen', 'Leaderboard segmen ini ikut terhapus.', 'Hapus')) del.mutate();
+            }}
+          />
+        ) : null}
+        {del.error ? <ErrorBox error={del.error} /> : null}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5 },
-  row: { paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth },
+  body: {
+    marginTop: -radius.xl,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: space.lg,
+    paddingTop: space.xl,
+    gap: space.lg,
+  },
+  mine: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.lg },
+  mineLabel: {
+    fontFamily: font.bold,
+    fontSize: 11,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  mineTime: { fontFamily: font.numBold, fontSize: 44, color: '#C6F03C', lineHeight: 48 },
+  mineSub: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  mineRank: {
+    alignItems: 'center',
+    borderWidth: 2,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  mineRankLabel: { fontFamily: font.semibold, fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' },
+  mineRankNum: { fontFamily: font.numBold, fontSize: 30 },
+  row: { paddingHorizontal: space.lg, paddingVertical: space.md },
 });

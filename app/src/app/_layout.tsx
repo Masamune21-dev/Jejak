@@ -1,15 +1,24 @@
 // Tugas lokasi latar harus terdaftar sebelum navigasi apa pun berjalan.
 import '@/lib/location-task';
 
+import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { recorder } from '@/lib/recorder';
-import { useColors } from '@/lib/theme';
+import { font, useColors, useIsDark } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,37 +37,56 @@ export default function RootLayout() {
 }
 
 function Root() {
-  const scheme = useColorScheme();
+  const dark = useIsDark();
   const c = useColors();
   const { user, ready } = useAuth();
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    BarlowCondensed_600SemiBold,
+    BarlowCondensed_700Bold,
+  });
+  const loaded = ready && (fontsLoaded || !!fontError);
 
   useEffect(() => {
     void recorder.restore();
   }, []);
 
   useEffect(() => {
-    if (ready) void SplashScreen.hideAsync();
-  }, [ready]);
+    if (loaded) void SplashScreen.hideAsync();
+  }, [loaded]);
 
-  if (!ready) return null;
+  if (!loaded) return null;
 
-  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const base = dark ? DarkTheme : DefaultTheme;
   const theme = {
     ...base,
-    colors: { ...base.colors, primary: c.primary, background: c.bg, card: c.card, text: c.text, border: c.border },
+    colors: { ...base.colors, primary: c.text, background: c.bg, card: c.bg, text: c.text, border: c.line },
   };
 
   return (
     <ThemeProvider value={theme}>
-      <Stack screenOptions={{ headerTitleStyle: { fontWeight: '700' } }}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: c.bg },
+          headerTintColor: c.text,
+          headerTitleStyle: { fontFamily: font.bold, fontSize: 17 },
+          headerBackButtonDisplayMode: 'minimal',
+          contentStyle: { backgroundColor: c.bg },
+        }}>
         <Stack.Protected guard={!!user}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="aktivitas/[id]/index" options={{ title: 'Aktivitas' }} />
+          <Stack.Screen name="aktivitas/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="aktivitas/[id]/segmen" options={{ title: 'Buat segmen' }} />
-          <Stack.Screen name="segmen/[id]" options={{ title: 'Segmen' }} />
-          <Stack.Screen name="rute/baru" options={{ title: 'Buat rute' }} />
-          <Stack.Screen name="rute/[id]" options={{ title: 'Rute' }} />
-          <Stack.Screen name="atlet/[id]" options={{ title: 'Atlet' }} />
+          <Stack.Screen name="segmen/[id]" options={{ title: '' }} />
+          <Stack.Screen name="rute/baru" options={{ title: 'Rute baru' }} />
+          <Stack.Screen name="rute/[id]" options={{ title: '' }} />
+          <Stack.Screen name="atlet/[id]" options={{ title: '' }} />
           <Stack.Screen name="cari" options={{ title: 'Cari teman' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>

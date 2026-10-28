@@ -257,7 +257,13 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
   }
 
   /** Cocokkan satu aktivitas dengan semua segmen di sekitarnya; kembalikan jumlah PR. */
-  function matchActivityToSegments(activityId: number, userId: number, type: ActivityType, startedAt: string, cum: geo.Cumulative) {
+  function matchActivityToSegments(
+    activityId: number,
+    userId: number,
+    type: ActivityType,
+    startedAt: string,
+    cum: geo.Cumulative,
+  ) {
     const b = geo.bounds(cum.points)!;
     const segs = all(
       `select id, geometry from segments where type = ?
@@ -530,16 +536,21 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
   });
 
   app.get('/users/:id/activities', (c) => {
-    const rows = all(
-      `${ACTIVITY_SELECT} where a.user_id = $uid and a.started_at < $before order by a.started_at desc limit 20`,
-      { me: c.var.me.id, uid: idParam(c), before: c.req.query('before') ?? '9999' },
-    );
+    const rows = all(`${ACTIVITY_SELECT} where a.user_id = $uid and a.started_at < $before order by a.started_at desc limit 20`, {
+      me: c.var.me.id,
+      uid: idParam(c),
+      before: c.req.query('before') ?? '9999',
+    });
     return c.json(rows.map(toSummary));
   });
 
   app.get('/users/:id/stats', (c) => {
     const uid = idParam(c);
-    const type = actType(c.req.query('type') ?? 'run');
+    const rawType = c.req.query('type') ?? 'run';
+    // type=all menggabungkan semua jenis (untuk ringkasan mingguan di beranda).
+    const type = rawType === 'all' ? 'all' : actType(rawType);
+    const byType = type === 'all' ? '' : 'and type = ?';
+    const typeArg = type === 'all' ? [] : [type];
     // Zona waktu pengguna dalam menit di timur UTC (WIB = 420).
     const tz = Number(c.req.query('tz') ?? 420) || 0;
     const local = (iso: string | number) => new Date(new Date(iso).getTime() + tz * 60_000);
@@ -555,7 +566,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     }
     const byWeek = new Map(weeks.map((w) => [w.start, w]));
     const thisYear: Totals = { count: 0, distanceM: 0, movingS: 0 };
-    const rows = all('select started_at, distance_m, moving_s from activities where user_id = ? and type = ?', uid, type);
+    const rows = all(`select started_at, distance_m, moving_s from activities where user_id = ? ${byType}`, uid, ...typeArg);
     for (const r of rows) {
       const d = local(r.started_at);
       const w = byWeek.get(weekStart(d));
@@ -571,18 +582,24 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
        from best_efforts b join activities a on a.id = b.activity_id
        where b.user_id = ? and b.type = ? group by b.name order by b.distance_m`,
       uid,
-      type,
-    ).map((r) => ({ name: r.name, distanceM: r.distance_m, elapsedS: r.elapsed_s, activityId: r.activity_id, date: r.started_at }));
+      type === 'all' ? '' : type,
+    ).map((r) => ({
+      name: r.name,
+      distanceM: r.distance_m,
+      elapsedS: r.elapsed_s,
+      activityId: r.activity_id,
+      date: r.started_at,
+    }));
     const l = one(
-      'select id, distance_m, started_at from activities where user_id = ? and type = ? order by distance_m desc limit 1',
+      `select id, distance_m, started_at from activities where user_id = ? ${byType} order by distance_m desc limit 1`,
       uid,
-      type,
+      ...typeArg,
     );
     const stats: Stats = {
       type,
       weeks,
       thisYear,
-      allTime: totalsOf('user_id = ? and type = ?', uid, type),
+      allTime: totalsOf(`user_id = ? ${byType}`, uid, ...typeArg),
       records,
       longest: l ? { distanceM: l.distance_m, activityId: l.id, date: l.started_at } : null,
     };
@@ -675,7 +692,10 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
 
   app.delete('/comments/:id', (c) => {
     const id = idParam(c);
-    const r = one('select c.user_id, a.user_id as owner from comments c join activities a on a.id = c.activity_id where c.id = ?', id);
+    const r = one(
+      'select c.user_id, a.user_id as owner from comments c join activities a on a.id = c.activity_id where c.id = ?',
+      id,
+    );
     if (!r) fail(404, 'Komentar tidak ditemukan');
     if (r.user_id !== c.var.me.id && r.owner !== c.var.me.id) fail(403, 'Tidak boleh menghapus komentar ini');
     run('delete from comments where id = ?', id);

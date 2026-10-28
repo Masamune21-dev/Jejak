@@ -7,8 +7,8 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import type { SegmentSummary } from '@shared/api';
 import { haversine, type LatLon } from '@shared/geo';
 
-import RouteShape from '@/components/RouteShape';
-import { Card, Empty, ErrorBox, Loading, Row, T } from '@/components/ui';
+import StaticMap from '@/components/StaticMap';
+import { Card, Empty, ErrorBox, Header, Loading, Row, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { distance, TYPE_ICON } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
@@ -34,47 +34,53 @@ export default function SegmentsScreen() {
   return (
     <FlatList
       style={{ backgroundColor: c.bg }}
-      contentContainerStyle={{ padding: space.lg, gap: space.md }}
+      contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.md }}
       data={q.data ?? []}
       keyExtractor={(s) => String(s.id)}
-      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.primary} />}
+      refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={c.text} />}
       ListHeaderComponent={
-        <>
-          <T muted>{here ? 'Segmen terdekat dari posisimu.' : 'Segmen paling ramai.'}</T>
-          {q.error ? <ErrorBox error={q.error} onRetry={() => q.refetch()} /> : null}
-        </>
+        <View style={{ marginHorizontal: -space.lg, gap: space.sm }}>
+          <Header subtitle={here ? 'Terdekat dari posisimu' : 'Paling ramai'} title="Segmen" />
+          {q.error ? (
+            <View style={{ paddingHorizontal: space.lg }}>
+              <ErrorBox error={q.error} onRetry={() => q.refetch()} />
+            </View>
+          ) : null}
+        </View>
       }
       ListEmptyComponent={
         q.error ? undefined : (
           <Empty
-            icon="trophy-outline"
+            icon="flag"
             title="Belum ada segmen"
             text="Segmen adalah potongan jalan yang waktunya diadu. Buka salah satu aktivitasmu, lalu ketuk “Buat segmen”."
           />
         )
       }
       renderItem={({ item }) => (
-        <Card onPress={() => router.push(`/segmen/${item.id}`)}>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <View style={{ width: 110 }}>
-              <RouteShape points={item.preview} color={c.segment} height={70} strokeWidth={6} />
+        <Card onPress={() => router.push(`/segmen/${item.id}`)} style={{ padding: space.md }}>
+          <Row style={{ alignItems: 'stretch' }}>
+            <View style={{ width: 104 }}>
+              <StaticMap points={item.preview} color={c.segment} height={84} radius={12} />
             </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <T weight="800" size={16} numberOfLines={2}>
+            <View style={{ flex: 1, gap: 4, justifyContent: 'center' }}>
+              <T v="h3" numberOfLines={2}>
                 {item.name}
               </T>
               <Row gap={6}>
                 <Ionicons name={TYPE_ICON[item.type]} size={14} color={c.muted} />
-                <T muted size={13}>
+                <T v="small">
                   {distance(item.distanceM)} · {item.athletes} atlet
                 </T>
               </Row>
               {here ? (
-                <T muted size={13}>
-                  {distance(haversine(here, item.start))} dari sini
-                </T>
+                <Row gap={6}>
+                  <Ionicons name="location-outline" size={14} color={c.muted} />
+                  <T v="small">{distance(haversine(here, item.start))} dari sini</T>
+                </Row>
               ) : null}
             </View>
+            <Ionicons name="chevron-forward" size={18} color={c.muted} style={{ alignSelf: 'center' }} />
           </Row>
         </Card>
       )}

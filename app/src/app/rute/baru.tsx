@@ -1,18 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 
 import type { ActivityType, PlannedRoute, RoutingResult } from '@shared/api';
 import { pathDistance, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import type { MapLine, MapPin } from '@/components/map-types';
-import { Button, ErrorBox, Field, IconButton, Row, Stat, T, TypePicker } from '@/components/ui';
+import { Button, ErrorBox, Field, Row, Sheet, Stat, T, ToolButton, TypePicker } from '@/components/ui';
 import { api } from '@/lib/api';
-import { distance, durationShort, TYPE_SPEED } from '@/lib/format';
+import { distanceParts, durationShort, TYPE_SPEED } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
-import { radius, space, useColors } from '@/lib/theme';
+import { font, space, useColors } from '@/lib/theme';
 
 export default function RouteBuilderScreen() {
   const c = useColors();
@@ -72,21 +73,23 @@ export default function RouteBuilderScreen() {
       waypoints.map((w, i) => ({
         id: `w${i}`,
         at: w,
-        color: i === 0 ? '#22A45D' : i === waypoints.length - 1 ? '#D93B30' : c.route,
+        color: i === 0 ? c.start : i === waypoints.length - 1 ? c.finish : c.route,
         label: String(i + 1),
       })),
-    [waypoints, c.route],
+    [waypoints, c],
   );
 
   const fitHere = useMemo(() => (here ? [here] : null), [here]);
   const add = (p: LatLon) => setWaypoints((w) => (w.length >= 50 ? w : [...w, p]));
   const d = plan?.distanceM ?? 0;
+  const dist = distanceParts(d);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} me={here} initialCenter={here ?? undefined} fit={fitHere} onPress={add} />
-      <View style={[styles.hint, { backgroundColor: c.card }]} pointerEvents="none">
-        <T size={13}>
+      <View style={[styles.hint, { backgroundColor: c.slab }]} pointerEvents="none">
+        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color="#C6F03C" />
+        <Text style={styles.hintText}>
           {waypoints.length === 0
             ? 'Ketuk peta untuk titik awal'
             : waypoints.length === 1
@@ -95,45 +98,62 @@ export default function RouteBuilderScreen() {
                 ? 'Menghitung rute…'
                 : plan && !plan.snapped && snap
                   ? 'Layanan rute tidak tersedia, pakai garis lurus'
-                  : 'Ketuk untuk menambah titik'}
-        </T>
+                  : `${waypoints.length} titik · ketuk untuk menambah`}
+        </Text>
       </View>
-      <View style={[styles.panel, { backgroundColor: c.card }]}>
+      <Sheet>
         <TypePicker value={type} onChange={setType} />
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Stat label="Jarak" value={distance(d)} />
-          <Stat label="Perkiraan" value={d > 0 ? durationShort(d / TYPE_SPEED[type]) : '–'} />
-          <Row gap={4}>
-            <IconButton icon="arrow-undo" label="Batalkan titik terakhir" onPress={() => setWaypoints((w) => w.slice(0, -1))} />
-            <IconButton
-              icon="repeat"
-              label="Pulang-pergi"
-              onPress={() => setWaypoints((w) => (w.length >= 2 ? [...w, ...w.slice(0, -1).reverse()].slice(0, 50) : w))}
-            />
-            <IconButton
-              icon="sync"
-              label="Kembali ke titik awal"
-              onPress={() => setWaypoints((w) => (w.length >= 2 ? [...w, w[0]].slice(0, 50) : w))}
-            />
-            <IconButton icon="trash-outline" label="Hapus semua" color={c.danger} onPress={() => setWaypoints([])} />
-          </Row>
+        <Row gap={space.lg}>
+          <Stat label="Jarak" value={dist.value} unit={dist.unit} size={34} />
+          <Stat label="Perkiraan" value={d > 0 ? durationShort(d / TYPE_SPEED[type]) : '–'} size={34} />
+        </Row>
+        <Row gap={0}>
+          <ToolButton
+            icon="arrow-undo"
+            label="Batal"
+            disabled={waypoints.length === 0}
+            onPress={() => setWaypoints((w) => w.slice(0, -1))}
+          />
+          <ToolButton
+            icon="repeat"
+            label="Pergi-pulang"
+            disabled={waypoints.length < 2}
+            onPress={() => setWaypoints((w) => (w.length >= 2 ? [...w, ...w.slice(0, -1).reverse()].slice(0, 50) : w))}
+          />
+          <ToolButton
+            icon="sync"
+            label="Ke awal"
+            disabled={waypoints.length < 2}
+            onPress={() => setWaypoints((w) => (w.length >= 2 ? [...w, w[0]].slice(0, 50) : w))}
+          />
+          <ToolButton
+            icon="trash-outline"
+            label="Hapus"
+            color={c.danger}
+            disabled={waypoints.length === 0}
+            onPress={() => setWaypoints([])}
+          />
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
-          <T muted size={13}>
-            Ikuti jalan (OpenStreetMap)
-          </T>
-          <Switch value={snap} onValueChange={setSnap} trackColor={{ true: c.primary }} />
+          <T v="small">Ikuti jalan (OpenStreetMap)</T>
+          <Switch value={snap} onValueChange={setSnap} trackColor={{ true: c.accentText }} />
         </Row>
-        <Field value={name} onChangeText={setName} placeholder="Nama rute, mis. Keliling Waduk" maxLength={80} />
+        <Field
+          icon="bookmark-outline"
+          value={name}
+          onChangeText={setName}
+          placeholder="Nama rute, mis. Keliling Waduk"
+          maxLength={80}
+        />
         {saveRoute.error ? <ErrorBox error={saveRoute.error} /> : null}
         <Button
           title="Simpan rute"
-          icon="save-outline"
+          icon="checkmark"
           disabled={!plan || planning || !name.trim()}
           loading={saveRoute.isPending}
           onPress={() => saveRoute.mutate()}
         />
-      </View>
+      </Sheet>
     </View>
   );
 }
@@ -143,22 +163,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: space.md,
     alignSelf: 'center',
-    paddingHorizontal: space.md,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  panel: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
-    gap: space.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
+  hintText: { color: '#fff', fontFamily: font.semibold, fontSize: 13 },
 });

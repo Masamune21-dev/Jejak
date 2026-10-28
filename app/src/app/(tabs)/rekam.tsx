@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ActivityType, PlannedRoute, RouteSummary } from '@shared/api';
@@ -10,28 +10,28 @@ import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import { DEFAULT_CENTER, endPins, type MapLine, type MapPin } from '@/components/map-types';
-import { Button, Card, ErrorBox, Field, Row, Stat, T, TypePicker } from '@/components/ui';
+import StaticMap from '@/components/StaticMap';
+import { Button, ErrorBox, Field, IconButton, Num, Row, Sheet, Stat, T, TypePicker, type IconName } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
-import { defaultTitle, distance, duration, km, tempo, TYPE_LABEL } from '@/lib/format';
+import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_LABEL } from '@/lib/format';
 import { createGpsSource, currentPosition } from '@/lib/gps';
 import { elapsedMs, recorder, useRecorder } from '@/lib/recorder';
 import { createSimSource, loopAround } from '@/lib/sim';
-import { radius, space, useColors } from '@/lib/theme';
+import { font, radius, shadow, space, useColors } from '@/lib/theme';
 
 const SIM_SPEED: Record<ActivityType, number> = { run: 3.2, ride: 7, walk: 1.4 };
 
 const SOURCE_TEXT = {
-  'gps-bg': 'GPS aktif, tetap merekam saat layar mati',
-  'gps-fg': 'GPS aktif · biarkan layar menyala (Expo Go belum bisa merekam di latar)',
-  sim: 'Simulasi GPS (mode uji, 8× lebih cepat)',
+  'gps-bg': 'GPS aktif · tetap merekam saat layar mati',
+  'gps-fg': 'GPS aktif · biarkan layar menyala',
+  sim: 'Simulasi GPS · 8× lebih cepat',
 } as const;
 
 export default function RecordScreen() {
   const c = useColors();
   const s = useRecorder();
   const qc = useQueryClient();
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ rute?: string }>();
   const [now, setNow] = useState(() => recorder.clock());
   const [sim, setSim] = useState(false);
@@ -39,6 +39,7 @@ export default function RecordScreen() {
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState('');
   const [picking, setPicking] = useState(false);
+  const [sheetH, setSheetH] = useState(0);
 
   // Stopwatch berdetak hanya saat merekam.
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function RecordScreen() {
   };
 
   const elapsedS = elapsedMs(s, now) / 1000;
-  const t = tempo(s.type, s.distanceM, elapsedS);
+  const t = tempoParts(s.type, s.distanceM, elapsedS);
   const firstPoint = s.parts.find((p) => p.length > 0)?.[0];
   const titleGuess = defaultTitle(s.type, firstPoint?.[2] ?? now);
 
@@ -93,183 +94,284 @@ export default function RecordScreen() {
     const out: MapLine[] = [];
     if (s.route) out.push({ id: 'route', coords: s.route.geometry, color: c.route, width: 6 });
     s.parts.forEach((p, i) => {
-      if (p.length > 1) out.push({ id: `part${i}`, coords: toLatLon(p), color: c.primary, width: 5 });
+      if (p.length > 1) out.push({ id: `part${i}`, coords: toLatLon(p), color: c.track, width: 5 });
     });
     return out;
   }, [s.route, s.parts, c]);
 
   const pins = useMemo<MapPin[]>(() => (s.route ? endPins(s.route.geometry) : []), [s.route]);
+  const track = useMemo(() => toLatLon(flatten(s.parts)), [s.parts]);
 
   const fit = useMemo<LatLon[] | null>(() => {
-    if (s.status === 'finished') return toLatLon(flatten(s.parts));
     if (s.status === 'idle' && s.route) return s.route.geometry;
     return null;
-  }, [s.status, s.route, s.parts]);
+  }, [s.status, s.route]);
 
   const save = () =>
     act(async () => {
       const a = await recorder.upload(title.trim() || titleGuess);
       setTitle('');
-      void qc.invalidateQueries({ queryKey: ['feed'] });
-      void qc.invalidateQueries({ queryKey: ['userActivities'] });
-      void qc.invalidateQueries({ queryKey: ['stats'] });
-      void qc.invalidateQueries({ queryKey: ['user'] });
+      for (const key of ['feed', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
       router.push(`/aktivitas/${a.id}`);
     });
 
+  const active = s.status === 'recording' || s.status === 'paused';
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <JejakMap
-        lines={lines}
-        pins={pins}
-        me={s.status === 'finished' ? null : s.here}
-        followMe={s.status === 'recording'}
-        fit={fit}
-        initialCenter={s.here ?? undefined}
+      {s.status === 'finished' ? null : (
+        <JejakMap
+          lines={lines}
+          pins={pins}
+          me={s.here}
+          followMe={s.status === 'recording'}
+          fit={fit}
+          initialCenter={s.here ?? undefined}
+          bottomInset={sheetH}
+        />
+      )}
+
+      <TopOverlay
+        sourceText={s.sourceKind ? SOURCE_TEXT[s.sourceKind] : null}
+        accuracy={s.sourceKind === 'sim' ? null : s.accuracy}
       />
 
-      <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
-        <GuideBanner />
-      </View>
+      {s.status === 'finished' ? (
+        <SaveView
+          track={track}
+          title={title}
+          setTitle={setTitle}
+          titleGuess={titleGuess}
+          busy={busy}
+          error={error}
+          distanceM={s.distanceM}
+          elapsedS={elapsedS}
+          type={s.type}
+          onSave={save}
+          onResume={() => act(() => recorder.resume(makeSource))}
+          onDiscard={async () => {
+            if (await confirm('Buang rekaman', 'Rekaman ini akan dihapus dan tidak bisa dikembalikan.', 'Buang'))
+              await recorder.discard();
+          }}
+        />
+      ) : (
+        <Sheet style={styles.sheet} aboveTabBar onHeight={setSheetH}>
+          {error ? <ErrorBox error={new Error(error)} /> : null}
 
-      <View style={[styles.panel, { backgroundColor: c.card, paddingBottom: space.lg }]}>
-        {error ? <ErrorBox error={new Error(error)} /> : null}
+          {s.status === 'idle' ? (
+            <>
+              <TypePicker value={s.type} onChange={(ty) => recorder.setType(ty)} />
+              <Pressable onPress={() => setPicking(true)} style={[styles.routeRow, { backgroundColor: c.surface2 }]}>
+                <View style={[styles.routeIcon, { backgroundColor: s.route ? c.route : c.surface }]}>
+                  <Ionicons name="navigate" size={16} color={s.route ? '#fff' : c.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <T v="label">Rute</T>
+                  <T v="strong" numberOfLines={1}>
+                    {s.route ? `${s.route.name} · ${distance(s.route.distanceM)}` : 'Bebas, tanpa rute'}
+                  </T>
+                </View>
+                <Ionicons name="chevron-down" size={18} color={c.muted} />
+              </Pressable>
+              {__DEV__ ? (
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <T v="small">Simulasi GPS (mode uji)</T>
+                  <Switch value={sim} onValueChange={setSim} trackColor={{ true: c.accentText }} />
+                </Row>
+              ) : null}
+              <View style={{ alignItems: 'center', paddingTop: space.xs }}>
+                <RoundButton
+                  size={86}
+                  icon="play"
+                  bg={c.accent}
+                  color={c.accentInk}
+                  label={`Mulai ${TYPE_LABEL[s.type].toLowerCase()}`}
+                  disabled={busy}
+                  onPress={() => act(() => recorder.start(makeSource))}
+                />
+              </View>
+            </>
+          ) : null}
 
-        {s.status === 'idle' ? (
-          <>
-            <TypePicker value={s.type} onChange={(t) => recorder.setType(t)} />
-            <Pressable onPress={() => setPicking(true)} style={[styles.routeRow, { borderColor: c.border }]}>
-              <Ionicons name="map-outline" size={18} color={s.route ? c.route : c.muted} />
-              <T style={{ flex: 1 }} numberOfLines={1}>
-                {s.route ? `${s.route.name} · ${distance(s.route.distanceM)}` : 'Tanpa rute (bebas)'}
-              </T>
-              <Ionicons name="chevron-down" size={18} color={c.muted} />
-            </Pressable>
-            {__DEV__ ? (
-              <Row style={{ justifyContent: 'space-between' }}>
-                <T muted size={13}>
-                  Simulasi GPS (mode uji)
-                </T>
-                <Switch value={sim} onValueChange={setSim} trackColor={{ true: c.primary }} />
+          {active ? (
+            <>
+              <View style={{ alignItems: 'center' }}>
+                <T v="label">{s.status === 'paused' ? 'Dijeda' : 'Waktu'}</T>
+                <Text style={[styles.clock, { color: s.status === 'paused' ? c.muted : c.text }]}>{duration(elapsedS)}</Text>
+              </View>
+              <Row style={{ justifyContent: 'space-around' }}>
+                <Stat align="center" label="Jarak" value={km(s.distanceM)} unit="km" size={40} />
+                <View style={[styles.vr, { backgroundColor: c.line }]} />
+                <Stat align="center" label={t.label} value={t.value} unit={t.unit} size={40} />
               </Row>
-            ) : null}
-            <Button title={`Mulai ${TYPE_LABEL[s.type].toLowerCase()}`} icon="play" loading={busy} onPress={() => act(() => recorder.start(makeSource))} />
-          </>
-        ) : null}
-
-        {s.status === 'recording' || s.status === 'paused' ? (
-          <>
-            <Row>
-              <Stat big label="Waktu" value={duration(elapsedS)} />
-              <Stat big label="Jarak (km)" value={km(s.distanceM)} />
-            </Row>
-            <Row>
-              <Stat label={t.label} value={t.value} />
-              <Stat label="Status" value={s.status === 'paused' ? 'Jeda' : 'Merekam'} />
-            </Row>
-            <T muted size={12}>
-              {s.sourceKind ? SOURCE_TEXT[s.sourceKind] : 'GPS belum aktif'}
-              {s.accuracy != null && s.sourceKind !== 'sim' ? ` · akurasi ±${Math.round(s.accuracy)} m` : ''}
-            </T>
-            {s.status === 'recording' ? (
-              <Button kind="secondary" title="Jeda" icon="pause" loading={busy} onPress={() => act(recorder.pause)} />
-            ) : (
-              <Row>
-                <Button style={{ flex: 1 }} title="Lanjut" icon="play" loading={busy} onPress={() => act(() => recorder.resume(makeSource))} />
-                <Button style={{ flex: 1 }} kind="danger" title="Selesai" icon="flag" loading={busy} onPress={() => act(recorder.finish)} />
+              <Row style={{ justifyContent: 'center', gap: space.xl, paddingTop: space.xs }}>
+                {s.status === 'recording' ? (
+                  <RoundButton
+                    size={76}
+                    icon="pause"
+                    bg={c.slab}
+                    color="#fff"
+                    label="Jeda"
+                    disabled={busy}
+                    onPress={() => act(recorder.pause)}
+                  />
+                ) : (
+                  <>
+                    <RoundButton
+                      size={76}
+                      icon="play"
+                      bg={c.accent}
+                      color={c.accentInk}
+                      label="Lanjut"
+                      disabled={busy}
+                      onPress={() => act(() => recorder.resume(makeSource))}
+                    />
+                    <RoundButton
+                      size={76}
+                      icon="flag"
+                      bg={c.track}
+                      color="#fff"
+                      label="Selesai"
+                      disabled={busy}
+                      onPress={() => act(recorder.finish)}
+                    />
+                  </>
+                )}
               </Row>
-            )}
-          </>
-        ) : null}
-
-        {s.status === 'finished' ? (
-          <>
-            <T weight="800" size={18}>
-              Simpan aktivitas
-            </T>
-            <Row>
-              <Stat label="Jarak" value={distance(s.distanceM)} />
-              <Stat label="Waktu" value={duration(elapsedS)} />
-              <Stat label={t.label} value={t.value} />
-            </Row>
-            <Field
-              value={title}
-              onChangeText={setTitle}
-              placeholder={titleGuess}
-              maxLength={100}
-            />
-            <Button title="Simpan" icon="cloud-upload-outline" loading={busy} onPress={save} />
-            <Row>
-              <Button style={{ flex: 1 }} small kind="secondary" title="Lanjut rekam" onPress={() => act(() => recorder.resume(makeSource))} />
-              <Button
-                style={{ flex: 1 }}
-                small
-                kind="ghost"
-                title="Buang"
-                onPress={async () => {
-                  if (await confirm('Buang rekaman', 'Rekaman ini akan dihapus dan tidak bisa dikembalikan.', 'Buang')) await recorder.discard();
-                }}
-              />
-            </Row>
-          </>
-        ) : null}
-      </View>
+            </>
+          ) : null}
+        </Sheet>
+      )}
 
       <RoutePicker visible={picking} onClose={() => setPicking(false)} />
     </View>
   );
 }
 
-function GuideBanner() {
+function RoundButton({
+  icon,
+  label,
+  onPress,
+  bg,
+  color,
+  size,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  bg: string;
+  color: string;
+  size: number;
+  disabled?: boolean;
+}) {
   const c = useColors();
-  const s = useRecorder();
-  if (!s.route || !s.guide || s.status === 'finished') return null;
-  const g = s.guide;
-  if (s.status === 'idle') {
-    return (
-      <Card style={styles.banner}>
-        <T weight="700">{s.route.name}</T>
-        <T muted size={13}>
-          {g.offRoute ? `Titik terdekat rute ${distance(g.offM)} dari sini` : 'Kamu sudah di rute'} · total {distance(s.route.distanceM)}
-        </T>
-      </Card>
-    );
-  }
-  if (g.offRoute) {
-    return (
-      <Card style={[styles.banner, { backgroundColor: c.danger, borderColor: c.danger }]}>
-        <Row>
-          <Ionicons name="warning" size={22} color="#fff" />
-          <View style={{ flex: 1 }}>
-            <T weight="800" style={{ color: '#fff' }}>
-              Keluar dari rute
-            </T>
-            <T size={13} style={{ color: '#fff' }}>
-              {distance(g.offM)} dari garis rute · sisa {distance(g.remainingM)}
-            </T>
-          </View>
-        </Row>
-      </Card>
-    );
-  }
   return (
-    <Card style={[styles.banner, { backgroundColor: c.route, borderColor: c.route }]}>
-      <Row>
-        <Ionicons name={turnIcon(g.next?.text)} size={26} color="#fff" />
-        <View style={{ flex: 1 }}>
-          <T weight="800" size={16} style={{ color: '#fff' }} numberOfLines={2}>
-            {g.next ? g.next.text : 'Ikuti garis rute'}
-          </T>
-          <T size={13} style={{ color: '#fff' }}>
-            {g.next ? `dalam ${distance(g.next.inM)} · ` : ''}sisa {distance(g.remainingM)}
-          </T>
-        </View>
-      </Row>
-    </Card>
+    <View style={{ alignItems: 'center', gap: 6 }}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={({ pressed }) => [
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          shadow(c, 2),
+          { opacity: disabled ? 0.5 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+        ]}>
+        <Ionicons
+          name={icon}
+          size={size * 0.42}
+          color={color}
+          style={icon === 'play' ? { marginLeft: size * 0.05 } : undefined}
+        />
+      </Pressable>
+      <T v="strong" size={14}>
+        {label}
+      </T>
+    </View>
   );
 }
 
-function turnIcon(text?: string): 'arrow-back' | 'arrow-forward' | 'arrow-up' | 'refresh' | 'flag' {
+/** Status GPS + banner pemandu rute di atas peta. */
+function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accuracy: number | null }) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  const s = useRecorder();
+  const g = s.guide;
+  const showGuide = !!s.route && !!g && s.status !== 'finished';
+  const goodGps = accuracy == null || accuracy <= 20;
+
+  return (
+    <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
+      {sourceText && s.status !== 'finished' ? (
+        <View style={[styles.pill, { backgroundColor: c.surface }, shadow(c)]}>
+          <View style={[styles.dot, { backgroundColor: goodGps ? c.start : c.gold }]} />
+          <T v="small" color={c.text}>
+            {sourceText}
+            {accuracy != null ? ` · ±${Math.round(accuracy)} m` : ''}
+          </T>
+        </View>
+      ) : null}
+
+      {showGuide && s.status === 'idle' ? (
+        <View style={[styles.guide, { backgroundColor: c.slab }]}>
+          <View style={[styles.turn, { backgroundColor: c.route }]}>
+            <Ionicons name="navigate" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.guideTitle} numberOfLines={1}>
+              {s.route!.name}
+            </Text>
+            <Text style={styles.guideSub}>
+              {g!.offRoute ? `Titik terdekat rute ${distance(g!.offM)} dari sini` : 'Kamu sudah di rute'} ·{' '}
+              {distance(s.route!.distanceM)}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {showGuide && s.status !== 'idle' && g!.offRoute ? (
+        <View style={[styles.guide, { backgroundColor: c.danger }]}>
+          <View style={[styles.turn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <Ionicons name="warning" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.guideTitle}>Keluar dari rute</Text>
+            <Text style={styles.guideSub}>
+              {distance(g!.offM)} dari garis rute · sisa {distance(g!.remainingM)}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {showGuide && s.status !== 'idle' && !g!.offRoute ? (
+        <View style={[styles.guide, { backgroundColor: c.slab }]}>
+          <View style={[styles.turn, { backgroundColor: c.accent }]}>
+            <Ionicons name={turnIcon(g!.next?.text)} size={26} color={c.accentInk} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            {g!.next ? (
+              <Num value={distanceParts(g!.next.inM).value} unit={distanceParts(g!.next.inM).unit} size={30} color="#C6F03C" />
+            ) : null}
+            <Text style={styles.guideTitle} numberOfLines={2}>
+              {g!.next ? g!.next.text : 'Ikuti garis rute'}
+            </Text>
+            <Text style={styles.guideSub}>Sisa {distance(g!.remainingM)}</Text>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function turnIcon(text?: string): IconName {
   if (!text) return 'arrow-up';
   if (text.startsWith('Sampai')) return 'flag';
   if (text.includes('bundaran') || text.startsWith('Putar')) return 'refresh';
@@ -278,10 +380,55 @@ function turnIcon(text?: string): 'arrow-back' | 'arrow-forward' | 'arrow-up' | 
   return 'arrow-up';
 }
 
+function SaveView(p: {
+  track: LatLon[];
+  title: string;
+  setTitle: (t: string) => void;
+  titleGuess: string;
+  busy: boolean;
+  error: string | null;
+  distanceM: number;
+  elapsedS: number;
+  type: ActivityType;
+  onSave: () => void;
+  onResume: () => void;
+  onDiscard: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const t = tempoParts(p.type, p.distanceM, p.elapsedS);
+  const d = distanceParts(p.distanceM);
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.xl, gap: space.lg }}
+      keyboardShouldPersistTaps="handled">
+      <View>
+        <T v="label">Selesai</T>
+        <T v="h1">Simpan aktivitas</T>
+      </View>
+      <StaticMap points={p.track} height={220} />
+      <Row gap={space.lg}>
+        <Stat label="Jarak" value={d.value} unit={d.unit} size={32} />
+        <Stat label="Waktu" value={duration(p.elapsedS)} size={32} />
+        <Stat label={t.label} value={t.value} unit={t.unit} size={32} />
+      </Row>
+      <Field label="Judul" value={p.title} onChangeText={p.setTitle} placeholder={p.titleGuess} maxLength={100} />
+      {p.error ? <ErrorBox error={new Error(p.error)} /> : null}
+      <Button title="Simpan aktivitas" icon="checkmark" loading={p.busy} onPress={p.onSave} />
+      <Row>
+        <Button style={{ flex: 1 }} kind="soft" icon="play" title="Lanjutkan" onPress={p.onResume} />
+        <Button style={{ flex: 1 }} kind="ghost" icon="trash-outline" title="Buang" onPress={p.onDiscard} />
+      </Row>
+    </ScrollView>
+  );
+}
+
 function RoutePicker({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const q = useQuery({ queryKey: ['routes'], queryFn: () => api<RouteSummary[]>('/routes'), enabled: visible });
   const [loading, setLoading] = useState<number | null>(null);
+  const current = useRecorder().route;
   const pick = async (id: number | null) => {
     if (id == null) {
       recorder.setRoute(null);
@@ -300,31 +447,28 @@ function RoutePicker({ visible, onClose }: { visible: boolean; onClose: () => vo
   };
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: c.card }]}>
+      <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose} />
+      <View style={[styles.picker, { backgroundColor: c.surface, paddingBottom: insets.bottom + space.lg }]}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <T weight="800" size={18}>
-            Pilih rute
-          </T>
-          <Pressable onPress={onClose} hitSlop={10}>
-            <Ionicons name="close" size={24} color={c.text} />
-          </Pressable>
+          <T v="h2">Pilih rute</T>
+          <IconButton icon="close" label="Tutup" onPress={onClose} size={36} />
         </Row>
         <ScrollView contentContainerStyle={{ gap: space.sm }}>
-          <Button kind="secondary" title="Tanpa rute (bebas)" onPress={() => pick(null)} />
+          <PickRow icon="shuffle" title="Bebas, tanpa rute" active={!current} onPress={() => pick(null)} />
           {q.error ? <ErrorBox error={q.error} /> : null}
           {(q.data ?? []).map((r) => (
-            <Button
+            <PickRow
               key={r.id}
-              kind="ghost"
-              icon="map-outline"
-              title={`${r.name} · ${distance(r.distanceM)}`}
+              preview={r.preview}
+              title={r.name}
+              subtitle={`${TYPE_LABEL[r.type]} · ${distance(r.distanceM)}`}
+              active={current?.id === r.id}
               loading={loading === r.id}
               onPress={() => pick(r.id)}
             />
           ))}
           {q.data?.length === 0 ? (
-            <T muted style={{ textAlign: 'center' }}>
+            <T muted center style={{ padding: space.lg }}>
               Belum ada rute. Buat dulu di tab Rute.
             </T>
           ) : null}
@@ -334,35 +478,87 @@ function RoutePicker({ visible, onClose }: { visible: boolean; onClose: () => vo
   );
 }
 
+function PickRow({
+  icon,
+  preview,
+  title,
+  subtitle,
+  active,
+  loading,
+  onPress,
+}: {
+  icon?: IconName;
+  preview?: LatLon[];
+  title: string;
+  subtitle?: string;
+  active?: boolean;
+  loading?: boolean;
+  onPress: () => void;
+}) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={loading}
+      style={({ pressed }) => [
+        styles.pickRow,
+        {
+          backgroundColor: active ? c.accent + '33' : c.surface2,
+          borderColor: active ? c.accentText : 'transparent',
+          opacity: pressed || loading ? 0.7 : 1,
+        },
+      ]}>
+      {preview ? (
+        <View style={{ width: 64 }}>
+          <StaticMap points={preview} height={48} radius={10} color={c.route} />
+        </View>
+      ) : (
+        <View style={[styles.pickIcon, { backgroundColor: c.surface }]}>
+          <Ionicons name={icon ?? 'map'} size={20} color={c.text} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <T v="strong" numberOfLines={1}>
+          {title}
+        </T>
+        {subtitle ? <T v="small">{subtitle}</T> : null}
+      </View>
+      {active ? <Ionicons name="checkmark-circle" size={22} color={c.accentText} /> : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  top: { position: 'absolute', left: space.md, right: space.md },
-  banner: { padding: space.md, gap: 2 },
-  panel: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
-    gap: space.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 8,
-  },
-  routeRow: {
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  top: { position: 'absolute', left: space.md, right: space.md, gap: space.sm, alignItems: 'stretch' },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
+    gap: 8,
+    alignSelf: 'flex-start',
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: {
-    maxHeight: '70%',
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  guide: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, padding: space.md },
+  turn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  guideTitle: { color: '#fff', fontFamily: font.bold, fontSize: 16 },
+  guideSub: { color: 'rgba(255,255,255,0.7)', fontFamily: font.medium, fontSize: 13 },
+  clock: { fontFamily: font.numBold, fontSize: 72, lineHeight: 76, fontVariant: ['tabular-nums'] },
+  vr: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  routeRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, padding: space.md },
+  routeIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  backdrop: { flex: 1 },
+  picker: { maxHeight: '75%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: space.lg, gap: space.md },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: space.md,
+    borderRadius: radius.md,
+    padding: space.sm,
+    paddingRight: space.md,
+    borderWidth: 1.5,
   },
+  pickIcon: { width: 64, height: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,26 +1,29 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ActivitySummary, ActivityType, Profile, Stats } from '@shared/api';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
-import { dateShort, distance, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
+import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { useRefetchOnFocus } from '@/lib/hooks';
-import { space, useColors } from '@/lib/theme';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
-import { Avatar, Button, Card, Empty, ErrorBox, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
+import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
 import WeeklyChart from './WeeklyChart';
 
 const PAGE = 20;
 
-export default function ProfileView({ userId }: { userId: number }) {
+export default function ProfileView({ userId, inTab }: { userId: number; inTab?: boolean }) {
   const c = useColors();
   const qc = useQueryClient();
+  const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [type, setType] = useState<ActivityType>('run');
   const tz = -new Date().getTimezoneOffset();
@@ -56,98 +59,128 @@ export default function ProfileView({ userId }: { userId: number }) {
   if (profile.error) return <ErrorBox error={profile.error} onRetry={() => profile.refetch()} />;
   const p = profile.data;
   const s = stats.data;
+  const total = distanceParts(p.totals.distanceM);
 
   const header = (
-    <View style={{ gap: space.md }}>
-      <Stack.Screen options={{ title: p.isMe ? 'Profil' : p.name }} />
-      <Row>
-        <Avatar name={p.name} size={64} />
-        <View style={{ flex: 1 }}>
-          <T weight="800" size={22}>
-            {p.name}
-          </T>
-          <T muted>@{p.username}</T>
-          <Row gap={space.lg} style={{ marginTop: 4 }}>
-            <T>
-              <T weight="800">{p.followers}</T> <T muted>pengikut</T>
-            </T>
-            <T>
-              <T weight="800">{p.following}</T> <T muted>mengikuti</T>
-            </T>
-          </Row>
+    <View style={{ gap: space.lg }}>
+      <View
+        style={[
+          styles.hero,
+          { backgroundColor: c.slab, paddingTop: (inTab ? insets.top : 0) + space.xl, marginHorizontal: -space.lg },
+        ]}>
+        {inTab ? (
+          <View style={[styles.heroActions, { top: insets.top + space.sm }]}>
+            <IconButton
+              icon="person-add-outline"
+              label="Cari teman"
+              bg="rgba(255,255,255,0.12)"
+              color="#fff"
+              onPress={() => router.push('/cari')}
+            />
+            <IconButton
+              icon="log-out-outline"
+              label="Keluar"
+              bg="rgba(255,255,255,0.12)"
+              color="#fff"
+              onPress={async () => {
+                if (await confirm('Keluar', 'Keluar dari akun ini?', 'Keluar')) await signOut();
+              }}
+            />
+          </View>
+        ) : null}
+        <Avatar name={p.name} size={84} ring />
+        <View style={{ alignItems: 'center', gap: 2 }}>
+          <Text style={styles.name}>{p.name}</Text>
+          <Text style={styles.handle}>@{p.username}</Text>
         </View>
-      </Row>
-      {p.isMe ? (
-        <Row>
-          <Button style={{ flex: 1 }} small kind="secondary" icon="person-add-outline" title="Cari teman" onPress={() => router.push('/cari')} />
+        <Row gap={space.xl}>
+          <Text style={styles.count}>
+            <Text style={styles.countNum}>{p.followers}</Text> pengikut
+          </Text>
+          <Text style={styles.count}>
+            <Text style={styles.countNum}>{p.following}</Text> mengikuti
+          </Text>
+        </Row>
+        {p.isMe ? null : (
           <Button
-            style={{ flex: 1 }}
-            small
-            kind="ghost"
-            icon="log-out-outline"
-            title="Keluar"
-            onPress={async () => {
-              if (await confirm('Keluar', 'Keluar dari akun ini?', 'Keluar')) await signOut();
-            }}
+            kind={p.isFollowing ? 'soft' : 'primary'}
+            icon={p.isFollowing ? 'checkmark' : 'person-add'}
+            title={p.isFollowing ? 'Mengikuti' : 'Ikuti'}
+            loading={follow.isPending}
+            onPress={() => follow.mutate(!p.isFollowing)}
+            style={{ alignSelf: 'stretch' }}
           />
-        </Row>
-      ) : (
-        <Button
-          kind={p.isFollowing ? 'secondary' : 'primary'}
-          icon={p.isFollowing ? 'checkmark' : 'person-add'}
-          title={p.isFollowing ? 'Mengikuti' : 'Ikuti'}
-          loading={follow.isPending}
-          onPress={() => follow.mutate(!p.isFollowing)}
-        />
-      )}
-      <Card>
-        <Row>
-          <Stat label="Aktivitas" value={String(p.totals.count)} />
-          <Stat label="Total jarak" value={`${km(p.totals.distanceM, 1)} km`} />
-          <Stat label="Total waktu" value={durationShort(p.totals.movingS)} />
-        </Row>
-      </Card>
+        )}
+        <View style={[styles.totals, { borderTopColor: 'rgba(255,255,255,0.12)' }]}>
+          <HeroStat label="Aktivitas" value={String(p.totals.count)} />
+          <HeroStat label="Jarak" value={total.value} unit={total.unit} />
+          <HeroStat label="Waktu" value={durationShort(p.totals.movingS)} />
+        </View>
+      </View>
 
       <TypePicker value={type} onChange={setType} />
       {stats.error ? <ErrorBox error={stats.error} onRetry={() => stats.refetch()} /> : null}
       {s ? (
-        <Card style={{ gap: space.md }}>
-          <T weight="800">{TYPE_LABEL[type]} · 12 minggu terakhir</T>
+        <Card style={{ gap: space.lg }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <T v="h3">{TYPE_LABEL[type]}</T>
+            <T v="small">12 minggu terakhir</T>
+          </Row>
           <WeeklyChart weeks={s.weeks} />
-          <Row>
-            <Stat label="Minggu ini" value={`${km(s.weeks[s.weeks.length - 1]?.distanceM ?? 0, 1)} km`} />
-            <Stat label="Tahun ini" value={`${km(s.thisYear.distanceM, 1)} km`} />
-            <Stat label="Sepanjang masa" value={`${km(s.allTime.distanceM, 1)} km`} />
+          <Row gap={space.md}>
+            <Stat label="Minggu ini" value={km(s.weeks[s.weeks.length - 1]?.distanceM ?? 0, 1)} unit="km" size={24} />
+            <Stat label="Tahun ini" value={km(s.thisYear.distanceM, 1)} unit="km" size={24} />
+            <Stat label="Total" value={km(s.allTime.distanceM, 1)} unit="km" size={24} />
           </Row>
         </Card>
       ) : null}
+
       {s && (s.records.length > 0 || s.longest) ? (
-        <Card>
-          <T weight="800">Rekor pribadi</T>
-          {s.records.map((r) => (
-            <Pressable key={r.name} onPress={() => router.push(`/aktivitas/${r.activityId}`)}>
-              <Row style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
-                <T>{r.name}</T>
-                <Row gap={space.sm}>
-                  <T weight="700" style={{ fontVariant: ['tabular-nums'] }}>
-                    {duration(r.elapsedS)}
-                  </T>
-                  <T muted size={12}>
-                    {dateShort(r.date)}
-                  </T>
+        <>
+          <SectionTitle>Rekor pribadi</SectionTitle>
+          <View style={styles.tiles}>
+            {s.records.map((r) => (
+              <Pressable
+                key={r.name}
+                onPress={() => router.push(`/aktivitas/${r.activityId}`)}
+                style={({ pressed }) => [
+                  styles.tile,
+                  { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.85 : 1 },
+                ]}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <T v="label">{r.name}</T>
+                  <Ionicons name="trophy" size={14} color={c.gold} />
                 </Row>
-              </Row>
-            </Pressable>
-          ))}
-          {s.longest ? (
-            <Pressable onPress={() => router.push(`/aktivitas/${s.longest!.activityId}`)}>
-              <Row style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
-                <T>Terjauh</T>
-                <T weight="700">{distance(s.longest.distanceM)}</T>
-              </Row>
-            </Pressable>
-          ) : null}
-        </Card>
+                <T v="num" size={28}>
+                  {duration(r.elapsedS)}
+                </T>
+                <T v="small" size={12}>
+                  {dateShort(r.date)}
+                </T>
+              </Pressable>
+            ))}
+            {s.longest ? (
+              <Pressable
+                onPress={() => router.push(`/aktivitas/${s.longest!.activityId}`)}
+                style={({ pressed }) => [
+                  styles.tile,
+                  { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.85 : 1 },
+                ]}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <T v="label">Terjauh</T>
+                  <Ionicons name="trending-up" size={14} color={c.track} />
+                </Row>
+                <T v="num" size={28}>
+                  {distanceParts(s.longest.distanceM).value}
+                  <Text style={{ fontSize: 14, color: c.muted }}> {distanceParts(s.longest.distanceM).unit}</Text>
+                </T>
+                <T v="small" size={12}>
+                  {dateShort(s.longest.date)}
+                </T>
+              </Pressable>
+            ) : null}
+          </View>
+        </>
       ) : null}
       <SectionTitle>Aktivitas</SectionTitle>
     </View>
@@ -156,14 +189,61 @@ export default function ProfileView({ userId }: { userId: number }) {
   return (
     <FlatList
       style={{ backgroundColor: c.bg }}
-      contentContainerStyle={{ padding: space.lg, gap: space.md }}
+      contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.lg }}
       data={acts.data?.pages.flat() ?? []}
       keyExtractor={(a) => String(a.id)}
       renderItem={({ item }) => <ActivityCard a={item} />}
       ListHeaderComponent={header}
-      refreshControl={<RefreshControl refreshing={profile.isRefetching} onRefresh={refetchAll} tintColor={c.primary} />}
+      refreshControl={<RefreshControl refreshing={profile.isRefetching} onRefresh={refetchAll} tintColor={c.text} />}
       onEndReached={() => acts.hasNextPage && !acts.isFetchingNextPage && acts.fetchNextPage()}
-      ListEmptyComponent={acts.isPending ? undefined : <Empty icon="walk-outline" title="Belum ada aktivitas" />}
+      ListEmptyComponent={acts.isPending ? undefined : <Empty icon="walk" title="Belum ada aktivitas" />}
     />
   );
 }
+
+function HeroStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text style={styles.heroNum}>
+        {value}
+        {unit ? <Text style={styles.heroUnit}> {unit}</Text> : null}
+      </Text>
+      <Text style={styles.heroLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  hero: {
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.lg,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  heroActions: { position: 'absolute', right: space.lg, flexDirection: 'row', gap: space.sm },
+  name: { color: '#fff', fontFamily: font.black, fontSize: 24 },
+  handle: { color: 'rgba(255,255,255,0.6)', fontFamily: font.medium, fontSize: 14 },
+  count: { color: 'rgba(255,255,255,0.65)', fontFamily: font.medium, fontSize: 14 },
+  countNum: { color: '#fff', fontFamily: font.bold },
+  totals: { flexDirection: 'row', alignSelf: 'stretch', borderTopWidth: 1, paddingTop: space.md, marginTop: space.xs },
+  heroNum: { color: '#C6F03C', fontFamily: font.numBold, fontSize: 30 },
+  heroUnit: { color: 'rgba(255,255,255,0.7)', fontFamily: font.semibold, fontSize: 13 },
+  heroLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontFamily: font.bold,
+    fontSize: 10,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  tile: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: space.md,
+    gap: 2,
+  },
+});

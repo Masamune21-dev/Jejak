@@ -5,7 +5,7 @@ import { FlatList, Pressable, View } from 'react-native';
 
 import type { UserListItem } from '@shared/api';
 
-import { Avatar, Button, Empty, ErrorBox, Field, Row, T } from '@/components/ui';
+import { Avatar, Button, Card, Empty, ErrorBox, Field, Row, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { space, useColors } from '@/lib/theme';
 
@@ -42,32 +42,42 @@ export default function SearchScreen() {
       keyExtractor={(u) => String(u.id)}
       ListHeaderComponent={
         <View style={{ gap: space.sm }}>
-          <Field value={text} onChangeText={setText} placeholder="Cari nama atau username" autoCapitalize="none" autoFocus />
+          <Field
+            icon="search"
+            value={text}
+            onChangeText={setText}
+            placeholder="Cari nama atau username"
+            autoCapitalize="none"
+            autoFocus
+          />
           {q.error ? <ErrorBox error={q.error} onRetry={() => q.refetch()} /> : null}
         </View>
       }
-      ListEmptyComponent={q.isPending ? undefined : <Empty icon="search" title="Tidak ada yang cocok" text="Ajak temanmu daftar di Jejak dulu." />}
+      ListEmptyComponent={
+        q.isPending ? undefined : <Empty icon="people" title="Tidak ada yang cocok" text="Ajak temanmu daftar di Jejak dulu." />
+      }
       renderItem={({ item }) => (
-        <Row>
-          <Pressable style={{ flex: 1 }} onPress={() => router.push(`/atlet/${item.id}`)}>
-            <Row>
-              <Avatar name={item.name} />
-              <View style={{ flex: 1 }}>
-                <T weight="700">{item.name}</T>
-                <T muted size={13}>
-                  @{item.username}
-                </T>
-              </View>
-            </Row>
-          </Pressable>
-          <Button
-            small
-            kind={item.isFollowing ? 'secondary' : 'primary'}
-            title={item.isFollowing ? 'Mengikuti' : 'Ikuti'}
-            loading={follow.isPending && follow.variables?.id === item.id}
-            onPress={() => follow.mutate(item)}
-          />
-        </Row>
+        <Card style={{ padding: space.md }}>
+          <Row>
+            <Pressable style={{ flex: 1 }} onPress={() => router.push(`/atlet/${item.id}`)}>
+              <Row>
+                <Avatar name={item.name} size={44} />
+                <View style={{ flex: 1 }}>
+                  <T v="strong">{item.name}</T>
+                  <T v="small">@{item.username}</T>
+                </View>
+              </Row>
+            </Pressable>
+            <Button
+              small
+              kind={item.isFollowing ? 'soft' : 'primary'}
+              icon={item.isFollowing ? 'checkmark' : 'person-add'}
+              title={item.isFollowing ? 'Mengikuti' : 'Ikuti'}
+              loading={follow.isPending && follow.variables?.id === item.id}
+              onPress={() => follow.mutate(item)}
+            />
+          </Row>
+        </Card>
       )}
     />
   );

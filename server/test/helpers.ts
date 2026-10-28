@@ -1,7 +1,13 @@
 import { haversine, type LatLon, type TrackPoint } from '../../shared/geo.ts';
 
 /** Track sintetis dari titik ke titik dengan kecepatan tetap, satu titik per `stepS` detik. */
-export function walkPath(path: LatLon[], speedMps: number, t0 = Date.UTC(2026, 9, 20, 23), stepS = 1, alt: number | null = 100): TrackPoint[] {
+export function walkPath(
+  path: LatLon[],
+  speedMps: number,
+  t0 = Date.UTC(2026, 9, 20, 23),
+  stepS = 1,
+  alt: number | null = 100,
+): TrackPoint[] {
   const out: TrackPoint[] = [[path[0][0], path[0][1], t0, alt]];
   let t = t0;
   for (let i = 1; i < path.length; i++) {

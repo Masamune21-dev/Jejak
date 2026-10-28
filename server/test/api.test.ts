@@ -19,7 +19,13 @@ function setup() {
     return { status: res.status, body: (await res.json()) as T & { error?: string } };
   };
   const register = async (username: string) =>
-    (await call<AuthResult>('POST', '/auth/register', undefined, { username, name: username.toUpperCase(), password: 'rahasia1' })).body;
+    (
+      await call<AuthResult>('POST', '/auth/register', undefined, {
+        username,
+        name: username.toUpperCase(),
+        password: 'rahasia1',
+      })
+    ).body;
   return { call, register };
 }
 
@@ -31,7 +37,10 @@ test('akun: daftar, masuk, salah sandi, tanpa token', async () => {
   const { call, register } = setup();
   const ika = await register('ika');
   assert.ok(ika.token);
-  assert.equal((await call('POST', '/auth/register', undefined, { username: 'IKA', name: 'x', password: 'rahasia1' })).status, 409);
+  assert.equal(
+    (await call('POST', '/auth/register', undefined, { username: 'IKA', name: 'x', password: 'rahasia1' })).status,
+    409,
+  );
   assert.equal((await call('POST', '/auth/login', undefined, { username: 'ika', password: 'salah' })).status, 401);
   const ok = await call<AuthResult>('POST', '/auth/login', undefined, { username: 'Ika', password: 'rahasia1' });
   assert.equal(ok.status, 200);
@@ -88,6 +97,15 @@ test('aktivitas, feed teman, kudos, komentar, statistik', async () => {
   assert.equal(stats.records.find((r) => r.name === '1 km')?.activityId, faster.body.id);
   assert.equal(stats.longest?.distanceM !== undefined, true);
 
+  await call('POST', '/activities', dicky.token, {
+    type: 'ride',
+    title: 'Gowes',
+    track: [walkPath([A, B], 7, Date.UTC(2026, 9, 21, 12))],
+  });
+  const all = (await call<Stats>('GET', `/users/${dicky.user.id}/stats?type=all&tz=420`, dicky.token)).body;
+  assert.equal(all.allTime.count, 3);
+  assert.equal(all.records.length, 0);
+
   const profile = (await call<Profile>('GET', `/users/${dicky.user.id}`, fajar.token)).body;
   assert.equal(profile.followers, 1);
   assert.equal(profile.isFollowing, true);
@@ -115,14 +133,22 @@ test('segmen: dibuat dari aktivitas, aktivitas lama ikut dicocokkan, leaderboard
   const { call, register } = setup();
   const dicky = await register('dicky');
   const fajar = await register('fajar');
-  const slow = await call<Activity>('POST', '/activities', dicky.token, { type: 'run', title: 'a', track: [walkPath([A, B, C], 2.5)] });
+  const slow = await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'a',
+    track: [walkPath([A, B, C], 2.5)],
+  });
   const fast = await call<Activity>('POST', '/activities', fajar.token, {
     type: 'run',
     title: 'b',
     track: [walkPath([A, B, C], 4, Date.UTC(2026, 9, 22, 6))],
   });
   // Bersepeda tidak ikut segmen lari.
-  await call('POST', '/activities', fajar.token, { type: 'ride', title: 'c', track: [walkPath([A, B, C], 8, Date.UTC(2026, 9, 23, 6))] });
+  await call('POST', '/activities', fajar.token, {
+    type: 'ride',
+    title: 'c',
+    track: [walkPath([A, B, C], 8, Date.UTC(2026, 9, 23, 6))],
+  });
 
   const n = slow.body.track[0].length;
   const seg = await call<Segment>('POST', '/segments', dicky.token, {
@@ -163,7 +189,11 @@ test('validasi: track pendek dan segmen terlalu pendek ditolak', async () => {
   const u = await register('ika');
   const bad = await call('POST', '/activities', u.token, { type: 'run', title: 'x', track: [[[A[0], A[1], 0, null]]] });
   assert.equal(bad.status, 400);
-  const act = await call<Activity>('POST', '/activities', u.token, { type: 'walk', title: 'jalan', track: [walkPath([A, B], 1.4)] });
+  const act = await call<Activity>('POST', '/activities', u.token, {
+    type: 'walk',
+    title: 'jalan',
+    track: [walkPath([A, B], 1.4)],
+  });
   const seg = await call('POST', '/segments', u.token, { activityId: act.body.id, startIndex: 0, endIndex: 10, name: 'pendek' });
   assert.equal(seg.status, 400);
 });

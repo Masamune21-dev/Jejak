@@ -13,9 +13,7 @@ const RAD = Math.PI / 180;
 export function haversine(a: Pt, b: Pt): number {
   const dLat = (b[0] - a[0]) * RAD;
   const dLon = (b[1] - a[1]) * RAD;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dLon / 2) ** 2;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
@@ -285,12 +283,7 @@ export function bounds(pts: readonly Pt[]): Bounds | null {
 export function boundsOverlap(a: Bounds, b: Bounds, marginM = 0): boolean {
   const mLat = marginM / 111_320;
   const mLon = marginM / (111_320 * Math.max(0.1, Math.cos(((a.minLat + a.maxLat) / 2) * RAD)));
-  return (
-    a.minLat - mLat <= b.maxLat &&
-    a.maxLat + mLat >= b.minLat &&
-    a.minLon - mLon <= b.maxLon &&
-    a.maxLon + mLon >= b.minLon
-  );
+  return a.minLat - mLat <= b.maxLat && a.maxLat + mLat >= b.minLat && a.minLon - mLon <= b.maxLon && a.maxLon + mLon >= b.minLon;
 }
 
 /** Titik di garis `pts` pada jarak `d` dari awal. */

@@ -87,7 +87,12 @@ test('progres di rute dan jarak melenceng', () => {
   const onRoute = geo.progressOnRoute(route, cum, north(HOME, 400));
   near(onRoute.alongM, 400, 2);
   near(onRoute.offM, 0, 1);
-  const off = geo.progressOnRoute(route, cum, east(north(HOME, 1000), 300).map((v, i) => (i === 0 ? v - 80 / 111_195 : v)) as geo.LatLon, onRoute.alongM);
+  const off = geo.progressOnRoute(
+    route,
+    cum,
+    east(north(HOME, 1000), 300).map((v, i) => (i === 0 ? v - 80 / 111_195 : v)) as geo.LatLon,
+    onRoute.alongM,
+  );
   near(off.alongM, 1300, 3);
   near(off.offM, 80, 2);
 });

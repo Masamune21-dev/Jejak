@@ -21,7 +21,9 @@ jejak/
               pencocokan segmen, progres di rute) dan tipe data API.
 ```
 
-## Menjalankan
+Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://jejak.masamune.my.id/api`.
+
+## Menjalankan untuk pengembangan
 
 Butuh Node 24 ke atas. Untuk mencoba di HP, pasang **Expo Go** dari Play Store/App Store.
 
@@ -29,46 +31,62 @@ Butuh Node 24 ke atas. Untuk mencoba di HP, pasang **Expo Go** dari Play Store/A
 npm run setup
 ```
 
-Terminal 1, server API (port 4000, database di `server/data/jejak.db`):
-
-```bash
-npm run server
-```
-
-Terminal 2, aplikasi (scan QR dengan Expo Go; HP harus satu WiFi dengan komputer):
+Aplikasi (scan QR dengan Expo Go). Secara bawaan app memakai server produksi (`app/.env`):
 
 ```bash
 npm run app
 ```
 
-App otomatis menghubungi server di IP komputer yang menjalankan Expo. Kalau server ada di tempat lain (mis. VPS), isi `app/.env`:
+Untuk memakai server di komputer sendiri, buat `app/.env.local` berisi `EXPO_PUBLIC_API_URL=lan`, lalu jalankan server di terminal lain (port 4000, database di `server/data/jejak.db`; HP harus satu WiFi):
 
+```bash
+npm run server
 ```
-EXPO_PUBLIC_API_URL=http://alamat-server:4000
-```
 
-Kalau HP tidak bisa terhubung, cek apakah firewall macOS memblokir port 4000. Alamat server yang dipakai app tampil di bawah halaman masuk.
-
-Versi browser (peta Leaflet + OpenStreetMap) bisa dibuka dengan `npm run web`.
+Jangan jalankan Expo dengan `CI=1`, karena mode itu mematikan pemantauan file sehingga perubahan kode tidak terbaca. Versi browser bisa dibuka dengan `npm run web`.
 
 ### Mode uji (simulasi GPS)
 
 Selama mode pengembangan, layar Rekam punya sakelar **Simulasi GPS**. Posisi bergerak sendiri di sepanjang rute yang dipilih (atau berputar di sekitar posisimu) dengan kecepatan 8×, jadi perekaman, pemandu rute, dan segmen bisa dicoba tanpa keluar rumah.
 
-## Merekam saat layar mati
+## Build APK (Android)
 
-Expo Go tidak mengizinkan lokasi latar belakang, jadi di Expo Go layar dibuat tetap menyala selama merekam. Untuk merekam dengan layar terkunci, buat *development build* sendiri. Build-nya jalan di cloud EAS (butuh akun Expo gratis), tanpa Xcode atau Android Studio:
+APK dibuat di cloud EAS dengan akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar), dan memakai server produksi.
+
+**1. Kunci Google Maps (sekali saja).** Expo Go membawa kuncinya sendiri, tapi APK butuh kunci milikmu supaya peta Android tidak kosong.
+
+- Buka [Google Cloud Console](https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com), buat/pilih project, lalu aktifkan **Maps SDK for Android** (perlu akun penagihan; pemakaian SDK peta Android gratis).
+- Buat kunci di **APIs & Services → Credentials → Create credentials → API key**.
+- Batasi kunci: *Application restrictions* → *Android apps*, package `id.my.masamune.jejak`, SHA-1 dari langkah 3 (bisa ditambahkan setelah build pertama).
+
+**2. Masuk EAS dan hubungkan project** (jalankan di folder `app`):
 
 ```bash
 cd app
-npx expo install expo-dev-client
-npx eas-cli@latest build:configure
-npx eas-cli@latest build --profile development --platform android
+npx eas-cli@latest login
+npx eas-cli@latest init
+npx eas-cli@latest env:create --name GOOGLE_MAPS_ANDROID_KEY --value KUNCI_KAMU --environment preview --environment production --visibility sensitive
 ```
 
-Pasang APK hasilnya di HP, lalu jalankan `npm run app` seperti biasa (setelah `expo-dev-client` terpasang, QR akan membuka build ini, bukan Expo Go). App sudah disiapkan untuk lokasi latar: izin lokasi "Selalu", layanan latar dengan notifikasi "Jejak sedang merekam", dan titik GPS yang terkumpul saat app tertutup ikut dimasukkan ketika app dibuka lagi.
+**3. Build APK:**
 
-Untuk rilis di Android, peta Google butuh kunci API. Lihat [panduan react-native-maps](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/#deploy-app-with-google-maps).
+```bash
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS memberi tautan/QR untuk mengunduh APK ke HP. SHA-1 keystore bisa dilihat dengan `npx eas-cli@latest credentials -p android` untuk membatasi kunci Google Maps.
+
+Profil `production` membuat AAB untuk Google Play (`--profile production`).
+
+## Deploy server & web
+
+Server produksi ada di `103.189.249.115` (PM2 `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`). Setelah commit & push:
+
+```bash
+deploy/deploy.sh
+```
+
+Skrip ini menjalankan `git pull` + `npm ci` + reload PM2 di server, lalu membangun versi web dan mengunggahnya. Pakai `deploy/deploy.sh server` atau `deploy/deploy.sh web` untuk salah satunya saja.
 
 ## Cek kode
 
@@ -81,4 +99,4 @@ Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun,
 ## Catatan
 
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
-- Peta versi web memakai tile `tile.openstreetmap.org`. Untuk pemakaian ramai, ganti ke penyedia tile sendiri.
+- Cuplikan peta dan peta versi web memakai ubin Esri Light/Dark Gray Canvas (tanpa kunci API, wajib atribusi). Peta di HP memakai Apple Maps (iOS) dan Google Maps (Android).

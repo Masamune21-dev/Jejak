@@ -44,6 +44,6 @@ fi
 if [[ "$WHAT" == all || "$WHAT" == web ]]; then
   echo "→ web: expo export"
   (cd "$HERE/app" && rm -rf dist && EXPO_PUBLIC_API_URL=https://jejak.masamune.my.id/api npx expo export --platform web --output-dir dist >/dev/null)
-  rsync -az --delete "$HERE/app/dist/" "$HOST:$ROOT/web/"
+  rsync -az --no-owner --no-group --delete "$HERE/app/dist/" "$HOST:$ROOT/web/"
   echo "  ← web terpasang"
 fi

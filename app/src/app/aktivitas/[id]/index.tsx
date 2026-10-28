@@ -84,7 +84,7 @@ export default function ActivityScreen() {
   // Km tercepat hanya dari km penuh; panjang batang = kecepatan relatif terhadap km tercepat (jujur, tidak dibesar-besarkan).
   const fullSplits = a.splits.filter((s) => s.distanceM >= 900);
   const fastest = fullSplits.length ? Math.min(...fullSplits.map(splitRate)) : Infinity;
-  const quickest = Math.min(...a.splits.map(splitRate));
+  const quickest = Math.min(...(fullSplits.length ? fullSplits : a.splits).map(splitRate));
 
   return (
     <Screen padded={false}>

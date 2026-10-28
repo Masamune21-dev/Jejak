@@ -1,0 +1,514 @@
+# Referensi API
+
+Semua endpoint ada di `server/src/app.ts`. Tipe respons merujuk ke `shared/api.ts`.
+
+## Daftar isi
+
+1. [Dasar](#dasar)
+2. [Ringkasan endpoint](#ringkasan-endpoint)
+3. [Autentikasi](#autentikasi)
+4. [Pengguna dan teman](#pengguna-dan-teman)
+5. [Statistik](#statistik)
+6. [Feed dan aktivitas](#feed-dan-aktivitas)
+7. [Kudos dan komentar](#kudos-dan-komentar)
+8. [Routing dan rute](#routing-dan-rute)
+9. [Segmen dan leaderboard](#segmen-dan-leaderboard)
+10. [Error umum](#error-umum)
+
+---
+
+## Dasar
+
+| | Lokal | Produksi |
+| --- | --- | --- |
+| Alamat dasar | `http://localhost:4000` | `https://jejak.masamune.my.id/api` |
+| Contoh | `http://localhost:4000/health` | `https://jejak.masamune.my.id/api/health` |
+
+**Di produksi semua path diawali `/api`.** nginx membuang awalan itu sebelum meneruskan ke Node (`/api/feed` → `/feed`). Path di dokumen ini ditulis tanpa awalan.
+
+- Badan permintaan dan respons berupa JSON. Kirim `Content-Type: application/json`.
+- Endpoint yang butuh login memakai header `Authorization: Bearer <token>`.
+- Error selalu berbentuk `{ "error": "<pesan dalam bahasa Indonesia>" }` dengan kode HTTP yang sesuai, kecuali error dari nginx (lihat [Error umum](#error-umum)).
+- Waktu (`startedAt`, `createdAt`, `date`) berupa string ISO 8601 UTC, misalnya `2026-10-28T06:12:03.000Z`.
+- Jarak dalam meter (`…M`), durasi dalam detik (`…S`), kecepatan dalam m/s (`…Mps`).
+- Koordinat `LatLon` = `[lintang, bujur]`. Titik track `TrackPoint` = `[lintang, bujur, waktu epoch ms, ketinggian meter | null]`.
+- CORS dibuka untuk semua origin.
+
+Contoh pemanggilan (ganti `TOKEN` dengan token dari login):
+
+```bash
+API=https://jejak.masamune.my.id/api
+curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
+```
+
+---
+
+## Ringkasan endpoint
+
+| Metode | Path | Login | Respons |
+| --- | --- | --- | --- |
+| GET | `/health` | tidak | `{ ok: true }` |
+| POST | `/auth/register` | tidak | `AuthResult` (201) |
+| POST | `/auth/login` | tidak | `AuthResult` |
+| POST | `/logout` | ya | `{ ok: true }` |
+| GET | `/me` | ya | `Profile` |
+| GET | `/users?q=` | ya | `UserListItem[]` |
+| GET | `/users/:id` | ya | `Profile` |
+| POST | `/users/:id/follow` | ya | `Profile` |
+| DELETE | `/users/:id/follow` | ya | `Profile` |
+| GET | `/users/:id/activities?before=` | ya | `ActivitySummary[]` |
+| GET | `/users/:id/stats?type=&tz=` | ya | `Stats` |
+| GET | `/feed?before=` | ya | `ActivitySummary[]` |
+| POST | `/activities` | ya | `Activity` (201) |
+| GET | `/activities/:id` | ya | `Activity` |
+| PATCH | `/activities/:id` | ya | `Activity` |
+| DELETE | `/activities/:id` | ya | `{ ok: true }` |
+| POST | `/activities/:id/kudos` | ya | `KudosState` |
+| DELETE | `/activities/:id/kudos` | ya | `KudosState` |
+| GET | `/activities/:id/comments` | ya | `Comment[]` |
+| POST | `/activities/:id/comments` | ya | `Comment` (201) |
+| DELETE | `/comments/:id` | ya | `{ ok: true }` |
+| POST | `/routing` | ya | `RoutingResult` |
+| GET | `/routes` | ya | `RouteSummary[]` |
+| POST | `/routes` | ya | `PlannedRoute` (201) |
+| GET | `/routes/:id` | ya | `PlannedRoute` |
+| DELETE | `/routes/:id` | ya | `{ ok: true }` |
+| POST | `/segments` | ya | `Segment` (201) |
+| GET | `/segments?near=` | ya | `SegmentSummary[]` |
+| GET | `/segments/:id?filter=` | ya | `Segment` |
+| DELETE | `/segments/:id` | ya | `{ ok: true }` |
+
+Untuk semua path dengan `:id`: bila `id` bukan bilangan bulat positif, respons **404** *Tidak ditemukan*.
+
+---
+
+## Autentikasi
+
+### `GET /health`
+
+Tanpa login. Respons `{ "ok": true }`. Dipakai `deploy.sh` untuk cek kesehatan setelah deploy.
+
+### `POST /auth/register`
+
+Tanpa login. Membuat akun dan langsung membuat sesi.
+
+Body:
+
+```json
+{ "username": "dicky_lari", "name": "Dicky", "password": "minimal6" }
+```
+
+| Field | Aturan |
+| --- | --- |
+| `username` | String, 3–20 karakter setelah di-trim, diubah ke huruf kecil, hanya `a-z 0-9 _ .` |
+| `name` | String, 1–50 karakter setelah di-trim. |
+| `password` | String, 6–200 karakter, dipakai **apa adanya** (spasi di awal/akhir tidak dibuang). Bukan string = dianggap kosong. |
+
+Respons **201** `AuthResult`:
+
+```json
+{ "token": "<token>", "user": { "id": 1, "username": "dicky_lari", "name": "Dicky" } }
+```
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Isi permintaan harus JSON` |
+| 400 | `Username wajib diisi`, `Username minimal 3 karakter`, `Username maksimal 20 karakter` |
+| 400 | `Username hanya boleh huruf, angka, titik, dan garis bawah` |
+| 400 | `Nama wajib diisi`, `Nama maksimal 50 karakter` |
+| 400 | `Kata sandi minimal 6 karakter` (termasuk bila kosong/tidak ada), `Kata sandi maksimal 200 karakter` |
+| 409 | `Username sudah dipakai` |
+
+### `POST /auth/login`
+
+Tanpa login.
+
+Body: `{ "username": "...", "password": "..." }`. Username di-trim dan diubah ke huruf kecil (maksimal 50 karakter). Kata sandi dicocokkan apa adanya; bila tidak cocok, server mencoba sekali lagi dengan versi tanpa spasi di awal/akhir. Ini untuk akun yang didaftarkan sebelum commit `a273d33`, saat kata sandi masih di-trim waktu daftar.
+
+Respons **200** `AuthResult`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Isi permintaan harus JSON` |
+| 400 | `Username wajib diisi`, `Username maksimal 50 karakter` |
+| 401 | `Username atau kata sandi salah` |
+
+Setiap login membuat token baru; token lama tetap berlaku.
+
+### `POST /logout`
+
+Login. Menghapus sesi milik token yang dipakai. Respons `{ "ok": true }`.
+
+Catatan: path-nya `/logout`, bukan `/auth/logout`, sehingga tidak terkena batas laju nginx untuk `/api/auth/`.
+
+### Token dan sesi
+
+- Token: 32 byte acak, base64url. Disimpan di tabel `sessions`.
+- **Tidak ada masa kedaluwarsa.** Sesi hanya hilang lewat `POST /logout` atau bila penggunanya dihapus dari database.
+- Token kosong, salah, atau sudah dihapus → **401** `Sesi berakhir, silakan masuk lagi`. App menanggapi 401 dengan mengeluarkan pengguna.
+
+### Batas laju (produksi)
+
+nginx membatasi `location /api/auth/` (daftar dan masuk) per IP asli: **10 permintaan per menit**, `burst=10`, `nodelay`. Kelebihannya dibalas **429** oleh nginx (badan HTML, bukan JSON), sehingga app menampilkan `Permintaan gagal (429)`. Tidak ada batas laju di server lokal.
+
+---
+
+## Pengguna dan teman
+
+### `GET /me`
+
+Respons `Profile` milik pengguna yang login. Belum dipakai app (app memakai `GET /users/:id` dengan id sendiri).
+
+### `GET /users?q=<teks>`
+
+Mencari pengguna lain berdasarkan potongan `username` atau `name` (`LIKE %q%`, karakter `%`, `_`, `\` di-escape). Tanpa `q` atau `q` kosong menampilkan pengguna lain tanpa filter. Dirimu sendiri tidak ikut. Urut `username`, maksimal 30.
+
+Respons `UserListItem[]`:
+
+```json
+[{ "id": 2, "username": "fajar", "name": "Fajar", "isFollowing": false }]
+```
+
+### `GET /users/:id`
+
+Respons `Profile`:
+
+| Field | Arti |
+| --- | --- |
+| `id`, `username`, `name` | Data pengguna. |
+| `createdAt` | Waktu daftar. |
+| `followers`, `following` | Jumlah pengikut dan yang diikuti. |
+| `isFollowing` | Apakah kamu mengikuti dia. |
+| `isMe` | Apakah ini dirimu. |
+| `totals` | `{ count, distanceM, movingS }` semua jenis aktivitas. |
+
+Error: **404** `Pengguna tidak ditemukan`.
+
+### `POST /users/:id/follow` dan `DELETE /users/:id/follow`
+
+Mengikuti / berhenti mengikuti. Keduanya idempoten. Respons `Profile` pengguna target (sudah memuat `isFollowing` dan `followers` terbaru).
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tidak bisa mengikuti diri sendiri` (hanya POST) |
+| 404 | `Pengguna tidak ditemukan` |
+
+### `GET /users/:id/activities?before=<ISO>`
+
+Aktivitas milik pengguna `:id`, terbaru dulu, **20 per halaman**. Respons `ActivitySummary[]`. Bila pengguna tidak ada, hasilnya array kosong.
+
+Paginasi: kirim `before` = `startedAt` aktivitas terakhir di halaman sebelumnya. Server mengambil `started_at < before` (perbandingan string ISO). Tanpa `before` dipakai nilai `'9999'` (artinya semua). Halaman berisi kurang dari 20 berarti sudah habis.
+
+---
+
+## Statistik
+
+### `GET /users/:id/stats?type=<jenis>&tz=<menit>`
+
+| Parameter | Nilai | Bawaan |
+| --- | --- | --- |
+| `type` | `run`, `ride`, `walk`, atau `all` | `run` |
+| `tz` | Selisih zona waktu pengguna dalam menit **di timur UTC** (WIB = `420`, WITA = `480`, WIT = `540`). App mengirim `-new Date().getTimezoneOffset()`. | `420` |
+
+Respons `Stats`:
+
+| Field | Arti |
+| --- | --- |
+| `type` | Jenis yang diminta. |
+| `weeks` | 12 elemen `WeekTotal` dari terlama ke minggu ini. `start` = tanggal Senin awal minggu (`YYYY-MM-DD`, zona `tz`). Tiap elemen berisi `count`, `distanceM`, `movingS`. |
+| `thisYear` | Total tahun kalender berjalan (zona `tz`). |
+| `allTime` | Total sepanjang masa. |
+| `records` | Waktu terbaik sepanjang masa per jarak standar (`name`, `distanceM`, `elapsedS`, `activityId`, `date`), urut jarak. **Selalu kosong untuk `type=all`**, karena rekor hanya bermakna per jenis. |
+| `longest` | Aktivitas terjauh `{ distanceM, activityId, date }` atau `null`. |
+
+Error: **400** `Jenis aktivitas tidak dikenal` bila `type` tidak valid. Pengguna yang tidak ada menghasilkan statistik nol, bukan 404.
+
+```bash
+curl -s "$API/users/1/stats?type=run&tz=420" -H "Authorization: Bearer TOKEN"
+```
+
+---
+
+## Feed dan aktivitas
+
+### `GET /feed?before=<ISO>`
+
+Aktivitas milikmu dan milik orang yang kamu ikuti, terbaru dulu, 20 per halaman. Paginasi `before` sama dengan [aktivitas pengguna](#get-usersidactivitiesbeforeiso). Respons `ActivitySummary[]`:
+
+| Field | Arti |
+| --- | --- |
+| `id`, `user`, `type`, `title`, `startedAt` | Identitas aktivitas. `user` = `UserSummary`. |
+| `elapsedS` | Dari titik pertama sampai terakhir, termasuk jeda. |
+| `movingS` | Waktu bergerak. |
+| `distanceM`, `elevGainM` | Jarak dan total tanjakan. |
+| `preview` | Garis ringkas maksimal 80 titik `LatLon`. |
+| `kudos`, `hasKudo`, `comments` | Jumlah kudos, apakah kamu sudah memberi, jumlah komentar. |
+| `routeId` | Rute yang diikuti atau `null`. |
+| `prCount` | Jumlah PR (waktu terbaik + segmen) saat diunggah. |
+
+### `POST /activities`
+
+Menyimpan aktivitas. Server menghitung semua ringkasan dari `track` (lihat [algoritma.md](algoritma.md)).
+
+Body `NewActivity`:
+
+```json
+{
+  "type": "run",
+  "title": "Lari pagi",
+  "track": [
+    [[-7.8139, 110.9258, 1761630723000, 112.3], [-7.81385, 110.92581, 1761630724000, 112.4]],
+    [[-7.8120, 110.9260, 1761631000000, null]]
+  ],
+  "routeId": 3
+}
+```
+
+| Field | Aturan |
+| --- | --- |
+| `type` | `run`, `ride`, atau `walk`. |
+| `title` | 1–100 karakter setelah di-trim. |
+| `track` | Array bagian; tiap bagian array `TrackPoint`. Bagian baru dimulai setiap kali rekaman dilanjutkan setelah jeda. Bagian kosong dibuang. Waktu di dalam satu bagian tidak boleh mundur. Total titik 2–60.000. |
+| `routeId` | Opsional. Bila rute tidak ditemukan, diam-diam disimpan sebagai `null`. |
+
+Respons **201** `Activity` (lihat `GET /activities/:id`).
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Isi permintaan harus JSON` |
+| 400 | `Jenis aktivitas tidak dikenal` |
+| 400 | `Judul wajib diisi`, `Judul maksimal 100 karakter` |
+| 400 | `Track tidak valid` (bukan array / bagian bukan array) |
+| 400 | `Titik track tidak valid` (lat/lon di luar rentang, waktu bukan angka, ketinggian bukan angka/null) |
+| 400 | `Waktu titik track harus urut` |
+| 400 | `Aktivitas terlalu pendek untuk disimpan` (kurang dari 2 titik) |
+| 400 | `Track terlalu panjang` (lebih dari 60.000 titik) |
+| 413 | Dari nginx bila badan lebih dari 20 MB (produksi). |
+
+### `GET /activities/:id`
+
+Semua pengguna yang login bisa membaca aktivitas siapa pun. Respons `Activity` = `ActivitySummary` ditambah:
+
+| Field | Arti |
+| --- | --- |
+| `track` | `TrackPoint[][]` lengkap. |
+| `maxSpeedMps` | Kecepatan maksimum (jendela ≥5 detik). |
+| `splits` | `Split[]`: `{ index, distanceM, elapsedS }` per km. |
+| `bestEfforts` | `BestEffort[]`: `{ name, distanceM, elapsedS, isPr }`, urut jarak. |
+| `efforts` | `SegmentEffort[]`: `{ id, segmentId, segmentName, elapsedS, distanceM, startIndex, endIndex, rank, isPr }`, urut posisi di track. `startIndex`/`endIndex` adalah indeks pada track yang sudah diratakan. `rank` = 1 + jumlah atlet lain yang waktu terbaiknya lebih cepat dari waktu **effort ini**. |
+| `kudosBy` | Hingga 50 pemberi kudos terbaru. |
+
+Error: **404** `Aktivitas tidak ditemukan`.
+
+### `PATCH /activities/:id`
+
+Mengubah judul. Body `{ "title": "..." }` (1–100 karakter). Respons `Activity`. Belum dipakai app.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Judul wajib diisi`, `Judul maksimal 100 karakter`, `Isi permintaan harus JSON` |
+| 403 | `Hanya pemilik yang bisa mengubah` |
+| 404 | `Aktivitas tidak ditemukan` |
+
+### `DELETE /activities/:id`
+
+Menghapus aktivitas beserta kudos, komentar, waktu terbaik, dan waktu segmennya (cascade). Status PR di aktivitas lain **tidak** dihitung ulang. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Hanya pemilik yang bisa menghapus` |
+| 404 | `Aktivitas tidak ditemukan` |
+
+---
+
+## Kudos dan komentar
+
+### `POST /activities/:id/kudos` dan `DELETE /activities/:id/kudos`
+
+Memberi / mencabut kudos. Idempoten. Respons `KudosState`:
+
+```json
+{ "kudos": 3, "hasKudo": true }
+```
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tidak bisa memberi kudos ke aktivitas sendiri` (POST) |
+| 404 | `Aktivitas tidak ditemukan` (POST) |
+
+`DELETE` tidak memeriksa keberadaan aktivitas; untuk id yang tidak ada hasilnya `{ "kudos": 0, "hasKudo": false }`.
+
+### `GET /activities/:id/comments`
+
+Respons `Comment[]` urut dari yang terlama: `{ id, user, body, createdAt }`. Untuk aktivitas yang tidak ada hasilnya array kosong.
+
+### `POST /activities/:id/comments`
+
+Body `{ "body": "Mantap!" }` (1–500 karakter setelah di-trim). Respons **201** `Comment`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Komentar wajib diisi`, `Komentar maksimal 500 karakter`, `Isi permintaan harus JSON` |
+| 404 | `Aktivitas tidak ditemukan` |
+
+### `DELETE /comments/:id`
+
+Boleh dilakukan penulis komentar atau pemilik aktivitas. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Tidak boleh menghapus komentar ini` |
+| 404 | `Komentar tidak ditemukan` |
+
+---
+
+## Routing dan rute
+
+### `POST /routing`
+
+Merencanakan rute yang mengikuti jalan lewat OSRM (lihat [algoritma.md](algoritma.md#routing-osrm-dan-garis-lurus)). Tidak menyimpan apa pun.
+
+Body:
+
+```json
+{ "type": "run", "waypoints": [[-7.8139, 110.9258], [-7.8031, 110.9258], [-7.8031, 110.9330]] }
+```
+
+`waypoints`: 2–50 titik `LatLon`. `type` menentukan profil: `run`/`walk` → pejalan kaki, `ride` → sepeda.
+
+Respons `RoutingResult`:
+
+| Field | Arti |
+| --- | --- |
+| `geometry` | Garis rute `LatLon[]`. |
+| `distanceM` | Panjang garis. |
+| `steps` | `RouteStep[]`: `{ atM, text, at }`, `atM` = jarak dari awal rute ke titik belok. |
+| `snapped` | `true` bila mengikuti jalan; `false` bila layanan routing gagal dan rute dibuat garis lurus (`steps` kosong). |
+
+Endpoint ini tidak pernah gagal karena OSRM; kegagalan routing selalu jatuh ke garis lurus. Bisa memakan waktu hingga sekitar 10 detik (batas waktu ke OSRM).
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Jenis aktivitas tidak dikenal` |
+| 400 | `Titik rute harus berisi 2–50 titik koordinat` |
+
+```bash
+curl -s -X POST "$API/routing" -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" \
+  -d '{"type":"run","waypoints":[[-7.8139,110.9258],[-7.8031,110.9258]]}'
+```
+
+### `GET /routes`
+
+Rute buatanmu sendiri, terbaru dulu. Respons `RouteSummary[]`: `{ id, user, name, type, distanceM, preview, createdAt }`.
+
+### `POST /routes`
+
+Body `NewRoute`:
+
+| Field | Aturan |
+| --- | --- |
+| `name` | 1–80 karakter. |
+| `type` | `run`, `ride`, `walk`. |
+| `waypoints` | 2–50 titik. |
+| `geometry` | 2–20.000 titik. Jarak rute dihitung server dari garis ini. |
+| `steps` | Opsional (bawaan `[]`). Maksimal 1.000 langkah; tiap langkah wajib punya `atM` (angka), `text` (string, dipotong ke 120 karakter), `at` (`LatLon`). |
+
+Respons **201** `PlannedRoute` = `RouteSummary` + `waypoints`, `geometry`, `steps`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Nama rute wajib diisi`, `Nama rute maksimal 80 karakter` |
+| 400 | `Jenis aktivitas tidak dikenal` |
+| 400 | `Titik rute harus berisi 2–50 titik koordinat` |
+| 400 | `Garis rute harus berisi 2–20000 titik koordinat` |
+| 400 | `Petunjuk arah tidak valid` |
+
+### `GET /routes/:id`
+
+Respons `PlannedRoute`. Semua pengguna yang login bisa membaca rute siapa pun (daftar `GET /routes` tetap hanya milik sendiri). Error: **404** `Rute tidak ditemukan`.
+
+### `DELETE /routes/:id`
+
+Respons `{ "ok": true }`. Aktivitas yang merujuk rute ini tetap ada; `routeId`-nya menjadi `null`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Hanya pembuat yang bisa menghapus` |
+| 404 | `Rute tidak ditemukan` |
+
+---
+
+## Segmen dan leaderboard
+
+### `POST /segments`
+
+Membuat segmen dari potongan aktivitas milik sendiri, lalu mencocokkan semua aktivitas lama yang relevan (dalam satu transaksi).
+
+Body `NewSegment`:
+
+```json
+{ "activityId": 12, "startIndex": 140, "endIndex": 420, "name": "Tanjakan Gunung Gandul" }
+```
+
+`startIndex` dan `endIndex` adalah indeks pada **track yang sudah diratakan** (semua bagian disambung). Syarat: bilangan bulat, `0 ≤ startIndex < endIndex < jumlah titik`.
+
+Jenis segmen: aktivitas `ride` → segmen `ride`; aktivitas `run` atau `walk` → segmen `run`.
+
+Respons **201** `Segment` (leaderboard filter *Semua*).
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Nama segmen wajib diisi`, `Nama segmen maksimal 80 karakter`, `Isi permintaan harus JSON` |
+| 400 | `Titik awal/akhir segmen tidak valid` |
+| 400 | `Segmen minimal 100 m` |
+| 403 | `Segmen dibuat dari aktivitas sendiri` |
+| 404 | `Aktivitas tidak ditemukan` |
+
+### `GET /segments?near=<lat>,<lon>`
+
+- Dengan `near` yang valid: 50 segmen dengan titik awal terdekat dari posisi itu, terdekat dulu.
+- Tanpa `near`: 50 segmen dengan atlet terbanyak, lalu id terbesar (terbaru).
+
+Semua jenis segmen ikut. Respons `SegmentSummary[]`: `{ id, name, type, distanceM, createdBy, preview, athletes, start }`. `athletes` = jumlah pengguna berbeda yang punya waktu di segmen itu, `start` = titik awal segmen.
+
+```bash
+curl -s "$API/segments?near=-7.8139,110.9258" -H "Authorization: Bearer TOKEN"
+```
+
+### `GET /segments/:id?filter=following`
+
+Respons `Segment` = `SegmentSummary` ditambah:
+
+| Field | Arti |
+| --- | --- |
+| `geometry` | Garis segmen. |
+| `leaderboard` | `LeaderboardRow[]`: waktu terbaik **per atlet**, tercepat dulu, maksimal 100. `rank` = urutan baris (1, 2, 3, …). `activityId` dan `date` diambil dari effort tercepat atlet itu. |
+| `myBest` | Waktu terbaikmu sebagai `LeaderboardRow`, atau `null`. `rank` di sini = 1 + jumlah atlet lain yang lebih cepat (atlet dengan waktu sama mendapat peringkat sama), selalu dibanding **semua** atlet walau memakai filter. |
+
+`filter=following` membatasi `leaderboard` ke dirimu dan orang yang kamu ikuti. Nilai lain atau tanpa parameter berarti semua.
+
+Error: **404** `Segmen tidak ditemukan`.
+
+### `DELETE /segments/:id`
+
+Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di `prCount` aktivitas tidak dihitung ulang. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Hanya pembuat yang bisa menghapus` |
+| 404 | `Segmen tidak ditemukan` |
+
+---
+
+## Error umum
+
+| Kode | Pesan | Penyebab |
+| --- | --- | --- |
+| 400 | `Isi permintaan harus JSON` | Badan bukan JSON valid atau bukan objek, pada endpoint yang membaca badan. |
+| 401 | `Sesi berakhir, silakan masuk lagi` | Token tidak ada, salah, atau sudah logout. Juga untuk path yang tidak dikenal bila tanpa token. |
+| 404 | `Tidak ditemukan` | `:id` bukan bilangan bulat positif. |
+| 404 | `404 Not Found` (teks biasa, bukan JSON) | Path tidak dikenal dengan token valid (bawaan Hono). |
+| 429 | (HTML dari nginx) | Batas laju `/api/auth/` di produksi. |
+| 413 | (HTML dari nginx) | Badan lebih dari 20 MB di produksi. |
+| 500 | `Terjadi kesalahan di server` | Error tak terduga; detailnya ada di log server (`pm2 logs jejak`). |
+| 502/504 | (HTML dari nginx) | Proses Node mati atau tidak menjawab dalam 120 detik. |

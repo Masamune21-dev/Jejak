@@ -760,14 +760,16 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const a = one('select user_id, type, track from activities where id = ?', activityId);
     if (!a) fail(404, 'Aktivitas tidak ditemukan');
     if (a.user_id !== c.var.me.id) fail(403, 'Segmen dibuat dari aktivitas sendiri');
-    const points = geo.flatten(JSON.parse(a.track));
+    const cum = geo.cumulative(JSON.parse(a.track));
+    const points = cum.points;
     const s = Number(b.startIndex);
     const e = Number(b.endIndex);
     if (!Number.isInteger(s) || !Number.isInteger(e) || s < 0 || e >= points.length || s >= e) {
       fail(400, 'Titik awal/akhir segmen tidak valid');
     }
     const slice = geo.toLatLon(points.slice(s, e + 1));
-    const distanceM = geo.pathDistance(slice);
+    // Jarak kumulatif tidak menghitung lompatan posisi selama jeda.
+    const distanceM = cum.dist[e] - cum.dist[s];
     if (distanceM < 100) fail(400, 'Segmen minimal 100 m');
     const geometry = geo.simplify(slice, 2);
     const bb = geo.bounds(geometry)!;

@@ -2,6 +2,8 @@
 
 Aplikasi olahraga ala Strava: rekam lari, sepeda, dan jalan kaki dengan GPS, buat rute sendiri di peta lalu ikuti saat merekam, dan adu waktu di segmen bersama teman.
 
+Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur, API, data, algoritma, pengembangan, deploy, build APK, desain, dan ide fitur.
+
 ## Fitur
 
 - **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup.
@@ -9,6 +11,7 @@ Aplikasi olahraga ala Strava: rekam lari, sepeda, dan jalan kaki dengan GPS, bua
 - **Ikuti rute**: saat merekam muncul banner belokan berikutnya ("Belok kiri ke Jalan Pemuda · dalam 120 m"), sisa jarak, dan peringatan *keluar dari rute*. HP bergetar saat mendekati belokan atau keluar jalur.
 - **Riwayat & statistik**: split per km, waktu terbaik (400 m, 1 km, 5 km, 10 km, setengah maraton, maraton; sepeda 5–100 km), PR, grafik 12 minggu, total tahun ini dan sepanjang masa.
 - **Akun & teman**: daftar/masuk, cari dan ikuti teman, feed aktivitas, kudos, komentar.
+- **Bagikan ke foto & ekspor GPX**: tempel hasil aktivitas di fotomu dengan 4 template (Nomor dada, Rute, Patok KM, Rambu) untuk postingan atau story, atau ekspor GPX ke aplikasi lain.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
 
 ## Struktur

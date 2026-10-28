@@ -1,0 +1,301 @@
+# Build APK / AAB (EAS)
+
+APK Android dibangun di cloud **EAS Build** memakai akun Expo, tanpa Android Studio. APK mandiri bisa merekam saat layar mati (lokasi latar) dan memakai peta MapLibre yang gratis tanpa kunci Google.
+
+## Daftar isi
+
+1. [Konfigurasi yang sudah ada](#konfigurasi-yang-sudah-ada)
+2. [Membuat APK](#membuat-apk)
+3. [Memasang APK di HP](#memasang-apk-di-hp)
+4. [Ukuran APK: hanya arm64-v8a](#ukuran-apk-hanya-arm64-v8a)
+5. [Profil build](#profil-build)
+6. [Server yang dipakai APK](#server-yang-dipakai-apk)
+7. [Keystore (kunci tanda tangan)](#keystore-kunci-tanda-tangan)
+8. [Peta di APK Android: MapLibre](#peta-di-apk-android-maplibre)
+9. [Lokasi latar](#lokasi-latar)
+10. [Izin foto dan kamera](#izin-foto-dan-kamera)
+11. [Bila APK tertutup sendiri (crash)](#bila-apk-tertutup-sendiri-crash)
+12. [Menaikkan versi](#menaikkan-versi)
+13. [Uji cepat setelah memasang APK](#uji-cepat-setelah-memasang-apk)
+
+---
+
+## Konfigurasi yang sudah ada
+
+Proyek sudah ditautkan ke EAS sebagai **@masamune21/jejak** (hasil `eas init`). Di `app/app.json`:
+
+| Kunci | Nilai |
+| --- | --- |
+| `expo.owner` | `masamune21` |
+| `expo.slug` | `jejak` |
+| `expo.extra.eas.projectId` | ID proyek EAS (jangan diubah) |
+| `expo.android.package` | `id.my.masamune.jejak` |
+| `expo.ios.bundleIdentifier` | `id.my.masamune.jejak` |
+| `expo.version` | `0.1.0` |
+| `expo.scheme` | `jejak` |
+
+Jadi `eas init` **tidak perlu** dijalankan lagi.
+
+Plugin di `expo.plugins` yang memengaruhi build native:
+
+| Plugin | Gunanya |
+| --- | --- |
+| `expo-router` | Navigasi berbasis berkas. |
+| `expo-splash-screen` | Layar pembuka berlatar `#0E1114`. |
+| `expo-location` | Izin lokasi dan lokasi latar (lihat [Lokasi latar](#lokasi-latar)). |
+| `@maplibre/maplibre-react-native` | Kode native MapLibre untuk peta Android. |
+| `expo-secure-store` | Penyimpanan token di Keystore/Keychain. |
+| `expo-sharing` | Lembar berbagi sistem (Bagikan, Ekspor GPX). |
+| `expo-image-picker` | Memilih foto dan memotret untuk Bagikan (lihat [Izin foto dan kamera](#izin-foto-dan-kamera)). |
+| `expo-media-library` | Menyimpan gambar ke galeri. |
+| `expo-build-properties` | Hanya ABI `arm64-v8a` dan `useLegacyPackaging` (lihat [Ukuran APK](#ukuran-apk-hanya-arm64-v8a)). |
+
+---
+
+## Membuat APK
+
+Semua perintah dijalankan di folder `app/`:
+
+```bash
+cd app
+npx eas-cli@latest login                                        # sekali saja per komputer
+npx eas-cli@latest build --platform android --profile preview   # APK
+```
+
+Build berjalan di server Expo. Setelah selesai, EAS memberi tautan dan kode QR untuk mengunduh APK (lihat [Memasang APK di HP](#memasang-apk-di-hp)).
+
+Untuk Google Play:
+
+```bash
+npx eas-cli@latest build --platform android --profile production   # AAB
+```
+
+`eas.json` mensyaratkan EAS CLI versi 16.0.0 atau lebih baru (`cli.version`); `npx eas-cli@latest` selalu memakai versi terbaru.
+
+---
+
+## Memasang APK di HP
+
+**Lewat tautan EAS (paling mudah):**
+
+1. Scan QR dari hasil build atau buka tautannya di browser HP (halaman build juga ada di expo.dev, proyek @masamune21/jejak, menu Builds).
+2. Unduh berkas `.apk`.
+3. Buka berkas itu dari notifikasi unduhan atau aplikasi Files. Android meminta izin **Instal aplikasi tidak dikenal** untuk browser/Files tersebut; izinkan, lalu kembali dan tekan **Instal**.
+4. Bila Play Protect memperingatkan aplikasi tidak dikenal, pilih untuk tetap memasang.
+
+**Lewat kabel (adb):**
+
+```bash
+adb install -r jejak.apk        # -r = timpa versi lama, data app dipertahankan
+```
+
+Catatan pemasangan:
+
+- APK baru bisa menimpa versi lama hanya bila ditandatangani keystore yang sama (lihat [Keystore](#keystore-kunci-tanda-tangan)). Bila muncul *Aplikasi tidak terinstal* karena konflik, copot dulu versi lama (rekaman yang belum tersimpan dan sesi login di HP ikut hilang).
+- APK hanya untuk HP **64-bit ARM** (lihat bagian berikut). Di HP 32-bit, pemasangan gagal.
+
+---
+
+## Ukuran APK: hanya arm64-v8a
+
+Plugin `expo-build-properties` di `app.json`:
+
+```json
+["expo-build-properties", { "android": { "buildArchs": ["arm64-v8a"], "useLegacyPackaging": true } }]
+```
+
+| Pengaturan | Akibat |
+| --- | --- |
+| `buildArchs: ["arm64-v8a"]` | Library native (React Native, Hermes, MapLibre, dll.) hanya dibangun untuk ARM 64-bit, bukan juga untuk `armeabi-v7a`, `x86`, dan `x86_64`. APK jauh lebih kecil. Hampir semua HP Android beberapa tahun terakhir memakai arm64. |
+| `useLegacyPackaging: true` | Library native disimpan **terkompres** di dalam APK, sehingga berkas yang diunduh lebih kecil. Saat dipasang, Android mengekstraknya, jadi ukuran setelah terpasang sedikit lebih besar daripada tanpa kompresi. |
+
+Akibatnya APK **tidak bisa dipasang** di:
+
+- HP Android lama yang hanya 32-bit (`armeabi-v7a`);
+- emulator Android x86/x86_64 di komputer Intel/AMD (emulator arm64 di Mac Apple Silicon tetap bisa).
+
+Cara mengecek ABI HP lewat adb: `adb shell getprop ro.product.cpu.abilist`; harus ada `arm64-v8a`. Lewat adb, ABI yang tidak cocok muncul sebagai `INSTALL_FAILED_NO_MATCHING_ABIS`.
+
+Bila perlu mendukung HP 32-bit, tambahkan `"armeabi-v7a"` ke `buildArchs` lalu build ulang (APK jadi lebih besar). Profil `production` (AAB) tidak terlalu terpengaruh ukuran, karena Google Play hanya mengirim bagian yang cocok dengan HP pengguna, tetapi pengaturan ABI yang sama tetap berlaku.
+
+---
+
+## Profil build
+
+Dari `app/eas.json`:
+
+| Profil | Hasil | Distribusi | Lain-lain |
+| --- | --- | --- | --- |
+| `preview` | **APK** (`android.buildType: "apk"`) | `internal`: dibagikan lewat tautan, tidak lewat toko | `environment: "preview"` |
+| `production` | **AAB** (bawaan EAS untuk Android bila `buildType` tidak diisi) | Toko (Google Play) | `autoIncrement: true`, `environment: "production"` |
+
+Ada juga `submit.production` kosong untuk `eas submit`; pengiriman ke Google Play membutuhkan akun Play Console dan belum disiapkan.
+
+Belum ada profil `development` (development build). Kedua profil di atas adalah build rilis, sehingga sakelar **Simulasi GPS** (hanya `__DEV__`) tidak muncul di APK.
+
+Build iOS (`--platform ios`) membutuhkan akun Apple Developer dan belum disiapkan.
+
+---
+
+## Server yang dipakai APK
+
+APK memakai `EXPO_PUBLIC_API_URL` yang terbaca saat bundling di EAS, yaitu dari `app/.env`:
+
+```
+EXPO_PUBLIC_API_URL=https://jejak.masamune.my.id/api
+```
+
+`app/.env.local` (misalnya berisi `lan`) **tidak** ikut, karena diabaikan git. Ini memang yang diinginkan: nilai `lan` tidak bisa bekerja di APK, sebab APK tidak terhubung ke Metro sehingga app akan mencoba `http://localhost:4000` di HP itu sendiri.
+
+Bila perlu APK untuk server lain, nilai `EXPO_PUBLIC_API_URL` harus diganti khusus untuk build itu (misalnya lewat variabel lingkungan EAS di environment `preview`). Periksa hasilnya lewat tulisan **Server: …** di layar masuk APK.
+
+---
+
+## Keystore (kunci tanda tangan)
+
+Saat build Android pertama, EAS bertanya soal keystore. Pilih **Generate a new Android Keystore**. EAS menyimpannya di server Expo dan memakainya otomatis di build berikutnya.
+
+Penting:
+
+- Semua APK/AAB berikutnya harus ditandatangani dengan keystore yang **sama**. Android hanya mau memperbarui app yang sudah terpasang bila tanda tangannya sama; bila berbeda, app lama harus dicopot dulu (data lokal di HP ikut hilang).
+- Untuk melihat, mengunduh (backup), atau mengganti kredensial:
+
+  ```bash
+  npx eas-cli@latest credentials --platform android
+  ```
+
+- Simpan salinan keystore di tempat aman. Berkas `*.jks`, `*.key`, `*.p12`, dan sejenisnya sudah diabaikan git (`app/.gitignore`); jangan di-commit.
+
+---
+
+## Peta di APK Android: MapLibre
+
+`components/Map.tsx` memakai MapLibre di Android **kecuali** di Expo Go:
+
+```ts
+const LIBRE = Platform.OS === 'android' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+```
+
+Alasannya:
+
+- **react-native-maps di Android memakai Google Maps SDK**, yang di APK sendiri wajib punya kunci API Google Maps dan akun penagihan Google Cloud. Tanpa kunci, peta tampil kosong.
+- **MapLibre** adalah mesin peta sumber terbuka. Dengan ubin raster **Esri World Light/Dark Gray Canvas** (sama dengan versi web dan cuplikan peta), tidak perlu kunci API atau akun penagihan.
+- Expo Go tidak membawa kode native MapLibre, jadi di Expo Go Android tetap memakai react-native-maps (Google Maps dengan kunci milik Expo Go). Modul yang tidak terpilih tidak dimuat sama sekali.
+- iOS selalu memakai react-native-maps (Apple Maps, tanpa kunci).
+
+MapLibre dipasang lewat plugin `@maplibre/maplibre-react-native` di `app.json`, sehingga baru aktif setelah build EAS. Atribusi *© Esri, OpenStreetMap* wajib tetap tampil.
+
+Sejak commit `b668024`, modul peta baru dimuat saat peta pertama kali tampil (bukan saat app dibuka). Bila modul JavaScript MapLibre gagal dimuat, app mencatat `[peta] MapLibre gagal dimuat, pakai react-native-maps` dan memakai react-native-maps: petanya mungkin kosong (tanpa kunci Google), tetapi app tidak tertutup. Detail di [arsitektur.md](arsitektur.md#pemilihan-implementasi-peta).
+
+---
+
+## Lokasi latar
+
+Agar bisa merekam saat layar mati, `app.json` mengatur plugin `expo-location`:
+
+| Opsi | Nilai |
+| --- | --- |
+| `isAndroidBackgroundLocationEnabled` | `true` |
+| `isAndroidForegroundServiceEnabled` | `true` |
+| `isIosBackgroundLocationEnabled` | `true` |
+| `locationWhenInUsePermission` | *Jejak memakai lokasi untuk merekam rute lari dan bersepeda.* |
+| `locationAlwaysAndWhenInUsePermission` | *Jejak memakai lokasi untuk merekam rute lari dan bersepeda, juga saat layar terkunci.* |
+
+Izin Android (`android.permissions`): `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `POST_NOTIFICATIONS`.
+
+Perilaku di APK:
+
+1. Saat pertama mulai merekam, app meminta izin lokasi biasa, lalu **sekali saja** meminta izin lokasi latar. Di Android 11 ke atas, permintaan ini membuka halaman Pengaturan; pilih **Izinkan sepanjang waktu**.
+2. Bila diizinkan, perekam memakai layanan latar depan dengan notifikasi **Jejak sedang merekam** (*Rute kamu tetap tercatat walau layar mati.*). Pil di layar Rekam bertuliskan *GPS aktif, tetap merekam saat layar mati*.
+3. Bila tidak diizinkan, perekam memakai GPS biasa dan menjaga layar tetap menyala (*GPS aktif. Biarkan layar menyala*). App tidak akan bertanya lagi; ubah izinnya manual di Pengaturan HP → Aplikasi → Jejak → Izin → Lokasi.
+
+**Lokasi latar tidak tersedia di Expo Go**, berapa pun izinnya. Di Expo Go perekam selalu memakai mode layar menyala.
+
+Beberapa merek HP mematikan layanan latar secara agresif untuk menghemat baterai. Bila rekaman berhenti saat layar mati, matikan optimasi baterai untuk Jejak.
+
+---
+
+## Izin foto dan kamera
+
+Fitur **Bagikan ke foto** memakai dua plugin dengan teks izin berikut (`app.json`):
+
+| Plugin | Izin | Teks yang tampil |
+| --- | --- | --- |
+| `expo-image-picker` | Galeri (`photosPermission`) | *Jejak membuka galeri supaya kamu bisa menempelkan hasil aktivitas di fotomu.* |
+| `expo-image-picker` | Kamera (`cameraPermission`) | *Jejak memakai kamera supaya kamu bisa memotret lalu menempelkan hasil aktivitas.* |
+| `expo-image-picker` | Mikrofon | Dimatikan (`microphonePermission: false`). |
+| `expo-media-library` | Galeri (`photosPermission`) | *Jejak membuka galeri untuk menyimpan gambar hasil aktivitas.* |
+| `expo-media-library` | Simpan foto (`savePhotosPermission`) | *Jejak menyimpan gambar hasil aktivitas ke galerimu.* |
+
+`expo-media-library` diatur dengan `granularPermissions: ["photo"]` (hanya foto, tanpa video/audio) dan `isAccessMediaLocationEnabled: false` (tidak membaca lokasi di dalam foto). Saat menyimpan, app meminta izin **hanya menulis** untuk foto.
+
+Izin kamera diminta saat menekan **Kamera**, izin galeri saat menekan **Simpan ke galeri**. Bila ditolak, app menampilkan pesan dan izinnya harus diubah manual di Pengaturan HP.
+
+---
+
+## Bila APK tertutup sendiri (crash)
+
+APK yang dibangun sebelum commit `b668024` langsung tertutup (force close) saat dibuka, tanpa pesan apa pun. Di build rilis memang tidak ada layar error merah seperti di Expo Go, jadi penyebabnya tidak terlihat.
+
+Build sejak `b668024` membedakan dua jenis crash:
+
+| Jenis | Yang terjadi di build baru |
+| --- | --- |
+| **Error JavaScript** saat menampilkan layar | Layar **Ada yang gagal di layar ini** berisi pesan error dan stack, dengan tombol **Coba lagi**. App tidak tertutup. |
+| **Error JavaScript fatal** di luar render | Laporan disimpan sebelum app tertutup. Saat app dibuka lagi, tampil layar **Jejak sempat berhenti** berisi pesan, stack, dan waktu, dengan tombol **Tutup**. |
+| **Crash native** (Java/Kotlin/C++: modul native, MapLibre, memori) | App tetap tertutup tanpa laporan. Penyebabnya hanya terlihat lewat `adb logcat`. |
+
+Untuk dua jenis pertama: foto layar laporannya dan kirim ke pengembang. Cara kerjanya dijelaskan di [arsitektur.md](arsitektur.md#pencatat-crash-dan-errorboundary).
+
+### Mengambil log crash native dengan adb
+
+1. **Aktifkan Opsi pengembang** di HP: Setelan → Tentang ponsel → ketuk **Nomor build** 7 kali (letaknya sedikit berbeda per merek).
+2. **Aktifkan Debugging USB**: Setelan → Sistem → Opsi pengembang → **Debugging USB**.
+3. **Pasang adb** di komputer: macOS `brew install android-platform-tools`; Windows/Linux unduh *SDK Platform-Tools* dari situs Android Developers.
+4. Sambungkan HP dengan kabel USB, terima dialog *Izinkan debugging USB?* di HP, lalu pastikan HP terlihat:
+
+   ```bash
+   adb devices
+   ```
+
+5. Kosongkan log crash lama, buka Jejak sampai tertutup, lalu ambil log crash:
+
+   ```bash
+   adb logcat -b crash -c                  # kosongkan buffer crash
+   # buka Jejak di HP sampai tertutup
+   adb logcat -b crash -d > jejak-crash.txt
+   ```
+
+6. Cari baris `FATAL EXCEPTION` atau `id.my.masamune.jejak` di `jejak-crash.txt`. Baris *Caused by* di bawahnya biasanya menunjukkan penyebabnya.
+
+Tanpa `-d`, `adb logcat -b crash` terus menampilkan crash baru secara langsung sampai dihentikan dengan Ctrl+C. Bila buffer crash kosong, log umum yang lebih panjang bisa diambil dengan `adb logcat -d > jejak-log.txt`.
+
+---
+
+## Menaikkan versi
+
+| Nomor | Sumber | Cara menaikkan |
+| --- | --- | --- |
+| Versi tampilan (`versionName`, mis. `0.1.0`) | `expo.version` di `app/app.json` | Ubah manual, commit. |
+| Kode versi Android (`versionCode`) | Disimpan di server EAS (`cli.appVersionSource: "remote"` di `eas.json`), bukan di `app.json` | Profil `production` menaikkannya otomatis setiap build (`autoIncrement: true`). Profil `preview` tidak. |
+
+Perintah untuk melihat dan mengatur kode versi di EAS:
+
+```bash
+npx eas-cli@latest build:version:get --platform android
+npx eas-cli@latest build:version:set --platform android
+```
+
+Untuk rilis baru: naikkan `expo.version`, commit, lalu build `production` (kode versi naik sendiri). Google Play menolak AAB dengan kode versi yang sudah pernah diunggah.
+
+---
+
+## Uji cepat setelah memasang APK
+
+1. Layar masuk menampilkan **Server: jejak.masamune.my.id/api**.
+2. Masuk atau daftar.
+3. Peta di tab Rekam tampil (abu-abu bersih dengan nama jalan).
+4. Mulai rekam, izinkan lokasi **sepanjang waktu**; pil menunjukkan *GPS aktif, tetap merekam saat layar mati* dan notifikasi *Jejak sedang merekam* muncul.
+5. Kunci layar, berjalan beberapa menit, buka lagi: jarak bertambah.
+6. Jeda → tekan-tahan **Tahan untuk selesai** → Simpan; detail aktivitas terbuka dengan split dan peta.
+7. Di detail: **Bagikan** → pilih foto → **Simpan ke galeri** (izinkan foto); lalu **Ekspor GPX** membuka lembar berbagi.

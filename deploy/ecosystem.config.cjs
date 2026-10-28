@@ -1,5 +1,5 @@
 // PM2 untuk server produksi jejak.masamune.my.id.
-// Kode diambil lewat `git pull` ke /var/www/jejak.masamune.my.id/repo (lihat deploy/deploy.sh).
+// Kode dikirim deploy/deploy.sh (git archive lewat SSH) ke /var/www/jejak.masamune.my.id/repo.
 const ROOT = '/var/www/jejak.masamune.my.id';
 
 module.exports = {

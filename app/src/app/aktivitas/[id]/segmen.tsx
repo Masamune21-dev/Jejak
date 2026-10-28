@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import type { Activity, Segment } from '@shared/api';
-import { flatten, haversine, pathDistance, toLatLon, type LatLon } from '@shared/geo';
+import { cumulative, haversine, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import type { MapLine, MapPin } from '@/components/map-types';
@@ -20,7 +20,9 @@ export default function CreateSegmentScreen() {
   const qc = useQueryClient();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
   const q = useQuery({ queryKey: ['activity', id], queryFn: () => api<Activity>(`/activities/${id}`) });
-  const points = useMemo(() => (q.data ? flatten(q.data.track) : []), [q.data]);
+  // Jarak & waktu kumulatif yang tidak menghitung jeda, sama dengan yang dipakai server.
+  const cum = useMemo(() => (q.data ? cumulative(q.data.track) : null), [q.data]);
+  const points = useMemo(() => cum?.points ?? [], [cum]);
   const n = points.length;
   const [range, setRange] = useState<{ start: number; end: number } | null>(null);
   const [which, setWhich] = useState<Which>('start');
@@ -82,8 +84,8 @@ export default function CreateSegmentScreen() {
     setWhich(which === 'start' ? 'end' : 'start');
   };
 
-  const lengthM = pathDistance(slice);
-  const timeS = n ? (points[end][2] - points[start][2]) / 1000 : 0;
+  const lengthM = cum ? cum.dist[end] - cum.dist[start] : 0;
+  const timeS = cum ? cum.time[end] - cum.time[start] : 0;
   const idx = which === 'start' ? start : end;
   const len = distanceParts(lengthM);
 

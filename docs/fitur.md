@@ -17,9 +17,13 @@ Panduan pemakaian Jejak per layar, sesuai perilaku kode saat ini. Nama berkas la
 11. [Membuat segmen](#membuat-segmen)
 12. [Segmen dan leaderboard](#segmen-dan-leaderboard)
 13. [Profil dan statistik](#profil-dan-statistik)
-14. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
+14. [Pengikut dan mengikuti](#pengikut-dan-mengikuti)
+15. [Cari dan ikuti teman](#cari-dan-ikuti-teman)
+16. [Postingan](#postingan)
+17. [Pesan (chat)](#pesan-chat)
+18. [Pengaturan](#pengaturan)
 
-App selalu gelap (aspal) dengan aksen marka kuning (lihat [desain.md](desain.md)): **kuning** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana, **ungu** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan.
+Bawaannya app gelap (aspal) dengan aksen marka kuning. Sejak 0.2.0 tema (Ikuti HP / Gelap / Terang) dan warna aksen (kuning, mint, biru, oranye, pink) bisa diganti di [Pengaturan](#pengaturan) (lihat [desain.md](desain.md)). Arti warna tetap sama: **warna aksen** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana (**toska** bila aksennya biru), **ungu** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan. Di bawah, "warna aksen" berarti warna yang kamu pilih.
 
 ---
 
@@ -29,15 +33,15 @@ Setelah masuk, app menampilkan lima tab (`app/src/app/(tabs)/`, tab bar di `comp
 
 | Tab | Berkas | Isi |
 | --- | --- | --- |
-| Beranda | `index.tsx` | Ringkasan minggu ini dan feed aktivitas. |
+| Beranda | `index.tsx` | Ringkasan minggu ini dan feed aktivitas serta postingan. |
 | Rute | `rute.tsx` | Rute yang kamu simpan dan tombol membuat rute baru. |
 | **Rekam** (tombol bulat di tengah) | `rekam.tsx` | Perekam GPS. |
 | Segmen | `segmen.tsx` | Segmen terdekat atau paling ramai. |
 | Profil | `profil.tsx` | Profil, statistik, rekor pribadi, aktivitasmu. |
 
-Tombol Rekam di tengah tab bar berwarna hijau bercahaya saat tidak ada rekaman. Selama ada rekaman yang belum disimpan (sedang merekam, dijeda, atau menunggu disimpan), tombol berubah merah dengan ikon denyut dan label **Merekam**, jadi kamu selalu tahu masih ada rekaman yang terbuka walau sedang di tab lain.
+Tombol Rekam di tengah tab bar berwarna aksen dan bercahaya saat tidak ada rekaman. Selama ada rekaman yang belum disimpan (sedang merekam, dijeda, atau menunggu disimpan), tombol berubah merah dengan ikon denyut dan label **Merekam**, jadi kamu selalu tahu masih ada rekaman yang terbuka walau sedang di tab lain.
 
-Layar lain dibuka di atas tab: detail aktivitas (`aktivitas/[id]`), buat segmen (`aktivitas/[id]/segmen`), bagikan (`aktivitas/[id]/bagikan`), detail segmen (`segmen/[id]`), rute baru (`rute/baru`), detail rute (`rute/[id]`), profil atlet lain (`atlet/[id]`), dan cari teman (`cari`).
+Layar lain dibuka di atas tab: detail aktivitas (`aktivitas/[id]`), buat segmen (`aktivitas/[id]/segmen`), bagikan (`aktivitas/[id]/bagikan`), detail segmen (`segmen/[id]`), rute baru (`rute/baru`), detail rute (`rute/[id]`), profil atlet lain (`atlet/[id]`), cari teman (`cari`), pengikut/mengikuti (`koneksi/[id]`), tulis postingan (`tulis`), detail postingan (`postingan/[id]`), daftar pesan (`pesan/index`), percakapan (`pesan/[id]`), dan pengaturan (`pengaturan`).
 
 Semua layar itu hanya bisa dibuka setelah masuk. Selama belum masuk, satu-satunya layar adalah `masuk`.
 
@@ -61,7 +65,7 @@ Bila username sudah dipakai, muncul pesan *Username sudah dipakai*.
 
 Saat keyboard muncul, layar bergeser ke bawah sehingga kolom yang sedang diketik dan tombol **Masuk**/**Buat akun** tetap terlihat di atas keyboard.
 
-Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi berakhir saat kamu menekan **Keluar** di Profil, atau bila app tidak dipakai selama 90 hari (lalu kamu diminta masuk lagi).
+Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi berakhir saat kamu menekan **Keluar** di [Pengaturan](#pengaturan), atau bila app tidak dipakai selama 90 hari (lalu kamu diminta masuk lagi).
 
 Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai app. Ini berguna untuk memastikan app terhubung ke server yang benar (produksi atau komputer sendiri).
 
@@ -71,11 +75,11 @@ Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai ap
 
 Layar `(tabs)/index.tsx`.
 
-- **Sapaan dan tanggal** dengan avatarmu (ketuk untuk membuka profil): "Selamat pagi" (sebelum 11.00), "siang" (sebelum 15.00), "sore" (sebelum 18.00), atau "malam", plus nama depanmu.
-- **Kartu Minggu ini** (gradasi hijau tua): total jarak minggu berjalan (Senin–Minggu) dari semua jenis aktivitas, pil perbandingan dengan minggu lalu (misalnya *12% lebih jauh dari minggu lalu*), baris "N aktivitas, Xj Ym bergerak", dan ikon jejak bercahaya.
-- **Aksi cepat**: empat kotak, yaitu **Rekam** (hijau), **Buat rute**, **Segmen**, dan **Teman** (cari teman).
-- **Aktivitas terbaru**: aktivitasmu sendiri dan aktivitas orang yang kamu ikuti, terbaru di atas. Daftar memuat 20 aktivitas sekaligus dan memuat berikutnya otomatis saat digulir ke bawah. Tarik ke bawah untuk menyegarkan.
-- Tombol **Cari teman** (ikon orang+) di kanan atas.
+- **Sapaan dan tanggal** dengan avatarmu (foto profil atau inisial; ketuk untuk membuka profil): "Selamat pagi" (sebelum 11.00), "siang" (sebelum 15.00), "sore" (sebelum 18.00), atau "malam", plus nama depanmu.
+- Di kanan atas: ikon **Pesan** (gelembung chat) yang membuka [daftar pesan](#pesan-chat), dengan bulatan merah berisi jumlah pesan belum dibaca (*9+* bila lebih dari 9; dicek tiap 30 detik selama Beranda terbuka), dan tombol **Cari teman** (ikon orang+).
+- **Kartu Minggu ini** (gradasi bersemu warna aksen): total jarak minggu berjalan (Senin–Minggu) dari semua jenis aktivitas, pil perbandingan dengan minggu lalu (misalnya *12% lebih jauh dari minggu lalu*), baris "N aktivitas, Xj Ym bergerak", dan ikon jejak bercahaya.
+- **Aksi cepat**: empat kotak, yaitu **Rekam** (terisi warna aksen), **Buat rute**, **Tulis** (membuat [postingan](#postingan)), dan **Segmen**. Sebelum 0.2.0, kotak keempat adalah **Teman**; cari teman kini lewat ikon orang+ di kanan atas.
+- **Terbaru dari teman**: aktivitas dan postingan milikmu sendiri dan orang yang kamu ikuti, digabung urut waktu, terbaru di atas. Daftar memuat 20 item sekaligus dan memuat berikutnya otomatis saat digulir ke bawah. Tarik ke bawah untuk menyegarkan.
 
 Setiap aktivitas tampil sebagai kartu bergradasi dengan peta bersudut bulat di dalamnya, dan menampilkan:
 
@@ -85,6 +89,8 @@ Setiap aktivitas tampil sebagai kartu bergradasi dengan peta bersudut bulat di d
 - cuplikan peta jalurnya;
 - tombol **kudos** (jempol) dengan jumlahnya. Ketuk untuk memberi, ketuk lagi untuk membatalkan. Tombol ini nonaktif untuk aktivitasmu sendiri;
 - jumlah komentar dan tautan **Lihat detail**.
+
+Postingan tampil sebagai kartu postingan (lihat [Postingan](#postingan)): penulis, waktu, teks, foto, tanda segmen, tombol suka dan jumlah balasan.
 
 Bila feed masih kosong, muncul ajakan **Mulai rekam** dan **Cari teman**.
 
@@ -98,7 +104,7 @@ Layar `(tabs)/rekam.tsx`, dengan logika di `lib/recorder.ts`.
 
 1. **Pilih jenis**: Lari, Bersepeda, atau Jalan kaki.
 2. **Pilih rute** (opsional): ketuk baris **Rute**. Pilih *Bebas, tanpa rute* atau salah satu rute yang sudah kamu simpan (baris lalu bertuliskan *Nama rute, 5,20 km*). Jenis aktivitas otomatis mengikuti jenis rute yang dipilih.
-3. Bila memilih rute, peta menampilkan garis rute (hijau) dan rambu hijau berisi nama rute serta posisimu terhadap rute: *Kamu sudah di rute. Total X* (dalam 40 m dari garis) atau *Titik terdekat rute X dari sini. Total Y*.
+3. Bila memilih rute, peta menampilkan garis rute (biru) dan banner berwarna aksen berisi nama rute serta posisimu terhadap rute: *Kamu sudah di rute. Total X* (dalam 40 m dari garis) atau *Titik terdekat rute X dari sini. Total Y*.
 4. Ketuk tombol besar **Mulai lari / bersepeda / jalan kaki**.
 
 Saat pertama kali, app meminta izin lokasi. Di APK yang dibangun sendiri, app juga menanyakan izin lokasi latar (*Izinkan sepanjang waktu*) **satu kali saja**. Di Android 11 ke atas permintaan ini membuka halaman Pengaturan.
@@ -115,7 +121,7 @@ Bila izin ditolak atau GPS gagal menyala, pesan error tampil di panel dan rekama
   
   Angka dalam kurung, misalnya *(±6 m)*, adalah akurasi GPS. Titik hijau berarti akurasi 20 m atau lebih baik, titik kuning berarti lebih buruk.
 - Panel bawah menampilkan **Waktu** (stopwatch waktu aktif, tidak termasuk jeda), **Jarak** (km), dan **Pace** atau **Kecepatan**.
-- Peta mengikuti posisimu. Jalur yang sudah terekam digambar hijau.
+- Peta mengikuti posisimu. Jalur yang sudah terekam digambar dengan warna aksen.
 - Tombol **Jeda** menghentikan GPS dan stopwatch.
 
 Tidak ada jeda otomatis: berdiri diam tetap menambah stopwatch. Namun saat aktivitas disimpan, server menghitung **waktu bergerak** terpisah (lihat [algoritma.md](algoritma.md#waktu-bergerak)).
@@ -125,7 +131,7 @@ Tidak ada jeda otomatis: berdiri diam tetap menambah stopwatch. Namun saat aktiv
 Label stopwatch berubah menjadi **Dijeda**. Pilih:
 
 - **Lanjut**: merekam lagi. Jalur setelah jeda menjadi bagian baru, sehingga jarak dan waktu selama jeda tidak dihitung.
-- **Tahan untuk selesai**: tombol hijau berbendera ini harus **ditekan dan ditahan** sekitar 0,6 detik, supaya rekaman tidak tertutup karena tersentuh tanpa sengaja. Bila hanya diketuk, labelnya berubah merah menjadi *Tekan lebih lama* selama 2,5 detik dan tidak terjadi apa-apa. Setelah ditahan, rekaman ditutup dan layar simpan terbuka.
+- **Tahan untuk selesai**: tombol berbendera berwarna aksen ini harus **ditekan dan ditahan** sekitar 0,6 detik, supaya rekaman tidak tertutup karena tersentuh tanpa sengaja. Bila hanya diketuk, labelnya berubah merah menjadi *Tekan lebih lama* selama 2,5 detik dan tidak terjadi apa-apa. Setelah ditahan, rekaman ditutup dan layar simpan terbuka.
 
 ### Simpan atau buang
 
@@ -163,7 +169,7 @@ Ada dua cara memasang rute: memilihnya di layar Rekam (baris **Rute**), atau men
 
 Selama merekam dengan rute, petunjuk tampil sebagai **banner** di atas peta: kartu gelap dengan kotak ikon belokan yang bercahaya, jarak besar, dan teks petunjuk (komponen `components/GuideBanner.tsx`).
 
-- **Banner hijau (belokan)** menampilkan jarak ke belokan berikutnya dalam angka besar (misalnya *120 m* atau *1,20 km*), teks petunjuknya (misalnya *Belok kiri ke Jalan Pemuda*), dan *Sisa X* jarak rute. Panah menyesuaikan teks: kiri, kanan, putar/bundaran, atau bendera untuk *Sampai di tujuan*. Bila tidak ada belokan lagi, tertulis *Ikuti garis rute*.
+- **Banner berwarna aksen (belokan)** menampilkan jarak ke belokan berikutnya dalam angka besar (misalnya *120 m* atau *1,20 km*), teks petunjuknya (misalnya *Belok kiri ke Jalan Pemuda*), dan *Sisa X* jarak rute. Panah menyesuaikan teks: kiri, kanan, putar/bundaran, atau bendera untuk *Sampai di tujuan*. Bila tidak ada belokan lagi, tertulis *Ikuti garis rute*.
 - Satu petunjuk tetap ditampilkan sampai kamu melewatinya sekitar 5 m, lalu berganti ke petunjuk berikutnya.
 - **HP bergetar** (getaran kuat) sekali saat belokan berikutnya tinggal kurang dari 30 m.
 - **Banner merah (keluar dari rute)**: bila posisimu lebih dari 40 m dari garis rute, banner berubah merah dengan ikon peringatan, bertuliskan *Keluar dari rute* dan *X dari garis rute, sisa Y*. HP bergetar (getaran peringatan) sekali setiap kali kamu mulai keluar jalur.
@@ -219,7 +225,7 @@ Isi **nama rute** (maksimal 80 karakter), lalu **Simpan rute**. Tombol aktif bil
 
 Layar `aktivitas/[id]/index.tsx`.
 
-**Peta** menampilkan jalur (hijau, tiap bagian setelah jeda digambar terpisah) dengan titik hijau di awal dan merah di akhir.
+**Peta** menampilkan jalur (warna aksen, tiap bagian setelah jeda digambar terpisah) dengan titik hijau di awal dan merah di akhir.
 
 **Zona privasi**: di aktivitas orang lain, 300 m pertama dan terakhir jalur (paling banyak seperempat jaraknya) tidak ditampilkan, baik di detail maupun di kartu feed, supaya letak rumah tidak terlihat. Angka jarak, waktu, dan split tetap untuk seluruh aktivitas. Aktivitasmu sendiri selalu tampil utuh. Detail di [api.md](api.md#zona-privasi).
 
@@ -244,11 +250,11 @@ Rumus lengkapnya ada di [algoritma.md](algoritma.md).
 
 **Segmen**: daftar segmen yang dilewati aktivitas ini, berurutan sesuai posisi di jalur. Tiap baris menampilkan nama segmen, panjang, pace/kecepatan, waktu, lencana **PR** bila memecahkan waktu terbaikmu sebelumnya di segmen itu, dan lencana **#peringkat**, yaitu peringkat waktu ini dibanding waktu terbaik atlet lain. Ketuk satu baris untuk menyorot potongan jalurnya di peta (ungu) dan memunculkan tombol **Lihat leaderboard**.
 
-**Split per km**: satu baris per kilometer. Nomor km ditampilkan dalam bulatan kecil (hijau untuk km tercepat), diikuti pace (lari/jalan) atau km/j (sepeda) dan sebuah batang:
+**Split per km**: satu baris per kilometer. Nomor km ditampilkan dalam bulatan kecil (berwarna aksen untuk km tercepat), diikuti pace (lari/jalan) atau km/j (sepeda) dan sebuah batang:
 
 - panjang batang = kecepatan split itu dibanding split tercepat (`tercepat ÷ split × 100%`, minimal 12%), jadi selisih kecil tampak kecil, tidak dibesar-besarkan;
-- batang **hijau** menandai km tercepat. Untuk penanda ini hanya split minimal 900 m yang dibandingkan, jadi kilometer terakhir yang pendek tidak dianggap tercepat;
-- keterangan di bawahnya: *Pace per km. Batang hijau menandai km tercepat.* (sepeda: *Kecepatan per km dalam km/j. …*).
+- batang **berwarna aksen** menandai km tercepat. Untuk penanda ini hanya split minimal 900 m yang dibandingkan, jadi kilometer terakhir yang pendek tidak dianggap tercepat;
+- keterangan di bawahnya: *Pace per km. Batang berwarna menandai km tercepat.* (sepeda: *Kecepatan per km dalam km/j. …*).
 
 Sisa kilometer terakhir yang kurang dari 50 m tidak ditampilkan.
 
@@ -273,24 +279,53 @@ Kotak gelap dengan piala berarti **PR**: lebih cepat dari waktu terbaikmu sebelu
 
 ## Bagikan ke foto
 
-Layar `aktivitas/[id]/bagikan.tsx` (judul **Bagikan**), dibuka lewat tombol **Bagikan** di detail aktivitasmu sendiri. Hasil aktivitas ditempelkan di atas foto (atau latar polos) lalu dijadikan gambar PNG untuk dibagikan ke media sosial atau disimpan.
+Layar `aktivitas/[id]/bagikan.tsx` (judul **Bagikan**), dibuka lewat tombol **Bagikan** di detail aktivitasmu sendiri. Hasil aktivitas dijadikan gambar PNG: sebagai **stiker transparan** untuk ditempel di atas foto sendiri (gaya Strava), atau ditempel langsung di atas foto atau latar polos.
 
 ### Langkah
 
-1. **Pratinjau** di bagian atas menunjukkan hasil akhirnya.
-2. **Pilih template** dari deretan tombol: *Nomor dada* (bawaan), *Rute*, *Patok KM*, atau *Rambu*.
-3. **Pilih format**: *Postingan 4:5* (bawaan) atau *Story 9:16*.
-4. **Foto** (opsional):
+1. **Geser kiri/kanan** di pratinjau untuk memilih tata letak. Galeri berisi 9 halaman: lima **stiker transparan** (*Samping*, *Daftar*, *Tumpuk*, *Ringkas*, *Baris*), lalu empat template lama yang punya latar sendiri (*Nomor dada*, *Rute*, *Patok KM*, *Rambu*). Titik-titik di bawah pratinjau menandai halaman yang terbuka, dan namanya tertulis di bawahnya (untuk stiker ditambah *· stiker transparan*). Yang terbuka pertama kali: *Samping*.
+2. Stiker tanpa foto ditampilkan di atas **pola kotak-kotak** abu-abu. Pola ini hanya penanda bagian transparan dan tidak ikut tersimpan.
+3. **Warna garis** (hanya untuk stiker): **Oranye** (bawaan, `#FF5A1F`), **Putih**, atau **Warna tema** (warna aksen pilihanmu). Warna ini dipakai untuk garis rute dan titik di wordmark *jejak.*
+4. **Pilih format**: *Story 9:16* (bawaan) atau *Postingan 4:5*.
+5. **Foto** (opsional):
    - **Pilih foto** membuka galeri (menjadi **Ganti foto** bila sudah ada foto);
    - **Kamera** membuka kamera (tidak ada di versi web). Bila izin kamera ditolak: *Izin kamera ditolak. Aktifkan kamera untuk Jejak di pengaturan HP.*;
    - tombol **×** menghapus foto.
 
-   Foto diisi penuh ke bingkai (dipotong seperlunya). Tanpa foto, template memakai **latar aspal** dengan garis kontur samar dan garis rutemu yang pudar (template *Rute* menggambar garis rutenya sendiri).
-5. Tekan **Bagikan** atau **Simpan ke galeri** (di web: **Unduh gambar**).
+   Foto diisi penuh ke bingkai (dipotong seperlunya), dan stiker atau template ditempel di atasnya; hasilnya gambar biasa tanpa bagian transparan. Tanpa foto, stiker tetap transparan, sedangkan template lama memakai **latar aspal** dengan garis kontur samar dan garis rutemu yang pudar (template *Rute* menggambar garis rutenya sendiri).
+6. Pilih tujuan di baris **Bagikan ke**:
+   - **Simpan** (di web: **Unduh**): simpan ke galeri;
+   - **Salin** (hanya di HP): salin gambar ke papan klip, lalu tempel sebagai stiker di Story Instagram atau aplikasi lain (*Tersalin. Tempel sebagai stiker di Story atau aplikasi lain.*). Di iPhone gambar transparan bisa langsung ditempel sebagai stiker; di Android hasilnya bergantung versi aplikasi tujuan, jadi **Simpan** lalu pilih dari galeri tetap cara utama;
+   - **Lainnya**: lembar berbagi sistem (Instagram, WhatsApp, dll.).
 
-### Template
+Selama satu tujuan diproses, tombol lain nonaktif. Belum ada tombol langsung ke Instagram Stories seperti di Strava, karena itu butuh Facebook App ID terdaftar.
 
-Semua template (`components/ShareTemplates.tsx`) memakai jarak, **waktu bergerak**, dan pace (lari/jalan) atau kecepatan (sepeda) yang sama dengan feed.
+### Stiker transparan
+
+Lima stiker (`components/ShareStickers.tsx`) hanya berisi garis rute, angka, dan wordmark **jejak.**, tanpa latar. Merek yang dipakai tetap Jejak, bukan Strava. Teks putih dengan bayangan tipis dan garis rute berbayang gelap tipis, supaya terbaca di atas foto terang maupun gelap. Huruf: Plus Jakarta Sans.
+
+Angka yang dipakai:
+
+| Label | Isi |
+| --- | --- |
+| Jarak | Mis. *7,07 km*. |
+| Kenaikan Elev. | Total tanjakan, dibulatkan ke meter. |
+| Waktu | **Waktu bergerak**, ditulis seperti Strava: *25m 2d* (menit, detik) atau *1j 5m* (jam, menit). |
+| Pace / Kecepatan | Pace untuk lari dan jalan kaki (mis. *5:42 /km*), kecepatan untuk sepeda (km/j), sama dengan feed. |
+| Kecepatan Maks | Hanya sepeda. |
+| Elev Maks | Ketinggian tertinggi di jejak. Tidak ditampilkan bila jejak tidak punya data ketinggian. |
+
+| Stiker | Isi |
+| --- | --- |
+| **Samping** | Wordmark di kiri atas, garis rute di tengah, dan angka berpasangan yang diputar 90° di tepi kanan. Dari bawah ke atas: Jarak + Kenaikan Elev., Waktu + Pace/Kecepatan, lalu Kecepatan Maks + Elev Maks (yang tersedia). |
+| **Daftar** | Garis rute besar di atas; di bawahnya wordmark dan semua angka dalam daftar dengan titik-titik penuntun (*Jarak ………… 7,07 km*). |
+| **Tumpuk** | Wordmark lalu semua angka besar bertumpuk di tengah (label kecil di atas angka), dengan garis rute besar di belakangnya. |
+| **Ringkas** | Tiga angka besar bertumpuk (Jarak, Kenaikan Elev., Waktu), garis rute kecil di bawahnya, wordmark paling bawah. |
+| **Baris** | Garis rute, wordmark, tiga angka sebaris (Jarak, Kenaikan Elev., Waktu), lalu ikon jenis aktivitas. |
+
+### Template lama
+
+Empat template (`components/ShareTemplates.tsx`) ada di akhir galeri. Semuanya memakai jarak, **waktu bergerak**, dan pace (lari/jalan) atau kecepatan (sepeda) yang sama dengan feed, dan warnanya tetap (tidak ikut tema).
 
 | Template | Isi |
 | --- | --- |
@@ -303,9 +338,10 @@ Semua template (`components/ShareTemplates.tsx`) memakai jarak, **waktu bergerak
 
 | | HP (Android/iOS) | Web |
 | --- | --- | --- |
-| Ukuran gambar | PNG lebar 1080 px: 1080 × 1350 (4:5) atau 1080 × 1920 (9:16), berapa pun ukuran pratinjau. | Sama. |
-| **Bagikan** | Lembar berbagi sistem (WhatsApp, Instagram, dll.). Bila perangkat tidak mendukung: *Berbagi tidak tersedia di perangkat ini*. | Web Share bila browser mendukung berbagi berkas; bila tidak, gambar diunduh sebagai `jejak.png`. |
-| **Simpan ke galeri** / **Unduh gambar** | Meminta izin foto, lalu menyimpan ke galeri: *Gambar tersimpan di galeri.* Bila izin ditolak: *Izin galeri ditolak. Aktifkan izin foto untuk Jejak di pengaturan HP.* | Mengunduh `jejak-<id>-<template>.png`: *Gambar diunduh.* |
+| Ukuran gambar | PNG lebar 1080 px: 1080 × 1920 (9:16) atau 1080 × 1350 (4:5), berapa pun ukuran pratinjau. Stiker tanpa foto: PNG dengan latar transparan. | Sama. |
+| **Simpan** / **Unduh** | Meminta izin foto, lalu menyimpan ke galeri: *Gambar tersimpan di galeri.* Bila izin ditolak: *Izin galeri ditolak. Aktifkan izin foto untuk Jejak di pengaturan HP.* | Mengunduh `jejak-<id>-<tata letak>.png` (mis. `jejak-12-samping.png`, `jejak-12-bib.png`): *Gambar diunduh.* |
+| **Salin** | Gambar disalin ke papan klip (`expo-clipboard`). | Tidak ada. |
+| **Lainnya** | Lembar berbagi sistem (WhatsApp, Instagram, dll.). Bila perangkat tidak mendukung: *Berbagi tidak tersedia di perangkat ini*. | Web Share bila browser mendukung berbagi berkas; bila tidak, gambar diunduh sebagai `jejak.png`. |
 
 Izin yang dipakai fitur ini (dari `app.json`): akses foto untuk memilih foto, kamera untuk memotret, dan izin menyimpan foto ke galeri. Mikrofon tidak diminta.
 
@@ -338,7 +374,7 @@ Layar `aktivitas/[id]/segmen.tsx`, dibuka dari detail aktivitasmu sendiri.
 
 Segmen adalah potongan jalan yang waktunya diadu. Kamu memilih potongan itu dari jalur aktivitasmu:
 
-1. Jalur aktivitas digambar kuning, potongan terpilih digambar ungu dengan pin hijau **S** (start) dan pin merah **F** (finish). Awalnya potongan diambil dari 25% sampai 75% jumlah titik.
+1. Jalur aktivitas digambar dengan warna aksen, potongan terpilih digambar ungu dengan pin hijau **S** (start) dan pin merah **F** (finish). Awalnya potongan diambil dari 25% sampai 75% jumlah titik.
 2. Pilih ujung yang mau diatur: **Titik awal (S)** atau **Titik akhir (F)**.
 3. **Ketuk peta** di dekat jalur: ujung yang aktif pindah ke titik jalur terdekat, lalu pilihan otomatis berpindah ke ujung lainnya.
 4. Untuk penyesuaian halus pakai tombol **−20**, **−5**, **+5**, **+20 titik**.
@@ -371,13 +407,14 @@ Setiap kartu: cuplikan peta (garis ungu), nama, lalu panjang dan jumlah atlet (*
 - peta segmen (garis ungu) dengan pin **S** dan **F** (atau satu pin **S/F** bila ujungnya berjarak kurang dari 30 m);
 - jenis (lari/bersepeda), nama, pembuat;
 - **Panjang**, **Atlet** (jumlah orang yang punya waktu di segmen ini), **Rekor** (waktu tercepat; hanya diisi pada filter *Semua*);
-- kartu hijau tua **Waktu terbaikmu**: waktu (hijau), lalu *pace/kecepatan, tanggal*, dan **Peringkat** (bingkai emas untuk peringkat 1–3). Peringkat ini selalu dihitung terhadap semua atlet. Bila belum punya waktu: *Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.*;
+- kartu bergradasi bersemu warna aksen **Waktu terbaikmu**: waktu (warna aksen), lalu *pace/kecepatan, tanggal*, dan **Peringkat** (bingkai emas untuk peringkat 1–3). Peringkat ini selalu dihitung terhadap semua atlet. Bila belum punya waktu: *Kamu belum punya waktu di sini. Lewati segmen ini dari S ke F saat merekam.*;
 - **Leaderboard** dengan pilihan:
   - **Semua**: waktu terbaik tiap atlet;
   - **Yang kuikuti**: hanya kamu dan orang yang kamu ikuti.
 
-  Setiap baris: peringkat (lingkaran emas, perak, perunggu untuk 1–3), nama (baris milikmu disorot dan diberi tanda *(kamu)*), tanggal, pace/kecepatan, dan waktu. Ketuk baris untuk membuka aktivitas yang mencatat waktu itu. Leaderboard menampilkan paling banyak 100 atlet.
-- **Hapus segmen** (hanya pembuatnya). Leaderboard segmen ikut terhapus.
+  Setiap baris: peringkat (lingkaran emas, perak, perunggu untuk 1–3), foto profil, nama (baris milikmu disorot dan diberi tanda *(kamu)*), tanggal, pace/kecepatan, dan waktu. Ketuk baris untuk membuka aktivitas yang mencatat waktu itu. Leaderboard menampilkan paling banyak 100 atlet.
+- **Diskusi**: bagian di bawah leaderboard (bukan tab terpisah) berisi postingan yang menandai segmen ini, dari **semua pengguna**, bukan hanya yang kamu ikuti: kondisi jalan, tips, ajakan lari bareng. Postingan dari orang yang kamu blokir tidak tampil. Yang tampil 20 postingan terbaru. Tombol **Tulis** di kanan judul membuka layar [Tulis postingan](#menulis-postingan) dengan segmen ini sudah ditandai. Bila belum ada: *Belum ada diskusi. Bagikan kondisi jalan, tips, atau ajak lari bareng di segmen ini.*
+- **Hapus segmen** (hanya pembuatnya). Leaderboard segmen ikut terhapus. Postingan di Diskusi tetap ada, tetapi tidak lagi bertanda segmen.
 
 ---
 
@@ -385,13 +422,14 @@ Setiap kartu: cuplikan peta (garis ungu), nama, lalu panjang dan jumlah atlet (*
 
 **Tab Profil** (`(tabs)/profil.tsx`) dan **profil atlet lain** (`atlet/[id].tsx`) memakai komponen yang sama (`components/ProfileView.tsx`).
 
-Bagian atas (panel gelap):
+Bagian atas (hero):
 
-- avatar inisial, nama, `@username`;
-- jumlah **pengikut** dan **mengikuti**;
-- tombol **Ikuti / Mengikuti** (hanya di profil orang lain);
+- **foto sampul** sebagai latar (bila ada) atau gradasi bersemu warna aksen. Di atas foto sampul ada gradasi gelap supaya teks terbaca, dan baris angka di bawah (Aktivitas / Jarak / Waktu) diberi **blur** dari foto di belakangnya. Blur memakai `expo-blur`; di Android 11 ke bawah blur tidak aktif dan yang tersisa lapisan tembus pandang serta gradasi gelap;
+- **foto profil** (atau inisial berwarna bila belum ada foto), nama, `@username`;
+- jumlah **pengikut** dan **mengikuti**. Ketuk salah satunya untuk membuka [daftar pengikut / mengikuti](#pengikut-dan-mengikuti);
+- di profil orang lain: tombol **Ikuti / Mengikuti**, ikon **Kirim pesan** (hanya bila kalian saling mengikuti dan tidak ada blokir; membuka [percakapan](#pesan-chat)), dan ikon **…** berisi **Blokir** (dengan konfirmasi: *Blokir …? Kalian berhenti saling mengikuti dan tidak bisa saling mengirim pesan.*). Profil yang kamu blokir hanya menampilkan tombol **Buka blokir**;
 - total semua jenis: **Aktivitas**, **Jarak**, **Waktu** bergerak;
-- di tab Profil sendiri ada tombol **Cari teman** dan **Keluar** (dengan konfirmasi) di pojok kanan atas.
+- di tab Profil sendiri ada tombol **Cari teman** dan **Pengaturan** (roda gigi) di pojok kanan atas. **Keluar** pindah ke layar [Pengaturan](#pengaturan) sejak 0.2.0.
 
 Statistik per jenis (pilih Lari / Bersepeda / Jalan kaki):
 
@@ -401,6 +439,31 @@ Statistik per jenis (pilih Lari / Bersepeda / Jalan kaki):
 **Rekor pribadi** untuk jenis yang dipilih: waktu terbaik sepanjang masa untuk tiap jarak standar (lihat tabel di [Detail aktivitas](#detail-aktivitas)) dan kotak **Terjauh** (aktivitas terpanjang). Ketuk kotak untuk membuka aktivitas asalnya.
 
 Di bawahnya daftar **Aktivitas** milik atlet tersebut (semua jenis, 20 per muatan, terus dimuat saat digulir). Tarik ke bawah untuk menyegarkan.
+
+### Foto profil dan sampul
+
+Hanya di profilmu sendiri:
+
+- ketuk **avatar** (ada lencana kamera kecil) untuk mengganti **foto profil**;
+- ketuk ikon **gambar** di pojok kiri atas hero untuk mengganti **foto sampul**.
+
+Keduanya membuka menu dari bawah: **Pilih dari galeri**, **Ambil foto** (tidak ada di web), dan **Hapus foto** (bila sudah ada foto). Foto profil dipotong persegi (1:1), foto sampul 16:9. Sebelum diunggah, app memperkecil foto (profil 512 px, sampul 1600 px) dan menyimpannya ulang sebagai JPEG, yang sekaligus **membuang data lokasi GPS** di foto. Server membuangnya sekali lagi sebagai pengaman. Selama unggah, lencana kamera berubah menjadi jam pasir. Bila gagal, pesan error tampil di bawah tombol profil.
+
+Foto profil tampil di semua tempat yang menampilkan pengguna: Beranda, kartu aktivitas dan postingan, komentar, balasan, leaderboard, cari teman, daftar pengikut, dan pesan. Foto hanya bisa dilihat oleh pengguna yang sudah masuk.
+
+---
+
+## Pengikut dan mengikuti
+
+Layar `koneksi/[id].tsx`, dibuka dengan mengetuk angka **pengikut** atau **mengikuti** di profil siapa pun (profilmu sendiri maupun orang lain). Judul layar = nama pemilik profil.
+
+- Pilihan di atas: **N pengikut** / **N mengikuti**. Layar terbuka di pilihan yang diketuk.
+- Tiap baris: foto profil, nama, `@username`, dan tombol **Ikuti / Mengikuti** (tidak ada di baris dirimu sendiri). Tombolnya menunjukkan apakah **kamu** mengikuti orang itu.
+- Ketuk baris untuk membuka profilnya.
+- Urut dari yang paling baru mulai mengikuti. Memuat 30 orang sekaligus, berikutnya dimuat otomatis saat digulir.
+- Bila kosong: *Belum ada pengikut* atau *Belum mengikuti siapa pun* (dengan petunjuk mencari teman lewat ikon tambah teman di Beranda).
+
+Daftar pengikut bisa dilihat semua pengguna yang sudah masuk, seperti di Strava. Mengikuti seseorang tidak membuka [zona privasi](#detail-aktivitas) jejaknya.
 
 ---
 
@@ -412,4 +475,96 @@ Layar `cari.tsx`, dibuka dari ikon orang+ di Beranda atau Profil.
 - Dirimu sendiri tidak ikut tampil.
 - Ketuk nama untuk membuka profilnya, atau tombol **Ikuti / Mengikuti** untuk mengikuti atau berhenti mengikuti.
 
-Mengikuti seseorang membuat aktivitasnya muncul di Beranda dan membuatnya masuk filter **Yang kuikuti** di leaderboard segmen. Mengikuti bersifat satu arah dan tidak perlu persetujuan.
+Mengikuti seseorang membuat aktivitas dan postingannya muncul di Beranda dan membuatnya masuk filter **Yang kuikuti** di leaderboard segmen. Mengikuti bersifat satu arah dan tidak perlu persetujuan. Bila kalian **saling mengikuti**, kalian bisa saling mengirim [pesan](#pesan-chat). Orang yang memblokirmu atau yang kamu blokir tidak bisa diikuti.
+
+---
+
+## Postingan
+
+Postingan pendek ala X: teks sampai 500 karakter, sampai 4 foto, dan bisa menandai satu segmen. Postingan tampil di Beranda kamu dan orang yang mengikutimu. Postingan yang menandai segmen juga tampil di bagian **Diskusi** halaman segmen itu untuk semua pengguna. Tidak ada lini masa umum berisi postingan semua orang.
+
+### Menulis postingan
+
+Layar `tulis.tsx` (judul **Tulis postingan**), dibuka dari kotak **Tulis** di Aksi cepat Beranda, atau dari tombol **Tulis** di bagian Diskusi halaman segmen.
+
+1. Ketik teks. Penghitung *N/500* di kanan bawah kotak berubah merah bila lewat 500 karakter, dan tombol **Kirim** nonaktif.
+2. **Foto (N/4)** membuka galeri, **Kamera** membuka kamera (tidak ada di web). Foto diperkecil ke lebar 1600 px dan disimpan ulang sebagai JPEG sebelum diunggah, jadi data lokasi GPS di foto terbuang. Foto tidak dipotong. Ketuk **×** di pojok foto untuk membatalkannya.
+3. Bila dibuka dari halaman segmen, muncul tanda segmen (ikon bendera + nama). Ketuk **×** di tanda itu bila tidak ingin menandai segmen. Dari Beranda belum bisa memilih segmen.
+4. Tekan **Kirim**. Tombol aktif bila ada teks atau minimal satu foto. Setelah terkirim, layar kembali ke halaman sebelumnya (atau ke Beranda) dan daftar postingan disegarkan.
+
+Kotak keterangan di bawah mengingatkan siapa yang bisa melihat postingan dan bahwa lokasi di foto dihapus.
+
+### Kartu postingan
+
+Di Beranda, Diskusi segmen, dan layar detail postingan:
+
+- foto profil dan nama penulis (ketuk untuk membuka profilnya) dan waktu (*Hari ini pukul 07.01*, *Kemarin pukul 16.40*, *3 hari lalu*, atau tanggal);
+- teks (di feed dipotong 8 baris; lengkap di layar detail);
+- foto: satu foto 4:3; dua atau empat foto berpetak persegi; tiga foto dengan foto pertama melebar 16:9;
+- tanda **segmen** (ketuk untuk membuka segmen) dan, bila ada, tanda aktivitas;
+- **suka** (hati, langsung berubah saat diketuk lalu disamakan dengan server) dan jumlah **balasan**;
+- ikon **…**: **Hapus postingan** untuk postinganmu sendiri (dengan konfirmasi, permanen), atau **Laporkan** untuk postingan orang lain. Setelah melapor muncul *Terima kasih, laporan terkirim.* Laporan ditinjau pemilik app.
+
+Ketuk kartu untuk membuka detailnya.
+
+### Detail postingan dan balasan
+
+Layar `postingan/[id].tsx` (judul **Postingan**): kartu postingan lengkap, lalu **Balasan** dari yang terlama ke terbaru. Kolom **Tulis balasan…** di bawah (maksimal 500 karakter) ikut naik saat keyboard muncul. Ikon tempat sampah muncul di balasan milikmu dan di semua balasan bila postingannya milikmu. Bila belum ada: *Belum ada balasan. Jadilah yang pertama.*
+
+---
+
+## Pesan (chat)
+
+Pesan 1-lawan-1 dengan teman yang **saling mengikuti**. Tidak ada notifikasi push: pesan baru terlihat lewat angka di ikon Pesan Beranda saat app dibuka.
+
+### Daftar pesan
+
+Layar `pesan/index.tsx` (judul **Pesan**), dibuka dari ikon gelembung chat di Beranda. Tiap baris: foto profil, nama, waktu pesan terakhir, dan potongan pesan terakhir (diawali *Kamu:* bila kamu pengirimnya). Percakapan dengan pesan belum dibaca ditebalkan dan diberi bulatan berwarna aksen berisi jumlahnya. Daftar diperbarui tiap 15 detik selama layar terbuka, dan bisa ditarik ke bawah untuk menyegarkan.
+
+Bila kosong: *Belum ada pesan* dengan tombol **Lihat yang kuikuti**.
+
+### Percakapan
+
+Layar `pesan/[id].tsx`, dibuka dari daftar pesan atau ikon **Kirim pesan** di profil teman. Judulnya foto profil + nama teman (ketuk untuk membuka profilnya).
+
+- Gelembung pesanmu di kanan (warna aksen), pesan teman di kiri. Di bawah tiap pesan: jam (*06.12*), dan untuk pesanmu *· terkirim* atau *· dibaca*.
+- Saat dibuka, 30 pesan terakhir dimuat; gulir ke atas untuk memuat pesan yang lebih lama. Pesan dari teman otomatis ditandai sudah dibaca.
+- Pesan baru diambil **tiap 3 detik** selama layar ini terbuka.
+- Kolom **Tulis pesan…** (maksimal 1000 karakter) ikut naik saat keyboard muncul. Tombol kirim aktif bila ada teks.
+- Bila kalian tidak lagi saling mengikuti, kolom tulis diganti keterangan *Pesan hanya bisa dikirim ke teman yang saling mengikuti.* Bila kamu memblokir dia: *Kamu memblokir pengguna ini. Buka blokir dari profilnya untuk mengirim pesan.* Riwayat percakapan tetap bisa dibaca.
+
+**Tekan lama** pesanmu sendiri untuk menghapusnya (setelah konfirmasi); pesan itu hilang juga dari layar temanmu. Pesan disimpan di server Jejak dan **tidak terenkripsi ujung-ke-ujung**.
+
+### Blokir
+
+Dari ikon **…** di profil orang lain. Blokir memutus saling mengikuti dari kedua arah, menolak pesan baru dari kedua arah, mencegah kalian saling mengikuti lagi, dan menyembunyikan postingannya dari Diskusi segmen yang kamu buka. Orang yang diblokir tidak diberi tahu. **Buka blokir** dari profilnya mengembalikan semuanya kecuali follow yang sudah terputus: kalian perlu saling mengikuti lagi.
+
+---
+
+## Pengaturan
+
+Layar `pengaturan.tsx` (judul **Pengaturan**), dibuka dari ikon roda gigi di kanan atas tab Profil.
+
+**Tampilan**:
+
+| Pilihan | Isi |
+| --- | --- |
+| **Tema** | **Ikuti HP** (mengikuti mode gelap/terang sistem dan ikut berganti saat sistem berganti), **Gelap** (bawaan), atau **Terang**. |
+| **Warna aksen** | Lima bulatan: **Kuning** (kuning marka, bawaan), **Mint**, **Biru**, **Oranye**, **Pink**. Yang terpilih diberi centang. |
+
+Di bawahnya ada pratinjau kecil: tombol *Mulai lari* dan pil *6,12 km* dengan warna yang dipilih. Pilihan langsung berlaku di semua layar tanpa membuka ulang app, dan tersimpan di HP (tidak ikut akun, jadi tiap HP punya pilihan sendiri). Dengan tema terang, peta memakai ubin OpenStreetMap asli tanpa digelapkan. Template bagikan lama tidak ikut tema; stiker hanya ikut bila warna garis **Warna tema** dipilih.
+
+**Tentang aplikasi**:
+
+| Baris | Isi |
+| --- | --- |
+| Logo | *jejak.* dengan keterangan *Rekam lari dan gowes, buat rute, adu waktu dengan teman.* |
+| **Versi** | Versi dari `app.json` dan nomor build Android dari APK yang terpasang, mis. *0.2.0 (build 7)*. Di web dan Expo Go hanya versinya, tanpa nomor build. |
+| **Pembuat** | *Dibuat oleh Masamune* |
+| **Server** | Alamat API yang dipakai, mis. *jejak.masamune.my.id/api*. |
+| **Peta** | *© OpenStreetMap contributors* |
+| **Rute** | *OSRM, routing.openstreetmap.de (FOSSGIS)* |
+
+Ditambah catatan privasi: pesan chat tersimpan di server Jejak dan tidak terenkripsi ujung-ke-ujung, dan foto yang diunggah dibersihkan dari data lokasi sebelum disimpan.
+
+**Keluar**: tombol paling bawah, dengan konfirmasi *Keluar dari akun ini?*. Sesi di HP itu dihapus dan app kembali ke layar masuk. Rekaman yang belum disimpan tetap di HP.

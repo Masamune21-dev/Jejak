@@ -24,7 +24,7 @@ export function useRefreshPosts() {
   };
 }
 
-/** Kartu postingan di feed Beranda dan tab Diskusi segmen. `detail` = tampilan penuh di layar postingan. */
+/** Kartu postingan di feed Beranda dan bagian Diskusi halaman segmen. `detail` = tampilan penuh di layar postingan. */
 export default function PostCard({ post, detail }: { post: Post; detail?: boolean }) {
   const c = useColors();
   const me = useMe();

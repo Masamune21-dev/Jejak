@@ -9,7 +9,8 @@ Database adalah satu berkas SQLite yang dibuka lewat `node:sqlite` (`DatabaseSyn
 3. [Tabel](#tabel)
 4. [Indeks](#indeks)
 5. [Format kolom JSON](#format-kolom-json)
-6. [Perubahan skema](#perubahan-skema)
+6. [Berkas foto](#berkas-foto)
+7. [Perubahan skema](#perubahan-skema)
 
 ---
 
@@ -20,6 +21,8 @@ Database adalah satu berkas SQLite yang dibuka lewat `node:sqlite` (`DatabaseSyn
 | Lokal (bawaan) | `server/data/jejak.db` (folder dibuat otomatis, diabaikan git) |
 | Produksi | `/var/www/jejak.masamune.my.id/data/jejak.db` (lewat `DB_PATH` di `deploy/jejak.service`; folder milik user `jejak`, izin 700) |
 | Tes | `:memory:` |
+
+Foto unggahan tidak disimpan di database, melainkan sebagai berkas di folder `uploads/` di sebelah berkas database (lihat [Berkas foto](#berkas-foto)). Database hanya menyimpan nama berkasnya.
 
 Pragma yang dipasang setiap kali database dibuka:
 
@@ -53,6 +56,20 @@ erDiagram
   users ||--o{ comments : "menulis"
   users ||--o{ best_efforts : "punya"
   users ||--o{ segment_efforts : "punya"
+  users ||--o{ posts : "menulis"
+  segments |o--o{ posts : "ditandai (segment_id)"
+  activities |o--o{ posts : "ditautkan (activity_id)"
+  posts ||--o{ post_photos : "punya"
+  posts ||--o{ post_likes : "menerima"
+  posts ||--o{ post_replies : "menerima"
+  posts ||--o{ reports : "dilaporkan"
+  users ||--o{ post_likes : "memberi"
+  users ||--o{ post_replies : "menulis"
+  users ||--o{ reports : "melapor (reporter_id)"
+  users ||--o{ messages : "from_id"
+  users ||--o{ messages : "to_id"
+  users ||--o{ blocks : "blocker_id"
+  users ||--o{ blocks : "blocked_id"
 ```
 
 ---
@@ -68,6 +85,10 @@ erDiagram
 | `name` | text, not null | Nama tampilan. |
 | `password_hash` | text, not null | Format `scrypt$<salt hex 16 byte>$<hash hex 32 byte>`. |
 | `created_at` | text, not null | Waktu daftar. |
+| `avatar` | text, boleh null | Nama berkas foto profil di folder unggahan (`<32 hex>.jpg`). `null` = belum ada foto (app menampilkan inisial). |
+| `cover` | text, boleh null | Nama berkas foto sampul. `null` = gradasi bawaan. |
+
+Kolom `avatar` dan `cover` tidak ada di `SCHEMA` (`create table users`); keduanya ditambahkan oleh `migrateUserPhotos()` di `openDb()` dengan `alter table users add column …` bila belum ada, baik untuk database baru maupun lama.
 
 ### `sessions`
 
@@ -197,14 +218,102 @@ Satu baris per (segmen, aktivitas) yang cocok.
 
 Unique `(segment_id, activity_id)`: satu aktivitas paling banyak satu waktu per segmen (yang tercepat bila dilewati berkali-kali).
 
+### `posts`
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `id` | integer PK | |
+| `user_id` | integer → `users.id` | Penulis. Cascade. |
+| `body` | text, not null | 0–500 karakter (boleh string kosong bila ada foto). |
+| `segment_id` | integer → `segments.id`, boleh null | Segmen yang ditandai. `on delete set null`. |
+| `activity_id` | integer → `activities.id`, boleh null | Aktivitas sendiri yang ditautkan. `on delete set null`. |
+| `created_at` | text | Dipakai urutan timeline, Diskusi segmen, dan paginasi. |
+
+### `post_photos`
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `post_id` | integer → `posts.id` | Cascade. |
+| `position` | integer | Urutan foto, mulai 0. |
+| `file` | text | Nama berkas di folder unggahan. |
+
+Primary key `(post_id, position)`. Paling banyak 4 baris per postingan (dicek API).
+
+### `post_likes`
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `post_id` | integer → `posts.id` | Cascade. |
+| `user_id` | integer → `users.id` | Penyuka. Cascade. |
+| `created_at` | text | |
+
+Primary key `(post_id, user_id)`: satu orang satu suka per postingan.
+
+### `post_replies`
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `id` | integer PK | |
+| `post_id` | integer → `posts.id` | Cascade. |
+| `user_id` | integer → `users.id` | Penulis balasan. Cascade. |
+| `body` | text | 1–500 karakter. |
+| `created_at` | text | |
+
+### `reports`
+
+Laporan postingan, untuk ditinjau pemilik app langsung di database (belum ada layar atau endpoint untuk membacanya).
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `id` | integer PK | |
+| `reporter_id` | integer → `users.id` | Pelapor. Cascade. |
+| `post_id` | integer → `posts.id` | Cascade: laporan ikut hilang bila postingannya dihapus. |
+| `reason` | text | 1–300 karakter. App mengirim *Dilaporkan dari aplikasi*. |
+| `created_at` | text | |
+
+Tidak ada unique: satu orang bisa melapor postingan yang sama lebih dari sekali.
+
+Contoh meninjau laporan (di server, dengan CLI `sqlite3`):
+
+```sql
+select r.created_at, u.username as pelapor, p.id as post, p.body, r.reason
+from reports r join users u on u.id = r.reporter_id join posts p on p.id = r.post_id
+order by r.created_at desc limit 20;
+```
+
+### `messages`
+
+Pesan chat 1-lawan-1. Disimpan sebagai teks biasa (tidak terenkripsi ujung-ke-ujung).
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `id` | integer PK | Naik terus; kursor `before`/`after` di API. |
+| `from_id` | integer → `users.id` | Pengirim. Cascade. |
+| `to_id` | integer → `users.id` | Penerima. Cascade. |
+| `body` | text | 1–1000 karakter. |
+| `created_at` | text | Waktu kirim. |
+| `read_at` | text, boleh null | Waktu penerima membuka percakapan (`POST /chats/:userId/read`). `null` = belum dibaca. |
+
+### `blocks`
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `blocker_id` | integer → `users.id` | Yang memblokir. Cascade. |
+| `blocked_id` | integer → `users.id` | Yang diblokir. Cascade. |
+| `created_at` | text | |
+
+Primary key `(blocker_id, blocked_id)`. Saat baris dibuat, baris `follows` kedua arah antara keduanya dihapus dalam transaksi yang sama.
+
 ### Akibat penghapusan
 
 | Yang dihapus | Ikut terhapus / berubah |
 | --- | --- |
-| Pengguna | Semua sesi, follow, rute, aktivitas, segmen, kudos, komentar, waktu terbaik, dan waktu segmennya (tidak ada endpoint untuk ini). |
-| Aktivitas | `best_efforts`, `kudos`, `comments`, `segment_efforts` aktivitas itu. |
+| Pengguna | Semua sesi, follow, rute, aktivitas, segmen, kudos, komentar, waktu terbaik, waktu segmen, postingan (beserta foto, suka, balasan, laporannya), suka, balasan, laporan, pesan, dan blokirnya (tidak ada endpoint untuk ini). Berkas fotonya di folder unggahan **tidak** ikut terhapus. |
+| Aktivitas | `best_efforts`, `kudos`, `comments`, `segment_efforts` aktivitas itu. `posts.activity_id` yang menautkannya menjadi `NULL`. |
 | Rute | `activities.route_id` menjadi `NULL`. |
-| Segmen | Semua `segment_efforts` segmen itu. |
+| Segmen | Semua `segment_efforts` segmen itu. `posts.segment_id` yang menandainya menjadi `NULL` (postingan tetap ada, keluar dari Diskusi). |
+| Postingan | `post_photos`, `post_likes`, `post_replies`, `reports` postingan itu. API juga menghapus berkas fotonya. |
+| Foto profil/sampul | Lewat `DELETE /me/avatar` atau `/me/cover`, atau saat diganti: berkas lama dihapus, kolom diisi nama baru atau `NULL`. |
 
 Status `is_pr` dan `pr_count` di baris lain tidak dihitung ulang setelah penghapusan.
 
@@ -218,8 +327,15 @@ Status `is_pr` dan `pr_count` di baris lain tidak dihitung ulang setelah penghap
 | `best_efforts_user` | `best_efforts(user_id, type, name, elapsed_s)` | Mencari rekor sebelumnya dan daftar rekor. |
 | `comments_activity` | `comments(activity_id, created_at)` | Daftar komentar per aktivitas. |
 | `segment_efforts_board` | `segment_efforts(segment_id, elapsed_s)` | Leaderboard dan peringkat. |
+| `posts_user` | `posts(user_id, created_at desc)` | Postingan di timeline. |
+| `posts_segment` | `posts(segment_id, created_at desc)` | Diskusi segmen. |
+| `post_replies_post` | `post_replies(post_id, created_at)` | Daftar balasan per postingan. |
+| `messages_pair` | `messages(from_id, to_id, id)` | Isi percakapan dan polling `after`. |
+| `messages_unread` | `messages(to_id, read_at)` | Jumlah pesan belum dibaca. |
 
-Ditambah indeks otomatis dari primary key dan unique: `users.username`, `sessions.token_hash`, `follows(follower_id, followee_id)`, `kudos(activity_id, user_id)`, `best_efforts(activity_id, name)`, `segment_efforts(segment_id, activity_id)`.
+Ditambah indeks otomatis dari primary key dan unique: `users.username`, `sessions.token_hash`, `follows(follower_id, followee_id)`, `kudos(activity_id, user_id)`, `best_efforts(activity_id, name)`, `segment_efforts(segment_id, activity_id)`, `post_photos(post_id, position)`, `post_likes(post_id, user_id)`, `blocks(blocker_id, blocked_id)`.
+
+Daftar pengikut (`follows` dengan `followee_id = ?`) tidak punya indeks sendiri dan memindai tabel `follows`. Untuk skala kecil ini cukup.
 
 Kolom kotak batas (`min_lat` … `max_lon`) tidak diindeks; pencarian segmen dan aktivitas di sekitar sebuah kotak memindai tabel. Untuk skala kecil ini cukup.
 
@@ -305,10 +421,41 @@ Rute garis lurus menyimpan `[]`.
 
 ---
 
+## Berkas foto
+
+Foto profil, foto sampul, dan foto postingan disimpan oleh `server/src/media.ts` sebagai berkas JPEG di satu folder datar:
+
+| Lingkungan | Folder |
+| --- | --- |
+| Lokal (bawaan) | `server/data/uploads/` (di sebelah `jejak.db`, dibuat otomatis) |
+| Produksi | `/var/www/jejak.masamune.my.id/data/uploads/` |
+| Lain | Nilai `UPLOAD_DIR` bila diisi; tanpa itu selalu `uploads/` di folder `DB_PATH`. |
+| Tes | Folder sementara (`mkdtemp`) per pemanggilan `createApp()`. |
+
+| Berkas | Isi |
+| --- | --- |
+| `<32 hex>.jpg` | Satu foto. Nama dari 16 byte acak, jadi tidak bisa ditebak. Segmen EXIF/XMP (APP1) dan IPTC (APP13) sudah dibuang. Dirujuk oleh `users.avatar`, `users.cover`, atau `post_photos.file`. |
+| `.kunci-media` | 32 byte acak, kunci HMAC untuk alamat foto bertanda tangan (lihat [api.md](api.md#get-medianameexpdetiksigtanda-tangan)). Dibuat sekali bila `MEDIA_SECRET` tidak diisi, izin 600. |
+
+Database dan folder ini satu kesatuan: backup harus mencakup keduanya (lihat [deploy.md](deploy.md#backup-database)). Database tanpa foldernya tetap jalan, tetapi foto tampil kosong (`GET /media/…` membalas 404). Bila `.kunci-media` hilang, kunci baru dibuat dan alamat foto lama tidak berlaku lagi; app mendapat alamat baru saat memuat ulang data.
+
+Perkiraan ukuran (dari catatan di `media.ts`): avatar sekitar 60 KB, sampul sekitar 300 KB. Foto postingan diperkecil ke lebar 1600 px seperti sampul tetapi tidak dipotong, jadi foto tegak bisa lebih besar. Batas per foto 2 MB.
+
+---
+
 ## Perubahan skema
 
-Tidak ada sistem migrasi. `create table if not exists` hanya membuat tabel yang belum ada; menambah kolom pada tabel yang sudah ada **tidak** terjadi otomatis. Bila skema berubah:
+Tidak ada sistem migrasi umum. `create table if not exists` hanya membuat tabel yang belum ada; menambah kolom pada tabel yang sudah ada **tidak** terjadi otomatis. `openDb()` menjalankan dua langkah migrasi khusus setiap kali server mulai:
 
-1. Tambahkan perubahan ke `SCHEMA` di `server/src/db.ts` (untuk database baru).
-2. Untuk database yang sudah berjalan (produksi), jalankan `alter table …` secara manual atau tambahkan langkah migrasi di `openDb()`.
+| Langkah | Kapan berjalan | Isi |
+| --- | --- | --- |
+| `migrateSessions()` | Sebelum `SCHEMA`, bila `sessions` masih punya kolom `token` | Token mentah diganti hash-nya (lihat [`sessions`](#sessions)). |
+| `migrateUserPhotos()` | Setelah `SCHEMA`, bila `users` belum punya kolom `avatar`/`cover` | `alter table users add column avatar text` dan `… cover text`. |
+
+Tabel baru untuk postingan dan chat (`posts`, `post_photos`, `post_likes`, `post_replies`, `reports`, `messages`, `blocks`) cukup lewat `create table if not exists`. Database lama tetap terbaca dan tidak ada data yang hilang.
+
+Bila skema berubah lagi:
+
+1. Tambahkan perubahan ke `SCHEMA` di `server/src/db.ts` (untuk tabel baru).
+2. Untuk kolom baru di tabel yang sudah ada, tambahkan langkah migrasi di `openDb()` seperti `migrateUserPhotos()`.
 3. Backup database dulu (lihat [deploy.md](deploy.md#backup-database)).

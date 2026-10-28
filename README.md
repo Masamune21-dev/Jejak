@@ -1,6 +1,6 @@
 # Jejak
 
-Aplikasi olahraga ala Strava: rekam lari, sepeda, dan jalan kaki dengan GPS, buat rute sendiri di peta lalu ikuti saat merekam, dan adu waktu di segmen bersama teman.
+Aplikasi olahraga ala Strava: rekam lari, sepeda, dan jalan kaki dengan GPS, buat rute sendiri di peta lalu ikuti saat merekam, adu waktu di segmen bersama teman, serta berbagi lewat postingan dan pesan. Versi app saat ini: **0.2.0**.
 
 Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur, API, data, algoritma, pengembangan, deploy, build APK, desain, dan ide fitur.
 
@@ -10,9 +10,13 @@ Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur,
 - **Buat rute sendiri**: ketuk titik-titik di peta, rute otomatis mengikuti jalan (OpenStreetMap/OSRM), lengkap dengan petunjuk belok berbahasa Indonesia. Ada tombol batal, pulang-pergi, dan kembali ke titik awal.
 - **Ikuti rute**: saat merekam muncul banner belokan berikutnya ("Belok kiri ke Jalan Pemuda · dalam 120 m"), sisa jarak, dan peringatan *keluar dari rute*. HP bergetar saat mendekati belokan atau keluar jalur.
 - **Riwayat & statistik**: split per km, waktu terbaik (400 m, 1 km, 5 km, 10 km, setengah maraton, maraton; sepeda 5–100 km), PR, grafik 12 minggu, total tahun ini dan sepanjang masa.
-- **Akun & teman**: daftar/masuk, cari dan ikuti teman, feed aktivitas, kudos, komentar.
-- **Bagikan ke foto & ekspor GPX**: tempel hasil aktivitas di fotomu dengan 4 template (Nomor dada, Rute, Patok KM, Rambu) untuk postingan atau story, atau ekspor GPX ke aplikasi lain.
+- **Akun & teman**: daftar/masuk, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, kudos, komentar.
+- **Foto profil & sampul**: foto dari galeri atau kamera, dipotong dan diperkecil di HP. Data lokasi GPS di foto dibuang sebelum disimpan, dan foto hanya bisa dilihat pengguna yang sudah masuk.
+- **Bagikan ke foto & ekspor GPX**: 5 stiker transparan ala Strava (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu). Galeri geser, simpan, salin ke papan klip, atau bagikan. Bisa juga ekspor GPX ke aplikasi lain.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
+- **Postingan & Diskusi segmen**: tulis postingan pendek ala X (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen untuk semua pengguna.
+- **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir. Tanpa notifikasi push; pesan baru diambil tiap beberapa detik selama layar terbuka.
+- **Tema & pengaturan**: tema gelap, terang, atau ikuti HP, dengan 5 warna aksen (kuning marka, mint, biru, oranye, pink). Info versi dan pembuat di Pengaturan.
 
 ## Struktur
 
@@ -67,9 +71,11 @@ npx eas-cli@latest build --platform android --profile preview
 
 Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS memberi tautan/QR untuk mengunduh APK ke HP. Profil `production` membuat AAB untuk Google Play (`--profile production`).
 
+App 0.2.0 memakai modul native baru (`expo-clipboard`, `expo-image-manipulator`, `expo-blur`, `expo-application`), jadi APK 0.1.x harus diganti APK baru. Detailnya di [docs/build-apk.md](docs/build-apk.md).
+
 ## Deploy server & web
 
-Server produksi ada di `103.189.249.115` (service systemd `jejak` dengan user non-root `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`). Setelah commit:
+Server produksi ada di `103.189.249.115` (service systemd `jejak` dengan user non-root `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`: database dan folder foto `uploads/`, keduanya wajib ikut backup). Setelah commit:
 
 ```bash
 deploy/deploy.sh
@@ -83,9 +89,9 @@ Skrip ini mengirim commit `HEAD` ke server lewat SSH (`git archive`), menjalanka
 npm run check
 ```
 
-Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun, feed, kudos, rute, segmen, leaderboard), typecheck app, dan ESLint.
+Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun, feed, kudos, rute, segmen, leaderboard, foto, pengikut, postingan, chat), typecheck app, dan ESLint.
 
 ## Catatan
 
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
-- Semua peta memakai ubin OpenStreetMap yang digelapkan agar cocok dengan tema (tanpa kunci API, wajib atribusi). Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).
+- Semua peta memakai ubin OpenStreetMap (tanpa kunci API, wajib atribusi), yang digelapkan di tema gelap dan tampil asli di tema terang. Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).

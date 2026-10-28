@@ -61,8 +61,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Jejak membuka galeri supaya kamu bisa menempelkan hasil aktivitas di fotomu.",
-          "cameraPermission": "Jejak memakai kamera supaya kamu bisa memotret lalu menempelkan hasil aktivitas.",
+          "photosPermission": "Jejak membuka galeri supaya kamu bisa memilih foto profil, foto sampul, foto postingan, dan menempelkan hasil aktivitas di fotomu.",
+          "cameraPermission": "Jejak memakai kamera untuk memotret foto profil, foto sampul, foto postingan, dan foto untuk hasil aktivitas.",
           "microphonePermission": false
         }
       ],

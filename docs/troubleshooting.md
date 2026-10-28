@@ -10,9 +10,10 @@ Masalah yang mungkin muncul, penyebabnya menurut kode, dan cara mengatasinya.
 4. [Peta](#peta)
 5. [Rute](#rute)
 6. [Bagikan dan ekspor](#bagikan-dan-ekspor)
-7. [Segmen, rekor, dan statistik](#segmen-rekor-dan-statistik)
-8. [Pengembangan](#pengembangan)
-9. [Deploy dan server produksi](#deploy-dan-server-produksi)
+7. [Foto, postingan, dan pesan](#foto-postingan-dan-pesan)
+8. [Segmen, rekor, dan statistik](#segmen-rekor-dan-statistik)
+9. [Pengembangan](#pengembangan)
+10. [Deploy dan server produksi](#deploy-dan-server-produksi)
 
 ---
 
@@ -64,7 +65,7 @@ Server membalas 401 karena token tidak dikenal, lalu app otomatis mengeluarkan p
 
 - berpindah server (produksi ↔ lokal): token dari satu database tidak berlaku di database lain;
 - database server lokal dihapus atau diganti;
-- sesi sudah dihapus lewat **Keluar** di perangkat yang sama.
+- sesi sudah dihapus lewat **Keluar** (di Pengaturan) di perangkat yang sama.
 
 Masuk lagi. Di server lokal, daftar akun baru bila akunnya belum ada.
 
@@ -192,14 +193,14 @@ Masih ada rekaman yang belum disimpan atau dibuang (tab Rekam berlabel **Merekam
 
 ### Gambar tidak tersimpan ke galeri
 
-Pesan *Izin galeri ditolak. Aktifkan izin foto untuk Jejak di pengaturan HP.* berarti izin foto ditolak. App memintanya saat **Simpan ke galeri** ditekan; setelah ditolak, sistem bisa tidak bertanya lagi.
+Pesan *Izin galeri ditolak. Aktifkan izin foto untuk Jejak di pengaturan HP.* berarti izin foto ditolak. App memintanya saat **Simpan** di layar Bagikan ditekan; setelah ditolak, sistem bisa tidak bertanya lagi.
 
 - **Android**: Setelan → Aplikasi → Jejak → Izin → **Foto dan video** (atau **Penyimpanan** di Android lama) → Izinkan.
 - **iOS**: Pengaturan → Jejak → **Foto** → pilih *Tambah Foto Saja* atau *Akses Penuh*.
 
-Lalu tekan **Simpan ke galeri** lagi. Bila pesan tidak muncul tetapi gambar tidak terlihat, buka album terbaru/semua foto di galeri; gambar tersimpan sebagai PNG 1080 px.
+Lalu tekan **Simpan** lagi. Bila pesan tidak muncul tetapi gambar tidak terlihat, buka album terbaru/semua foto di galeri; gambar tersimpan sebagai PNG 1080 px.
 
-Sebagai alternatif, tekan **Bagikan** lalu pilih aplikasi galeri atau penyimpanan dari lembar berbagi. Di versi web, tombolnya **Unduh gambar** dan berkas masuk ke folder unduhan browser.
+Sebagai alternatif, tekan **Lainnya** lalu pilih aplikasi galeri atau penyimpanan dari lembar berbagi. Di versi web, tombolnya **Unduh** dan berkas masuk ke folder unduhan browser.
 
 ### "Izin kamera ditolak. Aktifkan kamera untuk Jejak di pengaturan HP."
 
@@ -207,7 +208,7 @@ Izinkan kamera untuk Jejak di pengaturan HP (Android: Setelan → Aplikasi → J
 
 ### "Berbagi tidak tersedia di perangkat ini"
 
-Lembar berbagi sistem tidak tersedia. Pakai **Simpan ke galeri**. Di web, bila browser tidak mendukung berbagi berkas, **Bagikan** otomatis mengunduh `jejak.png`.
+Lembar berbagi sistem tidak tersedia. Pakai **Simpan**. Di web, bila browser tidak mendukung berbagi berkas, **Lainnya** otomatis mengunduh `jejak.png`.
 
 ### Tombol Bagikan / Ekspor GPX tidak ada
 
@@ -216,6 +217,34 @@ Kedua tombol hanya muncul di detail aktivitas **milikmu sendiri**.
 ### Berkas GPX tidak bisa diimpor
 
 Berkas berformat GPX 1.1 standar dengan waktu di setiap titik. Pastikan berkas yang diunggah adalah `.gpx` hasil ekspor yang utuh (bukan pratinjau teks dari aplikasi chat). Aktivitas dengan beberapa jeda menghasilkan beberapa `<trkseg>` dalam satu `<trk>`; bila layanan tujuan bermasalah dengan itu, cobalah aktivitas tanpa jeda untuk memastikan penyebabnya.
+
+### Tombol "Salin" tidak ada
+
+**Salin** hanya ada di HP (tidak di web), dan butuh APK 0.2.0 atau lebih baru (`expo-clipboard`). Di APK 0.1.x layar Bagikan masih versi lama tanpa stiker.
+
+---
+
+## Foto, postingan, dan pesan
+
+### Foto profil, sampul, atau foto postingan tampil kosong
+
+Alamat foto bertanda tangan dan berlaku 1–2 minggu. Penyebab umum:
+
+- layar sudah lama terbuka sehingga alamatnya kedaluwarsa (403 *Alamat foto tidak berlaku*): tarik ke bawah untuk memuat ulang;
+- di server, kunci `MEDIA_SECRET` diganti atau berkas `data/uploads/.kunci-media` hilang: semua alamat lama tidak berlaku, tetapi alamat baru didapat saat data dimuat ulang;
+- database dipulihkan dari backup tanpa folder `data/uploads/` (404 *Foto tidak ditemukan*): pulihkan juga folder itu (lihat [deploy.md](deploy.md#backup-database)).
+
+### "Foto harus berformat JPEG" / "Foto maksimal 2 MB"
+
+App selalu mengubah foto menjadi JPEG yang sudah diperkecil sebelum unggah, jadi pesan ini biasanya hanya muncul saat memanggil API langsung (misalnya dengan `curl`). Kirim JPEG di bawah 2 MB pada isian `foto`.
+
+### Tombol "Kirim pesan" tidak ada di profil teman
+
+Pesan hanya bisa dikirim ke teman yang **saling mengikuti**, dan tidak ada blokir dari kedua pihak. Pastikan kalian berdua sudah saling mengikuti. Bila salah satu memblokir yang lain, tombolnya hilang dan follow kedua arah terputus; setelah blokir dibuka, kalian perlu saling mengikuti lagi.
+
+### Pesan baru tidak muncul atau tidak ada pemberitahuan
+
+Jejak tidak memakai notifikasi push. Pesan baru diambil tiap 3 detik selama percakapan terbuka, daftar pesan tiap 15 detik, dan angka belum dibaca di Beranda tiap 30 detik selama app terbuka. Saat app tertutup tidak ada yang diambil.
 
 ---
 

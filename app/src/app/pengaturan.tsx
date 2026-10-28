@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Application from 'expo-application';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Row, SectionTitle, Segmented, T } from '@/components/ui';
@@ -15,9 +15,9 @@ export default function SettingsScreen() {
   const c = useColors();
   const prefs = useThemePrefs();
   const { signOut } = useAuth();
-  // Versi dari app.json; nomor build Android (versionCode) dari APK yang terpasang. Di web/Expo Go bisa kosong.
-  const version = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '–';
-  const build = Application.nativeBuildVersion;
+  // Versi dari app.json; nomor build Android (versionCode) hanya dari APK sendiri. Di Expo Go angka build milik Expo Go.
+  const version = Constants.expoConfig?.version ?? Application.nativeApplicationVersion ?? '–';
+  const build = Constants.executionEnvironment === ExecutionEnvironment.StoreClient ? null : Application.nativeBuildVersion;
 
   return (
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={styles.page}>

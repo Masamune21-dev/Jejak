@@ -9,6 +9,7 @@ import type { ChatMessage, Profile } from '@shared/api';
 
 import { Avatar, ErrorBox, Loading, T } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
+import { confirm } from '@/lib/confirm';
 import { font, radius, space, useColors } from '@/lib/theme';
 
 const POLL_MS = 3_000;
@@ -110,6 +111,17 @@ export default function ChatScreen() {
     }
   };
 
+  const removeMine = async (m: ChatMessage) => {
+    if (!(await confirm('Hapus pesan', 'Pesan ini juga hilang dari layar temanmu.', 'Hapus'))) return;
+    try {
+      await api(`/chats/messages/${m.id}`, { method: 'DELETE' });
+      setMsgs((prev) => (prev ?? []).filter((x) => x.id !== m.id));
+      void qc.invalidateQueries({ queryKey: ['chats'] });
+    } catch (e) {
+      setError(e);
+    }
+  };
+
   const p = profile.data;
   const canSend = p?.canMessage ?? false;
 
@@ -149,7 +161,10 @@ export default function ChatScreen() {
             </View>
           }
           renderItem={({ item }) => (
-            <View
+            <Pressable
+              onLongPress={item.fromMe ? () => void removeMine(item) : undefined}
+              delayLongPress={350}
+              accessibilityHint={item.fromMe ? 'Tekan lama untuk menghapus' : undefined}
               style={[
                 styles.bubble,
                 item.fromMe
@@ -163,7 +178,7 @@ export default function ChatScreen() {
                 {clock(item.createdAt)}
                 {item.fromMe ? (item.readAt ? ' · dibaca' : ' · terkirim') : ''}
               </Text>
-            </View>
+            </Pressable>
           )}
         />
       )}

@@ -73,6 +73,8 @@ Cara app menerjemahkan nilai ini dijelaskan di [arsitektur.md](arsitektur.md#ala
 | `PORT` | `4000` | Port HTTP. Produksi: `3014`. |
 | `HOST` | `0.0.0.0` | Alamat yang didengar. `0.0.0.0` supaya HP di WiFi bisa masuk; produksi memakai `127.0.0.1` (di belakang nginx). |
 | `DB_PATH` | `server/data/jejak.db` | Berkas SQLite. Folder dibuat otomatis. |
+| `UPLOAD_DIR` | `uploads/` di folder `DB_PATH` (lokal: `server/data/uploads`) | Folder foto profil, sampul, dan postingan. Dibuat otomatis. |
+| `MEDIA_SECRET` | kosong | Kunci HMAC untuk alamat foto bertanda tangan. Bila kosong, kunci acak dibuat sekali di `<UPLOAD_DIR>/.kunci-media`. Lihat [api.md](api.md#get-medianameexpdetiksigtanda-tangan). |
 | `ROUTING_URL` | `https://routing.openstreetmap.de` | Server OSRM untuk rute mengikuti jalan. |
 
 `NODE_ENV=production` dipasang service systemd di produksi tetapi tidak dibaca oleh kode.
@@ -97,6 +99,7 @@ Keluaran:
 Server Jejak jalan di http://localhost:4000
   dari HP di WiFi yang sama: http://192.168.1.23:4000
   database: /…/jejak/server/data/jejak.db
+  foto: /…/jejak/server/data/uploads
 ```
 
 Baris "dari HP di WiFi yang sama" hanya muncul bila `HOST` = `0.0.0.0`. Cek cepat:
@@ -203,9 +206,10 @@ Tes ada di `server/test/` dan memakai `node:test` + `node:assert/strict`:
 | --- | --- |
 | `geo.test.ts` | Haversine, ringkasan (jarak, waktu bergerak, jeda), split, waktu terbaik, tanjakan, pencocokan segmen (searah/berlawanan/paralel/dua kali lewat), progres rute (putaran, pergi-pulang), batas titik cuplikan. |
 | `api.test.ts` | Akun (daftar, masuk, salah sandi, tanpa token), aktivitas + feed + kudos + komentar + statistik, rute, segmen + leaderboard + filter, validasi. |
+| `sosial.test.ts` | Pembersih EXIF JPEG, alamat foto bertanda tangan (berlaku 1–2 minggu, tidak bisa dipalsukan), unggah/hapus foto profil dan sampul, daftar pengikut/mengikuti, postingan (timeline, Diskusi segmen, suka, balasan, hapus, laporan), chat (hanya saling mengikuti, belum dibaca, polling `after`, blokir). Memakai folder unggahan sementara dan kunci tetap. |
 | `helpers.ts` | `walkPath()` membuat track sintetis berkecepatan tetap; `north()`/`east()` menggeser titik dalam meter; `HOME` = Alun-alun Wonogiri. |
 
-Tes API memakai database `:memory:` dan `planRoute` tiruan, jadi tidak ada panggilan jaringan ke OSRM.
+Tes API memakai database `:memory:` dan `planRoute` tiruan, jadi tidak ada panggilan jaringan ke OSRM. Tanpa opsi `media`, `createApp()` memakai folder sementara untuk foto, jadi tes tidak menulis ke `server/data/uploads`.
 
 Menulis tes baru:
 

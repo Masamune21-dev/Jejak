@@ -207,6 +207,10 @@ test('chat: hanya saling mengikuti, belum dibaca, polling, blokir', async () => 
   assert.equal((await call<{ count: number }>('GET', '/chats/unread', budi.token)).body.count, 0);
 
   const reply = await send(budi, ani, 'Gas!');
+  assert.equal((await call('DELETE', `/chats/messages/${reply.body.id}`, ani.token)).status, 403, 'pesan orang lain');
+  const oops = await send(ani, budi, 'salah ketik');
+  assert.equal((await call('DELETE', `/chats/messages/${oops.body.id}`, ani.token)).status, 200);
+  assert.ok(!(await call<ChatMessage[]>('GET', `/chats/${ani.user.id}`, budi.token)).body.some((m) => m.id === oops.body.id));
   const fresh = await call<ChatMessage[]>('GET', `/chats/${budi.user.id}?after=${m1.body.id + 1}`, ani.token);
   assert.deepEqual(fresh.body.map((m) => m.id), [reply.body.id]);
 

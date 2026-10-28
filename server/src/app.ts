@@ -1280,6 +1280,16 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     return c.json({ ok: true });
   });
 
+  // Hapus pesan sendiri (hilang juga dari layar lawan bicara).
+  app.delete('/chats/messages/:id', (c) => {
+    const id = idParam(c);
+    const r = one('select from_id from messages where id = ?', id);
+    if (!r) fail(404, 'Pesan tidak ditemukan');
+    if (r.from_id !== c.var.me.id) fail(403, 'Hanya pengirim yang bisa menghapus pesan');
+    run('delete from messages where id = ?', id);
+    return c.json({ ok: true });
+  });
+
   // Blokir: putus saling mengikuti dan tolak pesan dari kedua arah.
   app.post('/users/:id/block', (c) => {
     const me = c.var.me.id;

@@ -112,7 +112,7 @@ export default function RecordScreen() {
     act(async () => {
       const a = await recorder.upload(title.trim() || titleGuess);
       setTitle('');
-      for (const key of ['feed', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['timeline', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
       router.push(`/aktivitas/${a.id}`);
     });
 

@@ -68,7 +68,7 @@ export default function ActivityScreen() {
   const del = useMutation({
     mutationFn: () => api(`/activities/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      for (const key of ['feed', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['timeline', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
       router.back();
     },
   });
@@ -231,7 +231,7 @@ export default function ActivityScreen() {
                 );
               })}
               <T v="small">
-                {a.type === 'ride' ? 'Kecepatan per km dalam km/j.' : 'Pace per km.'} Batang hijau menandai km tercepat.
+                {a.type === 'ride' ? 'Kecepatan per km dalam km/j.' : 'Pace per km.'} Batang berwarna menandai km tercepat.
               </T>
             </Card>
           </>
@@ -324,7 +324,7 @@ function Comments({ activityId, ownerId }: { activityId: number; ownerId: number
   const q = useQuery({ queryKey: ['comments', activityId], queryFn: () => api<Comment[]>(`/activities/${activityId}/comments`) });
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['comments', activityId] });
-    void qc.invalidateQueries({ queryKey: ['feed'] });
+    void qc.invalidateQueries({ queryKey: ['timeline'] });
   };
   const send = useMutation({
     mutationFn: () => api<Comment>(`/activities/${activityId}/comments`, { body: { body: text } }),

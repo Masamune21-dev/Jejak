@@ -197,10 +197,6 @@ export function openDb(path: string): DB {
   return db;
 }
 
-/**
- * Database lama menyimpan token mentah di kolom `sessions.token`. Ganti dengan hash-nya dalam satu transaksi,
- * jadi tidak ada pengguna yang ter-logout; `last_used_at` dihitung mulai saat migrasi.
- */
 /** Kolom foto profil dan sampul (nama berkas di data/uploads) ditambahkan ke database lama. */
 function migrateUserPhotos(db: DB) {
   const cols = (db.prepare('pragma table_info(users)').all() as { name: string }[]).map((c) => c.name);
@@ -208,6 +204,10 @@ function migrateUserPhotos(db: DB) {
   if (!cols.includes('cover')) db.exec('alter table users add column cover text');
 }
 
+/**
+ * Database lama menyimpan token mentah di kolom `sessions.token`. Ganti dengan hash-nya dalam satu transaksi,
+ * jadi tidak ada pengguna yang ter-logout; `last_used_at` dihitung mulai saat migrasi.
+ */
 function migrateSessions(db: DB) {
   const cols = db.prepare('pragma table_info(sessions)').all() as { name: string }[];
   if (!cols.some((c) => c.name === 'token')) return;

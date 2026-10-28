@@ -6,8 +6,13 @@ Daftar ini disusun dari kebutuhan nyata pelari dan pesepeda di Indonesia, dimula
 
 | Fitur | Catatan |
 | --- | --- |
-| Bagikan ke foto | 4 template (Nomor dada, Rute, Patok KM, Rambu), format postingan 4:5 dan story 9:16, foto dari galeri atau kamera, simpan ke galeri atau bagikan langsung. |
+| Bagikan ke foto | 5 stiker transparan ala Strava (Samping, Daftar, Tumpuk, Ringkas, Baris) dan 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu) dalam galeri geser, format story 9:16 dan postingan 4:5, foto dari galeri atau kamera, simpan, salin ke papan klip, atau bagikan langsung. |
 | Ekspor GPX | File GPX 1.1 standar, bisa diimpor ke Strava, Garmin Connect, Komoot. |
+| Foto profil dan sampul (0.2.0) | Dipotong dan diperkecil di HP, lokasi GPS dibuang, hanya terlihat oleh pengguna yang masuk. |
+| Pengikut dan mengikuti (0.2.0) | Daftar per profil, bisa ikuti langsung dari daftar. |
+| Postingan dan Diskusi segmen (0.2.0) | Teks + sampai 4 foto, suka, balasan, laporan; postingan bertanda segmen tampil di halaman segmen. |
+| Pesan dan blokir (0.2.0) | Chat 1-lawan-1 sesama yang saling mengikuti, dengan polling (tanpa notifikasi push). |
+| Tema dan warna (0.2.0) | Gelap, terang, atau ikuti HP, dengan 5 warna aksen. |
 
 ## Disarankan berikutnya
 

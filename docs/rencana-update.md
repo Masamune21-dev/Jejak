@@ -1,6 +1,6 @@
 # Rencana update berikutnya
 
-Rencana untuk tujuh permintaan pemilik (28 Oktober 2026). Statusnya **rencana**: belum ada yang dikerjakan. Keputusan pemilik sudah masuk (lihat [Keputusan pemilik](#keputusan-pemilik)). Ukuran usaha memakai skala yang sama dengan [ide-fitur.md](ide-fitur.md): **kecil** (beberapa jam), **sedang** (1–3 hari), **besar** (lebih dari seminggu). "Butuh APK baru" berarti fitur memakai modul native baru, jadi harus dibangun ulang lewat EAS (lihat [build-apk.md](build-apk.md)); perubahan tanpa modul native cukup lewat deploy web dan APK berikutnya.
+Rencana untuk tujuh permintaan pemilik (28 Oktober 2026). Status: **ketujuhnya sudah dikerjakan** dan dirilis bersama sebagai **app 0.2.0** (commit `eab9d34`, `140be21`, `098e29a`), bukan bertahap 0.1.1–0.5.0 seperti rencana awal (lihat [Tahapan rilis](#tahapan-rilis)). Rencana di bawah dibiarkan apa adanya sebagai catatan; setiap bagian diberi catatan **Hasil 0.2.0** berisi yang berbeda dari rencana. Perilaku yang berlaku dijelaskan di [fitur.md](fitur.md), [api.md](api.md), dan [data.md](data.md). Keputusan pemilik sudah masuk (lihat [Keputusan pemilik](#keputusan-pemilik)). Ukuran usaha memakai skala yang sama dengan [ide-fitur.md](ide-fitur.md): **kecil** (beberapa jam), **sedang** (1–3 hari), **besar** (lebih dari seminggu). "Butuh APK baru" berarti fitur memakai modul native baru, jadi harus dibangun ulang lewat EAS (lihat [build-apk.md](build-apk.md)); perubahan tanpa modul native cukup lewat deploy web dan APK berikutnya.
 
 ## Daftar isi
 
@@ -22,15 +22,15 @@ Rencana untuk tujuh permintaan pemilik (28 Oktober 2026). Statusnya **rencana**:
 
 ## Ringkasan dan urutan
 
-| # | Fitur | Usaha | Butuh APK baru | Bergantung pada |
-| --- | --- | --- | --- | --- |
-| 6 | Info aplikasi (versi, pembuat) | kecil | ya (`expo-application`) | layar Pengaturan baru |
-| 2 | Daftar pengikut dan mengikuti | kecil | tidak | — |
-| 5 | Tema terang/gelap dan warna tema | sedang–besar | tidak | layar Pengaturan baru |
-| 1 | Foto profil dan foto sampul | sedang | ya (`expo-image-manipulator`, `expo-blur`) | infrastruktur unggah foto (baru) |
-| 3 | Postingan ala X | sedang–besar | tidak (memakai modul dari #1) | unggah foto (#1) bila postingan boleh berfoto |
-| 4 | Chat teman | sedang–besar | tidak | — |
-| 7 | Template bagikan ala Strava (stiker transparan) | sedang | ya (`expo-clipboard`) | — (hanya app) |
+| # | Fitur | Usaha | Butuh APK baru | Bergantung pada | Status |
+| --- | --- | --- | --- | --- | --- |
+| 6 | Info aplikasi (versi, pembuat) | kecil | ya (`expo-application`) | layar Pengaturan baru | dikerjakan, 0.2.0 |
+| 2 | Daftar pengikut dan mengikuti | kecil | tidak | — | dikerjakan, 0.2.0 |
+| 5 | Tema terang/gelap dan warna tema | sedang–besar | tidak | layar Pengaturan baru | dikerjakan, 0.2.0 |
+| 1 | Foto profil dan foto sampul | sedang | ya (`expo-image-manipulator`, `expo-blur`) | infrastruktur unggah foto (baru) | dikerjakan, 0.2.0 |
+| 3 | Postingan ala X | sedang–besar | tidak (memakai modul dari #1) | unggah foto (#1) bila postingan boleh berfoto | dikerjakan, 0.2.0 |
+| 4 | Chat teman | sedang–besar | tidak | — | dikerjakan, 0.2.0 (tahap 1: polling, tanpa foto) |
+| 7 | Template bagikan ala Strava (stiker transparan) | sedang | ya (`expo-clipboard`) | — (hanya app) | dikerjakan, 0.2.0 |
 
 Urutan yang disarankan, dari yang paling murah dan paling banyak dipakai ulang:
 
@@ -40,6 +40,8 @@ Urutan yang disarankan, dari yang paling murah dan paling banyak dipakai ulang:
 3. **Foto profil dan sampul.** Membangun infrastruktur unggah foto (simpan, sajikan, batas ukuran, buang data lokasi di foto) yang dipakai ulang oleh postingan dan chat.
 4. **Postingan.**
 5. **Chat.** Paling besar dan paling sensitif secara privasi.
+
+Yang terjadi: template bagikan dikerjakan lebih dulu (`eab9d34`), lalu server untuk #1–#4 (`140be21`), lalu app untuk tema, Pengaturan, foto, pengikut, postingan, dan chat (`098e29a`). Ketiganya dirilis bersama sebagai 0.2.0.
 
 ---
 
@@ -68,6 +70,17 @@ Urutan yang disarankan, dari yang paling murah dan paling banyak dipakai ulang:
 
 **Uji:** ganti/hapus foto profil dan sampul; foto berlokasi dari kamera, lalu pastikan berkas di server tidak berisi EXIF GPS; foto 20 MB ditolak dengan pesan jelas; tampilan hero dengan foto sangat terang dan sangat gelap.
 
+**Hasil 0.2.0** (dikerjakan, berbeda dari rencana pada hal berikut):
+
+- Foto sampul diganti lewat **ikon gambar** di pojok kiri atas hero, bukan dengan mengetuk area hero. Ganti/hapus memakai menu bawah baru (`Sheet.tsx`).
+- Badan `PUT /me/avatar` dan `/me/cover` berupa `multipart/form-data` dengan isian `foto`.
+- Hanya **JPEG** yang diterima (dicek dari isinya), bukan JPEG/PNG/WebP; tidak ada cek lebar/tinggi. Server tidak menolak JPEG yang membawa EXIF, tetapi **membuang** segmen APP1 (EXIF/XMP) dan APP13 (IPTC) sebelum menyimpan.
+- Nama berkas dari 16 byte acak (32 karakter heksadesimal), bukan 32 byte.
+- Alamat bertanda tangan berlaku **1–2 minggu** (`exp` = awal minggu berjalan + 14 hari), bukan tepat 7 hari, dan tetap sama selama seminggu. `Cache-Control` ditambah `immutable`.
+- Kunci HMAC dari `MEDIA_SECRET` bila diisi; bila tidak, dibuat otomatis di `data/uploads/.kunci-media`. Tidak perlu mengubah `deploy/jejak.service`.
+- Folder unggahan bisa dipindah dengan `UPLOAD_DIR` (bawaan `uploads/` di sebelah database).
+- Diuji di `server/test/sosial.test.ts` (EXIF dibuang, alamat tidak bisa dipalsukan, berkas lama dihapus).
+
 ---
 
 ## 2. Daftar pengikut dan mengikuti
@@ -80,11 +93,13 @@ Urutan yang disarankan, dari yang paling murah dan paling banyak dipakai ulang:
 
 **Uji:** daftar kosong, lebih dari 30 orang (halaman kedua), ikuti/berhenti mengikuti dari daftar memperbarui angka di profil.
 
+**Hasil 0.2.0:** layarnya `koneksi/[id].tsx` (bukan `atlet/[id]/koneksi.tsx`), dibuka dengan `?tab=pengikut` atau `?tab=mengikuti`. Respons `FollowItem[]` = `UserListItem` + `since` (waktu mulai mengikuti), dan `since` dipakai sebagai kursor `before`.
+
 ---
 
 ## 3. Postingan ala X
 
-Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi pemilik:** postingan muncul di feed Beranda (dari orang yang diikuti) dan di tab Diskusi halaman segmen. Tidak ada lini masa umum berisi postingan semua orang.
+Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi pemilik:** postingan muncul di feed Beranda (dari orang yang diikuti) dan di bagian Diskusi halaman segmen. Tidak ada lini masa umum berisi postingan semua orang.
 
 **Yang dilihat pengguna**
 
@@ -95,11 +110,20 @@ Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi 
 
 **Server:** tabel `posts`, `post_photos`, `post_likes`, `post_replies` (lihat [Perubahan data](#perubahan-data)). Endpoint `POST /posts`, `GET /posts/:id`, `DELETE /posts/:id`, `GET /segments/:id/posts?before=`, suka/batal suka, balasan, dan `POST /posts/:id/report`. `GET /feed` menggabungkan aktivitas dan postingan berdasarkan waktu.
 
-**App:** layar `tulis.tsx` (form + pilih foto + pilih segmen), kartu `PostCard` di feed, tab Diskusi di `segmen/[id].tsx`, layar detail postingan dengan balasan.
+**App:** layar `tulis.tsx` (form + pilih foto + pilih segmen), kartu `PostCard` di feed, bagian Diskusi di `segmen/[id].tsx`, layar detail postingan dengan balasan.
 
 **Moderasi minimal:** batas laju menulis (zona `jejak_write` sudah ada: 30 per menit), panjang teks, laporan masuk ke tabel `reports` untuk ditinjau pemilik. Teks ditampilkan sebagai teks biasa (React Native tidak menjalankan HTML), jadi aman dari injeksi skrip.
 
 **Uji:** posting teks saja, dengan foto, dengan segmen; muncul di feed pengikut tapi tidak di feed orang lain; muncul di tab Diskusi segmen; hapus; laporkan.
+
+**Hasil 0.2.0:**
+
+- **Diskusi** dibuat sebagai **bagian di bawah halaman segmen** (di bawah leaderboard, dengan tombol **Tulis**), bukan tab terpisah. Isinya 20 postingan terbaru; postingan dari orang yang kamu blokir disembunyikan.
+- `GET /feed` **tidak** diubah supaya APK 0.1.x tetap jalan. Feed gabungan dibuat sebagai endpoint baru **`GET /timeline`** (item ber-`kind` `activity`/`post` dengan kursor `at`), dan Beranda 0.2.0 memakainya.
+- Kotak **Tulis** menggantikan kotak **Teman** di Aksi cepat Beranda (cari teman tetap lewat ikon di kanan atas).
+- Segmen hanya bisa ditandai bila layar Tulis dibuka dari halaman segmen; belum ada pemilih segmen di Tulis. Server menerima `activityId` (aktivitas sendiri), tetapi app belum menyediakan cara memilihnya.
+- **Laporkan** langsung terkirim dengan alasan tetap *Dilaporkan dari aplikasi*, tanpa pilihan alasan. Belum ada layar untuk meninjau laporan; tinjau lewat tabel `reports` (contoh kueri di [data.md](data.md#reports)).
+- Suka postingan sendiri diperbolehkan (berbeda dengan kudos).
 
 ---
 
@@ -131,6 +155,15 @@ Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi 
 
 **Uji:** dua akun saling kirim; pengguna yang tidak saling mengikuti ditolak; blokir; percakapan panjang (gulir ke atas memuat pesan lama); keyboard tidak menutup kolom ketik.
 
+**Hasil 0.2.0:**
+
+- Tahap 1 (polling) dikerjakan: percakapan tiap 3 detik selama terbuka, daftar percakapan tiap 15 detik, angka belum dibaca di Beranda tiap 30 detik. Tanpa notifikasi push, tanpa WebSocket.
+- Tambahan: `GET /chats/unread` untuk angka di ikon Beranda.
+- **Hapus pesan sendiri:** tekan lama gelembung pesan sendiri, lalu `DELETE /chats/messages/:id` (hanya pengirim).
+- **Belum dikerjakan:** kirim foto di chat (tahap 2; kolom `messages.photo` tidak dibuat).
+- Blokir juga mencegah saling mengikuti lagi selama blokir masih ada (`POST /users/:id/follow` → 403), dan menyembunyikan postingan orang yang diblokir dari Diskusi segmen.
+- Catatan privasi (tidak terenkripsi ujung-ke-ujung) ditulis di Pengaturan → Tentang aplikasi.
+
 ---
 
 ## 5. Tema terang/gelap dan warna tema
@@ -156,6 +189,16 @@ Pilihan disimpan di HP dan berlaku segera tanpa membuka ulang app.
 
 **Uji:** tangkapan layar semua layar utama di 2 mode × 5 warna; kontras teks minimal WCAG AA (4,5:1); ganti tema saat merekam tidak mengganggu perekam.
 
+**Hasil 0.2.0:**
+
+- Tidak memakai `ThemeProvider` (context). State tema hidup di modul `theme.ts` dan dibaca dengan `useSyncExternalStore` (`useColors()`, `useIsDark()`, `useThemePrefs()`), seperti perekam. Disimpan di AsyncStorage dengan kunci `jejak.tema` dan dimuat sebelum layar pembuka ditutup.
+- Pilihan tema di layar bernama **Ikuti HP / Gelap / Terang**. Bawaan tetap **Gelap** (bukan mengikuti sistem).
+- Bila aksen **biru**, garis rute rencana memakai **toska** (`#2EC5D6` gelap, `#0E8A99` terang), bukan ungu muda, karena ungu sudah dipakai segmen.
+- Setiap aksen membawa `base`, `deep`, `ink`, dan `onLight`. Turunannya `accentText` (teks aksen; di terang memakai `onLight`) dan `track` (garis aktivitas; di terang memakai `deep`).
+- `palette` tetap ada, tetapi hanya untuk layar crash (palet bawaan gelap + kuning). Semua layar lain sudah memakai `useColors()`.
+- Stiker bagikan bisa memakai warna aksen untuk garis rute (**Warna tema**); template lama tetap berwarna tetap.
+- Palet lengkap ada di [desain.md](desain.md#token).
+
 ---
 
 ## 6. Info aplikasi
@@ -174,6 +217,8 @@ Pilihan disimpan di HP dan berlaku segera tanpa membuka ulang app.
 **Versi:** setiap rilis menaikkan `expo.version` di `app/app.json` (rilis berikutnya 0.2.0). Nomor build Android sudah naik otomatis di EAS untuk profil `production`; profil `preview` perlu dinaikkan manual atau diubah ke `autoIncrement`.
 
 **Uji:** angka versi dan build sesuai dengan yang tampil di halaman build EAS.
+
+**Hasil 0.2.0:** dikerjakan sesuai rencana. `expo.version` sekarang `0.2.0`. Versi diambil dari `Constants.expoConfig.version` (cadangan `Application.nativeApplicationVersion`), nomor build dari `Application.nativeBuildVersion` dan disembunyikan di Expo Go. Tentang aplikasi juga memuat catatan privasi (chat tidak terenkripsi ujung-ke-ujung, lokasi di foto dibuang). Profil `preview` belum diubah ke `autoIncrement`, jadi nomor build APK `preview` tetap harus dinaikkan manual.
 
 ---
 
@@ -212,6 +257,15 @@ Empat template lama (Nomor dada, Rute, Patok KM, Rambu) tetap ada di akhir galer
 
 **Uji:** kelima template untuk lari dan sepeda; aktivitas tanpa data ketinggian; simpan PNG lalu buka di galeri, bagian transparan harus tetap transparan (bukan hitam/putih); tempel di Instagram Story; dengan foto latar; rute sangat pendek dan sangat panjang.
 
+**Hasil 0.2.0:**
+
+- Stiker dibuat di berkas baru `components/ShareStickers.tsx`; `ShareTemplates.tsx` tetap berisi empat template lama.
+- Format bawaan sekarang **Story 9:16** (sebelumnya Postingan 4:5), dan halaman pertama galeri adalah stiker *Samping*.
+- Angka berpasangan di stiker *Samping*, dari bawah ke atas: Jarak + Kenaikan Elev., Waktu + Pace/Kecepatan, Kecepatan Maks + Elev Maks (yang tersedia; untuk lari hanya Elev Maks). Waktu ditulis *25m 2d* / *1j 5m*.
+- Warna garis: oranye `#FF5A1F` (bawaan), putih, atau warna aksen.
+- Tombol **Salin** tidak ditampilkan di web; di web **Simpan** menjadi **Unduh**.
+- Tombol langsung ke Instagram Stories tetap tidak dikerjakan, sesuai rencana.
+
 ---
 
 ## Perubahan data
@@ -229,6 +283,8 @@ Empat template lama (Nomor dada, Rute, Patok KM, Rambu) tetap ada di akhir galer
 
 Semua tabel baru dibuat dengan `create table if not exists`, kolom baru lewat migrasi saat server mulai. Database lama tetap terbaca dan tidak ada data yang hilang. [data.md](data.md) dan [api.md](api.md) diperbarui di setiap tahap.
 
+**Hasil 0.2.0:** semua tabel di atas dibuat, kecuali kolom `messages.photo` (foto di chat belum dikerjakan). Kolom `users.avatar`/`users.cover` ditambahkan oleh `migrateUserPhotos()` di `openDb()`. Indeks baru: `posts_user`, `posts_segment`, `post_replies_post`, `messages_pair`, `messages_unread`. Skema lengkap di [data.md](data.md).
+
 ## Dependensi baru
 
 Dipasang dengan `npx expo install <paket>` supaya versinya cocok dengan SDK 58.
@@ -241,6 +297,8 @@ Dipasang dengan `npx expo install <paket>` supaya versinya cocok dengan SDK 58.
 | `expo-clipboard` | Salin stiker ke papan klip (#7) | ya |
 
 Server tidak butuh paket baru; HMAC untuk URL foto memakai `node:crypto`. WebSocket (bila nanti dibutuhkan untuk chat) butuh `@hono/node-ws`. Notifikasi push tidak dipakai, jadi `expo-notifications` tidak dipasang.
+
+**Hasil 0.2.0:** keempat paket terpasang (`expo-application` ~58.1.2, `expo-blur` ~58.0.5, `expo-clipboard` ~58.0.4, `expo-image-manipulator` ~58.0.15). Server memang tanpa paket baru. Lihat [build-apk.md](build-apk.md#modul-native-baru-di-020).
 
 ## Keamanan dan privasi
 
@@ -256,19 +314,37 @@ Server tidak butuh paket baru; HMAC untuk URL foto memakai `node:crypto`. WebSoc
 - **Chat:** hanya peserta yang bisa membaca; hanya sesama yang saling mengikuti; blokir; tidak terenkripsi ujung-ke-ujung (diumumkan ke pengguna).
 - **Daftar pengikut:** terlihat oleh semua pengguna yang login, seperti Strava (keputusan pemilik). Mengikuti tetap tidak membuka zona privasi jejak.
 
+**Hasil 0.2.0:**
+
+- Lokasi di foto: app menyimpan ulang foto (EXIF hilang), dan server **membuang** segmen EXIF/XMP/IPTC dari setiap JPEG, bukan menolaknya.
+- Unggahan: dicek dari isi (JPEG saja), maksimal 2 MB per foto, nama acak. Unggah foto profil/sampul (`PUT`) dan postingan (`POST`) terkena zona `jejak_write` nginx (30 per menit per IP); zona unggah tersendiri tidak dibuat.
+- Folder `data/uploads/` sudah masuk panduan backup di [deploy.md](deploy.md#backup-database).
+- Kunci HMAC tidak disimpan di `deploy/jejak.service`: diambil dari `MEDIA_SECRET` (opsional, lewat drop-in systemd) atau berkas `.kunci-media` yang dibuat otomatis di folder unggahan. Alamat foto berlaku 1–2 minggu.
+- Laporan postingan ditinjau langsung di database (tabel `reports`).
+
 ## Tahapan rilis
+
+Rencana awal (tidak dipakai):
 
 | Rilis | Isi | Deploy | APK baru |
 | --- | --- | --- | --- |
-| **0.1.1** | Template bagikan ala Strava: 5 stiker transparan, galeri geser, simpan/salin/bagikan | web | ya |
-| **0.2.0** | Layar Pengaturan, Info aplikasi, daftar pengikut/mengikuti, tema terang/gelap + warna | server + web | ya |
-| **0.3.0** | Foto profil dan sampul, infrastruktur unggah | server + web | ya |
-| **0.4.0** | Postingan, tab Diskusi segmen | server + web | ya (layar baru) |
-| **0.5.0** | Chat dengan polling, blokir | server + web | ya |
+| 0.1.1 | Template bagikan ala Strava: 5 stiker transparan, galeri geser, simpan/salin/bagikan | web | ya |
+| 0.2.0 | Layar Pengaturan, Info aplikasi, daftar pengikut/mengikuti, tema terang/gelap + warna | server + web | ya |
+| 0.3.0 | Foto profil dan sampul, infrastruktur unggah | server + web | ya |
+| 0.4.0 | Postingan, tab Diskusi segmen | server + web | ya (layar baru) |
+| 0.5.0 | Chat dengan polling, blokir | server + web | ya |
+
+Yang dikerjakan: **satu rilis**.
+
+| Rilis | Isi | Deploy | APK baru |
+| --- | --- | --- | --- |
+| **0.2.0** | Ketujuh fitur: stiker bagikan ala Strava, layar Pengaturan + Info aplikasi, tema terang/gelap + 5 warna aksen, foto profil dan sampul, daftar pengikut/mengikuti, postingan + Diskusi segmen (bagian di bawah halaman segmen), chat dengan polling + blokir | server + web | ya (`expo-clipboard`, `expo-image-manipulator`, `expo-blur`, `expo-application`) |
 
 Notifikasi push tidak masuk rencana (keputusan pemilik).
 
-Setiap rilis: `npm run check` lolos, uji di HP dengan APK `preview`, backup database sebelum deploy server, lalu merge ke `main` dan push.
+Urutan memasang 0.2.0: backup database, `deploy/deploy.sh server` (endpoint lama tetap ada, jadi APK 0.1.x tidak terganggu), `deploy/deploy.sh web`, lalu build APK `preview`, uji di HP, dan bagikan.
+
+Setiap rilis: `npm run check` lolos, uji di HP dengan APK `preview`, backup database (dan sejak 0.2.0 folder `data/uploads/`) sebelum deploy server, lalu merge ke `main` dan push.
 
 ## Keputusan pemilik
 
@@ -276,7 +352,7 @@ Dijawab pemilik pada 28 Oktober 2026.
 
 | # | Pertanyaan | Keputusan |
 | --- | --- | --- |
-| 1 | Arti "posting di segmen kaya X" | Postingan di feed Beranda (dari yang diikuti) + tab **Diskusi** di halaman segmen. Tanpa lini masa umum. |
+| 1 | Arti "posting di segmen kaya X" | Postingan di feed Beranda (dari yang diikuti) + **Diskusi** di halaman segmen (di 0.2.0 berupa bagian di bawah halaman segmen, bukan tab). Tanpa lini masa umum. |
 | 2 | Siapa boleh dikirimi pesan | Hanya **sesama yang saling mengikuti**. |
 | 3 | Notifikasi chat saat app tertutup | **Tidak pakai notifikasi push.** |
 | 4 | Warna aksen | **5 pilihan:** kuning marka (bawaan), hijau mint, biru, oranye, merah muda. |

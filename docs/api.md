@@ -8,12 +8,15 @@ Semua endpoint ada di `server/src/app.ts`. Tipe respons merujuk ke `shared/api.t
 2. [Ringkasan endpoint](#ringkasan-endpoint)
 3. [Autentikasi](#autentikasi)
 4. [Pengguna dan teman](#pengguna-dan-teman)
-5. [Statistik](#statistik)
-6. [Feed dan aktivitas](#feed-dan-aktivitas)
-7. [Kudos dan komentar](#kudos-dan-komentar)
-8. [Routing dan rute](#routing-dan-rute)
-9. [Segmen dan leaderboard](#segmen-dan-leaderboard)
-10. [Error umum](#error-umum)
+5. [Foto profil dan sampul](#foto-profil-dan-sampul)
+6. [Statistik](#statistik)
+7. [Feed dan aktivitas](#feed-dan-aktivitas)
+8. [Kudos dan komentar](#kudos-dan-komentar)
+9. [Routing dan rute](#routing-dan-rute)
+10. [Segmen dan leaderboard](#segmen-dan-leaderboard)
+11. [Postingan](#postingan)
+12. [Chat dan blokir](#chat-dan-blokir)
+13. [Error umum](#error-umum)
 
 ---
 
@@ -26,8 +29,8 @@ Semua endpoint ada di `server/src/app.ts`. Tipe respons merujuk ke `shared/api.t
 
 **Di produksi semua path diawali `/api`.** nginx membuang awalan itu sebelum meneruskan ke Node (`/api/feed` → `/feed`). Path di dokumen ini ditulis tanpa awalan.
 
-- Badan permintaan dan respons berupa JSON. Kirim `Content-Type: application/json`.
-- Endpoint yang butuh login memakai header `Authorization: Bearer <token>`.
+- Badan permintaan dan respons berupa JSON. Kirim `Content-Type: application/json`. Pengecualian: unggah foto (`PUT /me/avatar`, `PUT /me/cover`, `POST /posts`) memakai `multipart/form-data`, dan `GET /media/:name` membalas gambar JPEG.
+- Endpoint yang butuh login memakai header `Authorization: Bearer <token>`. Yang tidak butuh login hanya `/health`, `/auth/register`, `/auth/login`, dan `/media/:name`.
 - Error selalu berbentuk `{ "error": "<pesan dalam bahasa Indonesia>" }` dengan kode HTTP yang sesuai, kecuali error dari nginx (lihat [Error umum](#error-umum)).
 - Waktu (`startedAt`, `createdAt`, `date`) berupa string ISO 8601 UTC, misalnya `2026-10-28T06:12:03.000Z`.
 - Jarak dalam meter (`…M`), durasi dalam detik (`…S`), kecepatan dalam m/s (`…Mps`).
@@ -50,14 +53,24 @@ curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
 | GET | `/health` | tidak | `{ ok: true }` |
 | POST | `/auth/register` | tidak | `AuthResult` (201) |
 | POST | `/auth/login` | tidak | `AuthResult` |
+| GET | `/media/:name?exp=&sig=` | tidak | gambar JPEG |
 | POST | `/logout` | ya | `{ ok: true }` |
 | GET | `/me` | ya | `Profile` |
+| PUT | `/me/avatar` | ya | `Profile` |
+| DELETE | `/me/avatar` | ya | `Profile` |
+| PUT | `/me/cover` | ya | `Profile` |
+| DELETE | `/me/cover` | ya | `Profile` |
 | GET | `/users?q=` | ya | `UserListItem[]` |
 | GET | `/users/:id` | ya | `Profile` |
 | POST | `/users/:id/follow` | ya | `Profile` |
 | DELETE | `/users/:id/follow` | ya | `Profile` |
+| GET | `/users/:id/followers?before=` | ya | `FollowItem[]` |
+| GET | `/users/:id/following?before=` | ya | `FollowItem[]` |
+| POST | `/users/:id/block` | ya | `Profile` |
+| DELETE | `/users/:id/block` | ya | `Profile` |
 | GET | `/users/:id/activities?before=` | ya | `ActivitySummary[]` |
 | GET | `/users/:id/stats?type=&tz=` | ya | `Stats` |
+| GET | `/timeline?before=` | ya | `TimelineItem[]` |
 | GET | `/feed?before=` | ya | `ActivitySummary[]` |
 | POST | `/activities` | ya | `Activity` (201) |
 | GET | `/activities/:id` | ya | `Activity` |
@@ -77,8 +90,23 @@ curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
 | GET | `/segments?near=` | ya | `SegmentSummary[]` |
 | GET | `/segments/:id?filter=` | ya | `Segment` |
 | DELETE | `/segments/:id` | ya | `{ ok: true }` |
+| GET | `/segments/:id/posts?before=` | ya | `Post[]` |
+| POST | `/posts` | ya | `Post` (201) |
+| GET | `/posts/:id` | ya | `Post` |
+| DELETE | `/posts/:id` | ya | `{ ok: true }` |
+| POST | `/posts/:id/like` | ya | `LikeState` |
+| DELETE | `/posts/:id/like` | ya | `LikeState` |
+| GET | `/posts/:id/replies` | ya | `PostReply[]` |
+| POST | `/posts/:id/replies` | ya | `PostReply` (201) |
+| DELETE | `/replies/:id` | ya | `{ ok: true }` |
+| POST | `/posts/:id/report` | ya | `{ ok: true }` (201) |
+| GET | `/chats` | ya | `ChatSummary[]` |
+| GET | `/chats/unread` | ya | `{ count }` |
+| GET | `/chats/:userId?before=&after=` | ya | `ChatMessage[]` |
+| POST | `/chats/:userId` | ya | `ChatMessage` (201) |
+| POST | `/chats/:userId/read` | ya | `{ ok: true }` |
 
-Untuk semua path dengan `:id`: bila `id` bukan bilangan bulat positif, respons **404** *Tidak ditemukan*.
+Untuk semua path dengan `:id` atau `:userId`: bila nilainya bukan bilangan bulat positif, respons **404** *Tidak ditemukan*.
 
 ---
 
@@ -126,7 +154,7 @@ Tanpa login.
 
 Body: `{ "username": "...", "password": "..." }`. Username di-trim dan diubah ke huruf kecil (maksimal 50 karakter). Kata sandi dicocokkan apa adanya; bila tidak cocok, server mencoba sekali lagi dengan versi tanpa spasi di awal/akhir. Ini untuk akun yang didaftarkan sebelum commit `a273d33`, saat kata sandi masih di-trim waktu daftar.
 
-Respons **200** `AuthResult`.
+Respons **200** `AuthResult`. Berbeda dengan daftar, `user` di sini juga memuat `avatarUrl` (alamat foto profil bertanda tangan, atau `null`; lihat [Foto profil dan sampul](#foto-profil-dan-sampul)). Alamat ini kedaluwarsa dalam 1–2 minggu, jadi app mengambil foto profil terbaru dari `GET /users/:id`, bukan dari data login yang tersimpan.
 
 | Kode | Pesan |
 | --- | --- |
@@ -156,14 +184,18 @@ nginx membatasi per IP asli (IP dari Cloudflare dipulihkan lebih dulu):
 | Zona | Berlaku untuk | Batas |
 | --- | --- | --- |
 | `jejak_auth` | `/api/auth/` (daftar dan masuk) | 10 permintaan per menit, `burst=10`, `nodelay` |
-| `jejak_api` | Semua `/api/` lainnya | 10 permintaan per detik, `burst=100`, `nodelay` |
-| `jejak_write` | `POST`, `PATCH`, `DELETE` di `/api/` (simpan aktivitas, segmen, rute, kudos, komentar, follow, minta rute ke OSRM) | 30 permintaan per menit, `burst=30`, `nodelay` |
+| `jejak_api` | Semua `/api/` lainnya, termasuk `/api/media/` (foto) | 10 permintaan per detik, `burst=100`, `nodelay` |
+| `jejak_write` | `POST`, `PUT`, `PATCH`, `DELETE` di `/api/` (simpan aktivitas, segmen, rute, kudos, komentar, follow, unggah foto profil/sampul, postingan, suka, balasan, pesan chat, blokir, minta rute ke OSRM) | 30 permintaan per menit, `burst=30`, `nodelay` |
 
-Kelebihannya dibalas **429** oleh nginx dengan badan JSON `{ "error": "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi." }`, jadi app menampilkan pesan itu. Karena dihitung per IP, pengguna di balik IP operator seluler yang sama berbagi batas. Batasnya dibuat longgar untuk itu. Tidak ada batas laju di server lokal.
+Kelebihannya dibalas **429** oleh nginx dengan badan JSON `{ "error": "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi." }`, jadi app menampilkan pesan itu. Karena dihitung per IP, pengguna di balik IP operator seluler yang sama berbagi batas. Batasnya dibuat longgar untuk itu. Tidak ada batas laju di server lokal. Unggah foto profil/sampul (`PUT`) ikut dihitung `jejak_write`.
+
+Polling chat memakai `GET` (tiap 3 detik di layar percakapan, tiap 15 detik di daftar pesan, tiap 30 detik untuk angka belum dibaca), jadi hanya dihitung `jejak_api`.
 
 ---
 
 ## Pengguna dan teman
+
+Setiap `UserSummary` (`user` di aktivitas, komentar, rute, segmen, leaderboard, postingan, balasan, chat, serta baris `UserListItem`/`FollowItem`) berisi `id`, `username`, `name`, dan `avatarUrl`: alamat foto profil bertanda tangan, atau `null` bila belum ada foto. Satu-satunya yang tanpa `avatarUrl` adalah `user` di respons `POST /auth/register`.
 
 ### `GET /me`
 
@@ -176,7 +208,7 @@ Mencari pengguna lain berdasarkan potongan `username` atau `name` (`LIKE %q%`, k
 Respons `UserListItem[]`:
 
 ```json
-[{ "id": 2, "username": "fajar", "name": "Fajar", "isFollowing": false }]
+[{ "id": 2, "username": "fajar", "name": "Fajar", "avatarUrl": null, "isFollowing": false }]
 ```
 
 ### `GET /users/:id`
@@ -186,9 +218,13 @@ Respons `Profile`:
 | Field | Arti |
 | --- | --- |
 | `id`, `username`, `name` | Data pengguna. |
+| `avatarUrl`, `coverUrl` | Alamat foto profil dan foto sampul (bertanda tangan), atau `null`. |
 | `createdAt` | Waktu daftar. |
 | `followers`, `following` | Jumlah pengikut dan yang diikuti. |
 | `isFollowing` | Apakah kamu mengikuti dia. |
+| `isMutual` | Kalian saling mengikuti. |
+| `blocked` | Kamu memblokir dia. Tidak memberi tahu apakah dia memblokirmu. |
+| `canMessage` | Kamu boleh mengirim pesan kepadanya: bukan dirimu, saling mengikuti, dan tidak ada blokir dari kedua pihak. |
 | `isMe` | Apakah ini dirimu. |
 | `totals` | `{ count, distanceM, movingS }` semua jenis aktivitas. |
 
@@ -201,13 +237,98 @@ Mengikuti / berhenti mengikuti. Keduanya idempoten. Respons `Profile` pengguna t
 | Kode | Pesan |
 | --- | --- |
 | 400 | `Tidak bisa mengikuti diri sendiri` (hanya POST) |
+| 403 | `Tidak bisa mengikuti pengguna ini` (hanya POST): salah satu dari kalian memblokir yang lain. |
 | 404 | `Pengguna tidak ditemukan` |
+
+### `GET /users/:id/followers?before=<ISO>` dan `GET /users/:id/following?before=<ISO>`
+
+Daftar pengikut `:id` (`followers`) dan orang yang diikuti `:id` (`following`). Bisa dibuka semua pengguna yang login, untuk profil siapa pun. Urut dari yang paling baru mulai mengikuti, **30 per halaman**.
+
+Respons `FollowItem[]` = `UserListItem` ditambah `since`:
+
+```json
+[{ "id": 3, "username": "cici", "name": "Cici", "avatarUrl": null, "isFollowing": false, "since": "2026-10-28T06:12:03.512Z" }]
+```
+
+| Field | Arti |
+| --- | --- |
+| `isFollowing` | Apakah **kamu** (yang login) mengikuti orang di baris itu. |
+| `since` | Waktu mulai mengikuti (`follows.created_at`). |
+
+Paginasi: kirim `before` = `since` baris terakhir halaman sebelumnya. Tanpa `before` dipakai `'9999'`. Halaman berisi kurang dari 30 berarti sudah habis.
+
+Error: **404** `Pengguna tidak ditemukan`.
 
 ### `GET /users/:id/activities?before=<ISO>`
 
 Aktivitas milik pengguna `:id`, terbaru dulu, **20 per halaman**. Respons `ActivitySummary[]`. Bila pengguna tidak ada, hasilnya array kosong.
 
 Paginasi: kirim `before` = `startedAt` aktivitas terakhir di halaman sebelumnya. Server mengambil `started_at < before` (perbandingan string ISO). Tanpa `before` dipakai nilai `'9999'` (artinya semua). Halaman berisi kurang dari 20 berarti sudah habis.
+
+---
+
+## Foto profil dan sampul
+
+Foto (profil, sampul, dan foto postingan) disimpan sebagai berkas JPEG di folder unggahan server (`data/uploads/`, lihat [deploy.md](deploy.md#tata-letak-server)), dengan nama acak 32 karakter heksadesimal (`<16 byte acak>.jpg`). Kodenya ada di `server/src/media.ts`.
+
+### `PUT /me/avatar` dan `PUT /me/cover`
+
+Mengganti foto profil (`avatar`) atau foto sampul (`cover`) milikmu. Badan `multipart/form-data` dengan satu berkas di isian **`foto`**:
+
+```bash
+curl -s -X PUT "$API/me/avatar" -H "Authorization: Bearer TOKEN" -F "foto=@avatar.jpg;type=image/jpeg"
+```
+
+- Hanya **JPEG**, dicek dari isinya (diawali `FF D8` dan strukturnya utuh), bukan dari nama berkas atau `Content-Type`.
+- Maksimal **2 MB** (`MAX_PHOTO_BYTES`). App sudah memperkecil foto sebelum unggah (avatar 512 px, sampul 1600 px, JPEG kualitas 0,8), jadi biasanya jauh di bawah batas.
+- Sebelum disimpan, server membuang segmen **APP1** (EXIF dan XMP) dan **APP13** (IPTC) dari JPEG. Di sanalah kamera menyimpan lokasi GPS foto. Data gambarnya tidak diubah.
+- Berkas lama dihapus setelah yang baru tersimpan.
+
+Respons `Profile` milikmu dengan `avatarUrl`/`coverUrl` baru.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Foto wajib diunggah` (tidak ada berkas di isian `foto`, termasuk bila badan bukan multipart) |
+| 400 | `Foto harus berformat JPEG` (bukan JPEG atau berkas terpotong) |
+| 400 | `Isi permintaan harus multipart/form-data` (badan multipart rusak) |
+| 413 | `Foto maksimal 2 MB` |
+
+### `DELETE /me/avatar` dan `DELETE /me/cover`
+
+Menghapus foto profil atau sampul (berkas di server ikut dihapus) sehingga app kembali menampilkan inisial atau gradasi bawaan. Idempoten. Respons `Profile` milikmu.
+
+### `GET /media/:name?exp=<detik>&sig=<tanda tangan>`
+
+**Tanpa login.** Tag `<img>` di versi web tidak bisa mengirim header `Authorization`, jadi akses foto dijaga dengan **alamat bertanda tangan**. Semua `avatarUrl`, `coverUrl`, dan `photos` di respons API berbentuk path relatif terhadap alamat API:
+
+```
+/media/3f9c0a…e1.jpg?exp=1793836800&sig=Jb2k…
+```
+
+App menempelkan alamat API di depannya (`mediaUri()` di `app/src/lib/api.ts`).
+
+| Bagian | Isi |
+| --- | --- |
+| `name` | Nama berkas: 32 karakter `a-f0-9` + `.jpg`. Nama lain langsung ditolak, jadi path seperti `../jejak.db` tidak bisa dipakai. |
+| `exp` | Waktu kedaluwarsa (epoch, **detik**) = awal minggu berjalan + 14 hari. Minggu dihitung dalam kelipatan 7 hari sejak epoch Unix, jadi berganti setiap Kamis 00.00 UTC (07.00 WIB). Contoh: alamat yang dibuat 28 Oktober 2026 berlaku sampai 5 November 2026 00.00 UTC. Akibatnya alamat **berlaku 1–2 minggu** dan **sama persis selama satu minggu**, sehingga cache gambar di HP tetap terpakai. |
+| `sig` | HMAC-SHA256 dari `"<name>.<exp>"` dengan kunci server, base64url. |
+
+Kunci HMAC diambil dari variabel `MEDIA_SECRET` bila diisi. Bila tidak, server membuat 32 byte acak sekali dan menyimpannya di berkas `.kunci-media` (izin 600) di dalam folder unggahan. Mengganti kunci membuat semua alamat lama tidak berlaku; app mendapat alamat baru saat memuat ulang data.
+
+Alamat foto hanya muncul di respons endpoint yang butuh login. Siapa pun yang memegang alamatnya tetap bisa membuka foto itu sampai kedaluwarsa.
+
+Respons **200** dengan badan JPEG dan header:
+
+| Header | Nilai |
+| --- | --- |
+| `Content-Type` | `image/jpeg` |
+| `Cache-Control` | `private, max-age=604800, immutable` |
+| `X-Content-Type-Options` | `nosniff` |
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Alamat foto tidak berlaku` (nama tidak sah, `exp`/`sig` tidak ada, tanda tangan salah, atau sudah kedaluwarsa) |
+| 404 | `Foto tidak ditemukan` (tanda tangan benar tetapi berkasnya sudah dihapus) |
 
 ---
 
@@ -241,7 +362,43 @@ curl -s "$API/users/1/stats?type=run&tz=420" -H "Authorization: Bearer TOKEN"
 
 ## Feed dan aktivitas
 
+### `GET /timeline?before=<ISO>`
+
+Feed Beranda sejak app 0.2.0: **aktivitas dan postingan** milikmu dan milik orang yang kamu ikuti, digabung urut waktu (terbaru dulu), 20 per halaman. Respons `TimelineItem[]`; setiap item punya dua field tambahan:
+
+| Field | Arti |
+| --- | --- |
+| `kind` | `activity` (sisanya berisi field `ActivitySummary`, lihat `GET /feed`) atau `post` (sisanya berisi field `Post`, lihat [Postingan](#postingan)). |
+| `at` | Waktu urutan dan kursor halaman: `startedAt` untuk aktivitas, `createdAt` untuk postingan. |
+
+Contoh satu item postingan:
+
+```json
+{
+  "kind": "post",
+  "at": "2026-10-28T07:01:10.120Z",
+  "id": 4,
+  "user": { "id": 2, "username": "budi", "name": "Budi", "avatarUrl": null },
+  "body": "Jalannya licin habis hujan.",
+  "photos": [],
+  "segment": { "id": 7, "name": "Tanjakan" },
+  "activity": null,
+  "createdAt": "2026-10-28T07:01:10.120Z",
+  "likes": 0,
+  "hasLiked": false,
+  "replies": 0
+}
+```
+
+`id` aktivitas dan `id` postingan berasal dari tabel berbeda dan bisa sama; bedakan dengan `kind` (app memakai kunci `kind-id`, misalnya `post-4`).
+
+Paginasi: kirim `before` = `at` item terakhir di halaman sebelumnya. Server mengambil paling banyak 20 aktivitas (`started_at < before`) dan 20 postingan (`created_at < before`), menggabungkan, mengurutkan, lalu mengembalikan 20 teratas. Halaman berisi kurang dari 20 berarti sudah habis.
+
+Pengguna yang kamu blokir atau yang memblokirmu tidak muncul, karena blokir memutus follow kedua arah.
+
 ### `GET /feed?before=<ISO>`
+
+Hanya aktivitas (tanpa postingan). Dipertahankan untuk APK lama (0.1.x); app 0.2.0 memakai `GET /timeline`.
 
 Aktivitas milikmu dan milik orang yang kamu ikuti, terbaru dulu, 20 per halaman. Paginasi `before` sama dengan [aktivitas pengguna](#get-usersidactivitiesbeforeiso). Respons `ActivitySummary[]`:
 
@@ -522,12 +679,213 @@ Error: **404** `Segmen tidak ditemukan`.
 
 ### `DELETE /segments/:id`
 
-Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di `prCount` aktivitas tidak dihitung ulang. Respons `{ "ok": true }`.
+Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di `prCount` aktivitas tidak dihitung ulang. Postingan yang menandai segmen ini tetap ada, tetapi `segment`-nya menjadi `null`. Respons `{ "ok": true }`.
 
 | Kode | Pesan |
 | --- | --- |
 | 403 | `Hanya pembuat yang bisa menghapus` |
 | 404 | `Segmen tidak ditemukan` |
+
+### `GET /segments/:id/posts?before=<ISO>`
+
+**Diskusi segmen**: semua postingan yang menandai segmen ini, dari siapa pun (tidak hanya yang kamu ikuti), terbaru dulu, **20 per halaman**. Postingan dari orang yang **kamu** blokir tidak ikut. Respons `Post[]`.
+
+Paginasi: `before` = `createdAt` postingan terakhir di halaman sebelumnya; tanpa `before` dipakai `'9999'`. Segmen yang tidak ada menghasilkan array kosong, bukan 404.
+
+---
+
+## Postingan
+
+Postingan pendek ala X: teks, sampai 4 foto, dan bisa menandai satu segmen atau satu aktivitas sendiri. Postingan muncul di [`GET /timeline`](#get-timelinebeforeiso) penulisnya dan para pengikutnya, dan, bila menandai segmen, di [Diskusi segmen](#get-segmentsidpostsbeforeiso). Tidak ada lini masa umum berisi postingan semua orang.
+
+Bentuk `Post`:
+
+| Field | Arti |
+| --- | --- |
+| `id`, `user`, `createdAt` | Identitas postingan. `user` = `UserSummary` penulis. |
+| `body` | Teks (boleh kosong bila ada foto). Ditampilkan app sebagai teks biasa. |
+| `photos` | Alamat foto bertanda tangan (lihat [`GET /media/:name`](#get-medianameexpdetiksigtanda-tangan)), urut sesuai unggahan. |
+| `segment` | `{ id, name }` segmen yang ditandai, atau `null` (juga bila segmennya sudah dihapus). |
+| `activity` | `{ id, title, type }` aktivitas yang ditautkan, atau `null` (juga bila aktivitasnya sudah dihapus). |
+| `likes`, `hasLiked` | Jumlah suka dan apakah kamu sudah menyukai. |
+| `replies` | Jumlah balasan. |
+
+### `POST /posts`
+
+Badan `multipart/form-data`:
+
+| Isian | Aturan |
+| --- | --- |
+| `body` | Teks, di-trim, maksimal 500 karakter. Boleh kosong bila ada foto. |
+| `foto` | Opsional, 0–4 berkas (isian `foto` diulang). Aturan tiap berkas sama dengan [`PUT /me/avatar`](#put-meavatar-dan-put-mecover): JPEG, maksimal 2 MB, EXIF/XMP/IPTC dibuang. |
+| `segmentId` | Opsional. Segmen siapa pun. |
+| `activityId` | Opsional. Hanya aktivitas milikmu sendiri. App 0.2.0 belum memakainya. |
+
+```bash
+curl -s -X POST "$API/posts" -H "Authorization: Bearer TOKEN" \
+  -F "body=Jalannya licin habis hujan, hati-hati di tikungan." -F "segmentId=7" -F "foto=@jalan.jpg;type=image/jpeg"
+```
+
+Respons **201** `Post`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tulis sesuatu atau pilih foto` (teks kosong dan tanpa foto, termasuk bila badan bukan multipart) |
+| 400 | `Postingan maksimal 500 karakter` |
+| 400 | `Maksimal 4 foto` |
+| 400 | `Foto wajib diunggah` (isian `foto` berisi teks, bukan berkas), `Foto harus berformat JPEG` |
+| 400 | `Isi permintaan harus multipart/form-data` (badan multipart rusak) |
+| 403 | `Hanya aktivitas sendiri yang bisa ditautkan` |
+| 404 | `Segmen tidak ditemukan`, `Aktivitas tidak ditemukan` |
+| 413 | `Foto maksimal 2 MB` (per foto) |
+
+Postingan dan fotonya disimpan dalam satu transaksi.
+
+### `GET /posts/:id`
+
+Respons `Post`. Semua pengguna yang login bisa membaca postingan siapa pun lewat id-nya. Error: **404** `Postingan tidak ditemukan`.
+
+### `DELETE /posts/:id`
+
+Hanya penulisnya. Suka, balasan, dan laporan postingan ikut terhapus (cascade), berkas fotonya dihapus dari folder unggahan. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Hanya pemilik yang bisa menghapus` |
+| 404 | `Postingan tidak ditemukan` |
+
+### `POST /posts/:id/like` dan `DELETE /posts/:id/like`
+
+Menyukai / batal menyukai, idempoten. Berbeda dengan kudos, postingan sendiri boleh disukai. Respons `LikeState`:
+
+```json
+{ "likes": 1, "hasLiked": true }
+```
+
+Error: **404** `Postingan tidak ditemukan` (hanya POST). `DELETE` tidak memeriksa keberadaan postingan; untuk id yang tidak ada hasilnya `{ "likes": 0, "hasLiked": false }`.
+
+### `GET /posts/:id/replies`
+
+Respons `PostReply[]` urut dari yang terlama: `{ id, user, body, createdAt }`. Untuk postingan yang tidak ada hasilnya array kosong.
+
+### `POST /posts/:id/replies`
+
+Body JSON `{ "body": "Siap, makasih infonya" }` (1–500 karakter setelah di-trim). Respons **201** `PostReply`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Balasan wajib diisi`, `Balasan maksimal 500 karakter`, `Isi permintaan harus JSON` |
+| 404 | `Postingan tidak ditemukan` |
+
+### `DELETE /replies/:id`
+
+Boleh dilakukan penulis balasan atau penulis postingan. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Tidak boleh menghapus balasan ini` |
+| 404 | `Balasan tidak ditemukan` |
+
+### `POST /posts/:id/report`
+
+Melaporkan postingan. Body JSON `{ "reason": "spam" }` (1–300 karakter). Laporan masuk ke tabel `reports` untuk ditinjau pemilik app langsung di database; belum ada endpoint untuk membacanya. Laporan berulang dari orang yang sama tetap dicatat. App mengirim alasan tetap *Dilaporkan dari aplikasi*. Respons **201** `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Alasan wajib diisi`, `Alasan maksimal 300 karakter`, `Isi permintaan harus JSON` |
+| 404 | `Postingan tidak ditemukan` |
+
+---
+
+## Chat dan blokir
+
+Percakapan 1-lawan-1. Pesan tersimpan di database server sebagai teks biasa, **tidak terenkripsi ujung-ke-ujung**, dan ikut backup. Tidak ada notifikasi push (keputusan pemilik); app mengambil pesan baru dengan polling (lihat [arsitektur.md](arsitektur.md#polling-chat)).
+
+**Siapa boleh mengirim:** hanya sesama yang **saling mengikuti**, dan tidak ada blokir dari kedua pihak (`Profile.canMessage`). Riwayat percakapan tetap bisa dibaca kedua peserta walau syarat itu tidak lagi terpenuhi (berhenti mengikuti atau diblokir). Hanya dua peserta yang bisa membaca percakapan mereka. Pengirim bisa menghapus pesannya sendiri lewat `DELETE /chats/messages/:id`.
+
+Bentuk `ChatMessage`:
+
+| Field | Arti |
+| --- | --- |
+| `id` | Naik terus; dipakai sebagai kursor `before`/`after`. |
+| `fromMe` | `true` bila kamu pengirimnya. |
+| `body` | Isi pesan. |
+| `createdAt` | Waktu kirim. |
+| `readAt` | Waktu dibaca penerima, atau `null`. App menampilkannya sebagai *terkirim* / *dibaca* di pesanmu sendiri. |
+
+### `GET /chats`
+
+Daftar percakapan, yang pesan terakhirnya paling baru di atas, maksimal 50. Respons `ChatSummary[]`:
+
+| Field | Arti |
+| --- | --- |
+| `user` | `UserSummary` lawan bicara. |
+| `last` | `ChatMessage` terakhir di percakapan itu. |
+| `unread` | Jumlah pesan dari dia yang belum kamu baca. |
+
+### `GET /chats/unread`
+
+Jumlah semua pesan masuk yang belum dibaca, dari siapa pun: `{ "count": 2 }`. Dipakai untuk angka di ikon pesan Beranda.
+
+### `GET /chats/:userId?before=<id>` dan `?after=<id>`
+
+Pesan antara kamu dan `:userId`, selalu urut dari yang terlama ke yang terbaru.
+
+| Parameter | Hasil |
+| --- | --- |
+| tanpa parameter | 30 pesan terakhir. |
+| `before=<id>` | 30 pesan sebelum pesan `id` (untuk menggulir ke pesan lama). Halaman berisi kurang dari 30 berarti sudah habis. |
+| `after=<id>` | Sampai 100 pesan setelah pesan `id` (untuk polling pesan baru). Bila keduanya dikirim, `after` yang dipakai. |
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tidak bisa mengobrol dengan diri sendiri` |
+| 404 | `Pengguna tidak ditemukan` |
+
+Membaca percakapan tidak menandainya sudah dibaca; app memanggil `POST /chats/:userId/read` terpisah.
+
+### `POST /chats/:userId`
+
+Body JSON `{ "body": "Besok lari pagi?" }` (1–1000 karakter setelah di-trim). Respons **201** `ChatMessage`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tidak bisa mengobrol dengan diri sendiri` |
+| 400 | `Pesan wajib diisi`, `Pesan maksimal 1000 karakter`, `Isi permintaan harus JSON` |
+| 403 | `Tidak bisa mengirim pesan ke pengguna ini` (salah satu memblokir yang lain) |
+| 403 | `Pesan hanya bisa dikirim ke teman yang saling mengikuti` |
+| 404 | `Pengguna tidak ditemukan` |
+
+### `POST /chats/:userId/read`
+
+Menandai semua pesan dari `:userId` kepadamu yang belum dibaca sebagai sudah dibaca (`read_at` = sekarang). Respons `{ "ok": true }`. Error sama dengan `GET /chats/:userId`.
+
+### `DELETE /chats/messages/:id`
+
+Menghapus pesan **milik sendiri**; pesan hilang juga dari percakapan lawan bicara. Respons `{ "ok": true }`.
+
+| Kode | Pesan |
+| --- | --- |
+| 403 | `Hanya pengirim yang bisa menghapus pesan` |
+| 404 | `Pesan tidak ditemukan` |
+
+### `POST /users/:id/block` dan `DELETE /users/:id/block`
+
+Memblokir / membuka blokir. Keduanya idempoten. Respons `Profile` pengguna target (`blocked` dan `canMessage` terbaru).
+
+Akibat blokir (dari kedua arah, kecuali disebut lain):
+
+- follow kedua arah langsung dihapus, dan `POST /users/:id/follow` ditolak 403 selama blokir masih ada;
+- pesan baru ditolak 403; riwayat percakapan tetap bisa dibaca;
+- aktivitas dan postingan masing-masing hilang dari `GET /timeline` yang lain (karena follow terputus);
+- postingan dari orang yang kamu blokir tidak tampil di Diskusi segmen milikmu (hanya satu arah).
+
+Profil, aktivitas, dan postingan tetap bisa dibuka lewat id-nya. Orang yang diblokir tidak diberi tahu. Membuka blokir tidak mengembalikan follow yang sudah terhapus.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Tidak bisa memblokir diri sendiri` (hanya POST) |
+| 404 | `Pengguna tidak ditemukan` |
 
 ---
 
@@ -535,7 +893,10 @@ Menghapus segmen beserta semua waktunya. Status PR segmen yang sudah tercatat di
 
 | Kode | Pesan | Penyebab |
 | --- | --- | --- |
-| 400 | `Isi permintaan harus JSON` | Badan bukan JSON valid atau bukan objek, pada endpoint yang membaca badan. |
+| 400 | `Isi permintaan harus JSON` | Badan bukan JSON valid atau bukan objek, pada endpoint yang membaca badan JSON. |
+| 400 | `Isi permintaan harus multipart/form-data` | Badan multipart rusak pada endpoint unggah foto. |
+| 403 | `Alamat foto tidak berlaku` | Alamat `/media/…` tanpa tanda tangan, salah, atau kedaluwarsa. |
+| 413 | `Foto maksimal 2 MB` | Satu foto lebih dari 2 MB (dari server, JSON). |
 | 401 | `Sesi berakhir, silakan masuk lagi` | Token tidak ada, salah, atau sudah logout. Juga untuk path yang tidak dikenal bila tanpa token. |
 | 404 | `Tidak ditemukan` | `:id` bukan bilangan bulat positif. |
 | 404 | `404 Not Found` (teks biasa, bukan JSON) | Path tidak dikenal dengan token valid (bawaan Hono). |

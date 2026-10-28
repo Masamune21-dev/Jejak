@@ -5,18 +5,19 @@ APK Android dibangun di cloud **EAS Build** memakai akun Expo, tanpa Android Stu
 ## Daftar isi
 
 1. [Konfigurasi yang sudah ada](#konfigurasi-yang-sudah-ada)
-2. [Membuat APK](#membuat-apk)
-3. [Memasang APK di HP](#memasang-apk-di-hp)
-4. [Ukuran APK: hanya arm64-v8a](#ukuran-apk-hanya-arm64-v8a)
-5. [Profil build](#profil-build)
-6. [Server yang dipakai APK](#server-yang-dipakai-apk)
-7. [Keystore (kunci tanda tangan)](#keystore-kunci-tanda-tangan)
-8. [Peta di APK Android: MapLibre](#peta-di-apk-android-maplibre)
-9. [Lokasi latar](#lokasi-latar)
-10. [Izin foto dan kamera](#izin-foto-dan-kamera)
-11. [Bila APK tertutup sendiri (crash)](#bila-apk-tertutup-sendiri-crash)
-12. [Menaikkan versi](#menaikkan-versi)
-13. [Uji cepat setelah memasang APK](#uji-cepat-setelah-memasang-apk)
+2. [Modul native baru di 0.2.0](#modul-native-baru-di-020)
+3. [Membuat APK](#membuat-apk)
+4. [Memasang APK di HP](#memasang-apk-di-hp)
+5. [Ukuran APK: hanya arm64-v8a](#ukuran-apk-hanya-arm64-v8a)
+6. [Profil build](#profil-build)
+7. [Server yang dipakai APK](#server-yang-dipakai-apk)
+8. [Keystore (kunci tanda tangan)](#keystore-kunci-tanda-tangan)
+9. [Peta di APK Android: MapLibre](#peta-di-apk-android-maplibre)
+10. [Lokasi latar](#lokasi-latar)
+11. [Izin foto dan kamera](#izin-foto-dan-kamera)
+12. [Bila APK tertutup sendiri (crash)](#bila-apk-tertutup-sendiri-crash)
+13. [Menaikkan versi](#menaikkan-versi)
+14. [Uji cepat setelah memasang APK](#uji-cepat-setelah-memasang-apk)
 
 ---
 
@@ -31,7 +32,7 @@ Proyek sudah ditautkan ke EAS sebagai **@masamune21/jejak** (hasil `eas init`). 
 | `expo.extra.eas.projectId` | ID proyek EAS (jangan diubah) |
 | `expo.android.package` | `id.my.masamune.jejak` |
 | `expo.ios.bundleIdentifier` | `id.my.masamune.jejak` |
-| `expo.version` | `0.1.0` |
+| `expo.version` | `0.2.0` |
 | `expo.scheme` | `jejak` |
 
 Jadi `eas init` **tidak perlu** dijalankan lagi.
@@ -46,9 +47,28 @@ Plugin di `expo.plugins` yang memengaruhi build native:
 | `@maplibre/maplibre-react-native` | Kode native MapLibre untuk peta Android. |
 | `expo-secure-store` | Penyimpanan token di Keystore/Keychain. |
 | `expo-sharing` | Lembar berbagi sistem (Bagikan, Ekspor GPX). |
-| `expo-image-picker` | Memilih foto dan memotret untuk Bagikan (lihat [Izin foto dan kamera](#izin-foto-dan-kamera)). |
+| `expo-image-picker` | Memilih foto dan memotret untuk Bagikan, foto profil, foto sampul, dan postingan (lihat [Izin foto dan kamera](#izin-foto-dan-kamera)). |
 | `expo-media-library` | Menyimpan gambar ke galeri. |
 | `expo-build-properties` | Hanya ABI `arm64-v8a` dan `useLegacyPackaging` (lihat [Ukuran APK](#ukuran-apk-hanya-arm64-v8a)). |
+
+---
+
+## Modul native baru di 0.2.0
+
+App 0.2.0 menambah empat modul yang membawa kode native. Modul ini tidak butuh plugin di `app.json`, tetapi kodenya baru ada di APK setelah **build ulang lewat EAS**:
+
+| Paket | Untuk | Dipakai di |
+| --- | --- | --- |
+| `expo-clipboard` | Menyalin stiker PNG ke papan klip (**Salin** di layar Bagikan) | `aktivitas/[id]/bagikan.tsx` |
+| `expo-image-manipulator` | Memperkecil foto dan menyimpannya ulang sebagai JPEG, sekaligus membuang EXIF (lokasi GPS) | `lib/photo.ts` |
+| `expo-blur` | Blur di belakang baris angka hero profil saat ada foto sampul (`dimezisBlurViewSdk31Plus`: aktif di Android 12 ke atas) | `components/ProfileView.tsx` |
+| `expo-application` | Versi dan nomor build di Pengaturan → Tentang aplikasi | `pengaturan.tsx` |
+
+Keempatnya ada di Expo Go, jadi pengembangan tetap bisa lewat Expo Go. Dipasang dengan `npx expo install <paket>` supaya versinya cocok dengan SDK 58.
+
+Akibatnya **APK 0.1.x harus diganti APK 0.2.0**. App tidak memakai pembaruan OTA (`expo-updates` tidak terpasang), jadi APK lama tetap menjalankan JavaScript lamanya: tidak ada tema, foto, postingan, maupun chat, tetapi tetap bisa dipakai karena server masih melayani endpoint lama (`/feed`). Versi web langsung mendapat semua fitur setelah `deploy/deploy.sh web`.
+
+Urutan rilis 0.2.0: deploy server dulu (`deploy/deploy.sh server`), lalu build APK `preview`, uji, lalu bagikan.
 
 ---
 
@@ -217,7 +237,7 @@ Beberapa merek HP mematikan layanan latar secara agresif untuk menghemat baterai
 
 ## Izin foto dan kamera
 
-Fitur **Bagikan ke foto** memakai dua plugin dengan teks izin berikut (`app.json`):
+Fitur **Bagikan ke foto**, ganti **foto profil/sampul**, dan **Tulis postingan** memakai dua plugin dengan teks izin berikut (`app.json`). Teksnya masih hanya menyebut Bagikan, walau izin yang sama juga dipakai untuk foto profil dan postingan:
 
 | Plugin | Izin | Teks yang tampil |
 | --- | --- | --- |
@@ -229,7 +249,9 @@ Fitur **Bagikan ke foto** memakai dua plugin dengan teks izin berikut (`app.json
 
 `expo-media-library` diatur dengan `granularPermissions: ["photo"]` (hanya foto, tanpa video/audio) dan `isAccessMediaLocationEnabled: false` (tidak membaca lokasi di dalam foto). Saat menyimpan, app meminta izin **hanya menulis** untuk foto.
 
-Izin kamera diminta saat menekan **Kamera**, izin galeri saat menekan **Simpan ke galeri**. Bila ditolak, app menampilkan pesan dan izinnya harus diubah manual di Pengaturan HP.
+Izin kamera diminta saat menekan **Kamera** atau **Ambil foto**, izin menyimpan ke galeri saat menekan **Simpan** di layar Bagikan. Bila ditolak, app menampilkan pesan dan izinnya harus diubah manual di Pengaturan HP.
+
+Foto yang diunggah (profil, sampul, postingan) disimpan ulang oleh `expo-image-manipulator` sebelum dikirim, jadi lokasi GPS di EXIF tidak ikut terunggah. `expo-clipboard` tidak butuh izin untuk menyalin.
 
 ---
 
@@ -289,8 +311,8 @@ Tanpa `-d`, `adb logcat -b crash` terus menampilkan crash baru secara langsung s
 
 | Nomor | Sumber | Cara menaikkan |
 | --- | --- | --- |
-| Versi tampilan (`versionName`, mis. `0.1.0`) | `expo.version` di `app/app.json` | Ubah manual, commit. |
-| Kode versi Android (`versionCode`) | Disimpan di server EAS (`cli.appVersionSource: "remote"` di `eas.json`), bukan di `app.json` | Profil `production` menaikkannya otomatis setiap build (`autoIncrement: true`). Profil `preview` tidak. |
+| Versi tampilan (`versionName`, sekarang `0.2.0`) | `expo.version` di `app/app.json` | Ubah manual, commit. Tampil di Pengaturan → Tentang aplikasi → **Versi**. |
+| Kode versi Android (`versionCode`) | Disimpan di server EAS (`cli.appVersionSource: "remote"` di `eas.json`), bukan di `app.json` | Profil `production` menaikkannya otomatis setiap build (`autoIncrement: true`). Profil `preview` tidak. Tampil sebagai *(build N)* di samping versi di Pengaturan. |
 
 Perintah untuk melihat dan mengatur kode versi di EAS:
 
@@ -311,4 +333,7 @@ Untuk rilis baru: naikkan `expo.version`, commit, lalu build `production` (kode 
 4. Mulai rekam, izinkan lokasi **sepanjang waktu**; pil menunjukkan *GPS aktif, tetap merekam saat layar mati* dan notifikasi *Jejak sedang merekam* muncul.
 5. Kunci layar, berjalan beberapa menit, buka lagi: jarak bertambah.
 6. Jeda → tekan-tahan **Tahan untuk selesai** → Simpan; detail aktivitas terbuka dengan split dan peta.
-7. Di detail: **Bagikan** → pilih foto → **Simpan ke galeri** (izinkan foto); lalu **Ekspor GPX** membuka lembar berbagi.
+7. Di detail: **Bagikan** → geser ke beberapa stiker → **Simpan** (izinkan foto) lalu buka di galeri: bagian luar stiker harus transparan, bukan hitam/putih. Coba **Salin** lalu tempel di Story Instagram. Lalu **Ekspor GPX** membuka lembar berbagi.
+8. Profil → roda gigi → **Pengaturan**: versi tampil *0.2.0 (build N)*; ganti tema ke **Terang** dan warna aksen, semua layar dan peta ikut berganti tanpa membuka ulang app.
+9. Profil → ketuk avatar → **Ambil foto**: foto profil tampil; ganti juga foto sampul dan pastikan baris Aktivitas / Jarak / Waktu terbaca (blur di Android 12 ke atas).
+10. Dengan dua akun yang saling mengikuti: **Kirim pesan** dari profil, balas dari akun lain; pesan muncul dalam beberapa detik dan angka belum dibaca di Beranda bertambah.

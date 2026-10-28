@@ -29,8 +29,12 @@ Host SSH bawaan di `deploy/deploy.sh` adalah `root@103.189.249.115`; bisa digant
 ├── repo.new/   Hanya ada sementara selama deploy berlangsung (atau tertinggal bila deploy gagal).
 ├── web/        Hasil `expo export --platform web` (diunggah dengan rsync).
 └── data/       Database SQLite: jejak.db, jejak.db-wal, jejak.db-shm. Milik user `jejak`,
-                izin 700/600: hanya proses API (dan root) yang bisa membacanya.
+    │           izin 700/600: hanya proses API (dan root) yang bisa membacanya.
+    └── uploads/    Foto profil, sampul, dan postingan (<32 hex>.jpg) + .kunci-media
+                    (kunci tanda tangan alamat foto). Dibuat otomatis oleh API saat mulai.
 ```
+
+Foto tidak disajikan nginx dari folder ini. `data/` tertutup untuk nginx (izin 700), jadi foto selalu lewat API (`/api/media/…`) dengan alamat bertanda tangan (lihat [api.md](api.md#foto-profil-dan-sampul)).
 
 Server **tidak** butuh akses ke GitHub (repo boleh private): kode dikirim dari komputer pengembang lewat SSH. Untuk melihat versi yang sedang jalan: `cat /var/www/jejak.masamune.my.id/repo/REVISION`.
 
@@ -68,6 +72,21 @@ Konfigurasi `deploy/jejak.service`:
 
 Sandbox: `ProtectSystem=strict` membuat seluruh sistem berkas hanya-baca kecuali `ReadWritePaths=/var/www/jejak.masamune.my.id/data`. Ditambah `ProtectHome`, `PrivateTmp`, `PrivateDevices`, `NoNewPrivileges`, tanpa capability (`CapabilityBoundingSet=` kosong), dan hanya soket IPv4/IPv6/Unix. Koneksi keluar ke OSRM tetap bisa. Bila suatu saat server perlu menulis ke folder lain, folder itu harus ditambahkan ke `ReadWritePaths`.
 
+Folder foto `data/uploads/` ada di dalam `ReadWritePaths`, jadi tidak perlu pengaturan tambahan. Karena `UMask=0077`, folder itu dan berkas di dalamnya hanya bisa dibaca user `jejak`. Jangan mengisi `UPLOAD_DIR` dengan folder di luar `data/`, karena service tidak boleh menulis di sana.
+
+### Kunci alamat foto (`MEDIA_SECRET`, opsional)
+
+Alamat foto ditandatangani HMAC. Tanpa pengaturan apa pun, API membuat kunci acak sekali dan menyimpannya di `data/uploads/.kunci-media` (izin 600). Ini cara bawaan dan cukup, asalkan berkas itu ikut backup.
+
+Bila ingin kunci dari environment, isi `MEDIA_SECRET` lewat *drop-in* systemd, bukan di `deploy/jejak.service` (berkas itu ada di repo dan ditimpa setiap deploy):
+
+```bash
+systemctl edit jejak          # tambahkan:  [Service]  Environment=MEDIA_SECRET=<string acak panjang>
+systemctl restart jejak
+```
+
+Drop-in tersimpan di `/etc/systemd/system/jejak.service.d/override.conf` dan tidak tersentuh deploy. Bila `MEDIA_SECRET` diisi, `.kunci-media` tidak dipakai. Mengganti kunci (atau kehilangan `.kunci-media`) membuat semua alamat foto lama tidak berlaku: foto tetap ada, app mendapat alamat baru saat memuat ulang data, dan cache gambar di HP diunduh ulang.
+
 Perintah yang berguna (di server):
 
 ```bash
@@ -97,7 +116,7 @@ Lokasi:
 | `location` | Perilaku |
 | --- | --- |
 | `/api/auth/` | Batas laju zona `jejak_auth`: 10 permintaan/menit per IP, `burst=10 nodelay`, kelebihan → **429**. Diteruskan ke `http://127.0.0.1:3014/auth/`. |
-| `/api/` | Batas laju zona `jejak_api` (10 permintaan/detik per IP, `burst=100`) dan `jejak_write` (hanya `POST`/`PATCH`/`DELETE`: 30/menit per IP, `burst=30`; `map $request_method` memberi kunci kosong untuk metode lain, yang tidak dihitung nginx). Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
+| `/api/` | Batas laju zona `jejak_api` (10 permintaan/detik per IP, `burst=100`) dan `jejak_write` (hanya `POST`/`PUT`/`PATCH`/`DELETE`: 30/menit per IP, `burst=30`; `map $request_method` memberi kunci kosong untuk metode lain, yang tidak dihitung nginx). Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
 | `@jejak_terlalu_banyak` | `error_page 429` untuk semua lokasi: badan JSON `{"error":"Terlalu banyak permintaan. …"}` supaya app menampilkan pesannya. |
 | `/_expo/` | Berkas build web ber-hash: `expires 1y`, `Cache-Control: public, immutable`, 404 bila tidak ada. |
 | `/` | Berkas web; bila tidak ada, `$uri.html`, lalu `/index.html` (aplikasi satu halaman). `Cache-Control: no-cache`. |
@@ -164,7 +183,7 @@ Skrip memakai `set -euo pipefail`, jadi langkah yang gagal menghentikan deploy. 
 
 Penting: web dibangun dari **isi folder kerja lokal**, bukan dari commit. Perubahan di `app/` atau `shared/` yang belum di-commit ikut terpasang; skrip hanya menampilkan *Peringatan: versi web dibangun dari folder kerja, termasuk perubahan app/shared yang belum di-commit.* lalu tetap melanjutkan. Pastikan `git status` bersih sebelum `deploy.sh web`.
 
-Database tidak disentuh oleh deploy. Skema tabel baru dibuat otomatis saat server mulai.
+Database dan folder foto (`data/uploads/`) tidak disentuh oleh deploy. Skema tabel baru, kolom baru, dan folder `uploads/` dibuat otomatis saat server mulai.
 
 ---
 
@@ -195,7 +214,7 @@ Yang biasa muncul di log Node:
 
 | Pesan | Arti |
 | --- | --- |
-| `Server Jejak jalan di http://127.0.0.1:3014` | Proses baru mulai (setelah deploy, restart, atau crash). |
+| `Server Jejak jalan di http://127.0.0.1:3014` | Proses baru mulai (setelah deploy, restart, atau crash). Diikuti baris `database: …` dan `foto: …` (folder unggahan yang dipakai). |
 | `[routing] gagal, pakai garis lurus: …` | OSRM gagal/timeout; pengguna mendapat rute garis lurus. |
 | Stack trace error | Penyebab respons 500 *Terjadi kesalahan di server*. |
 
@@ -224,20 +243,33 @@ node -e "new (require('node:sqlite').DatabaseSync)('/var/www/jejak.masamune.my.i
 
 `vacuum into` gagal bila berkas tujuan sudah ada, jadi beri nama berbeda tiap kali (misalnya bertanggal).
 
+### Folder foto
+
+Sejak app 0.2.0, **folder `data/uploads/` wajib ikut backup** bersama database: database hanya menyimpan nama berkas foto, dan `.kunci-media` di dalamnya adalah kunci alamat foto. Berkas foto tidak pernah diubah setelah ditulis (diganti = berkas baru), jadi aman disalin selagi server jalan:
+
+```bash
+tar -C /var/www/jejak.masamune.my.id/data -czf /root/backup/jejak-uploads-$(date +%F).tar.gz uploads
+```
+
+Buat backup database dan folder foto pada waktu yang berdekatan. Foto yang diunggah di antara keduanya bisa tidak cocok dengan database, tetapi akibatnya hanya foto kosong (404) atau berkas yang tidak dirujuk, bukan error.
+
 Saran:
 
 - Jadwalkan harian lewat `cron` dan simpan beberapa salinan terakhir.
 - Salin juga ke luar server, misalnya dari komputer lokal: `rsync -az root@103.189.249.115:/root/backup/ ./backup-jejak/`.
-- Database berisi akun (hash kata sandi), hash token sesi, dan jejak GPS lengkap pengguna (termasuk titik awal/akhir yang disembunyikan dari pengguna lain). Simpan backup di tempat yang aman.
+- Database berisi akun (hash kata sandi), hash token sesi, jejak GPS lengkap pengguna (termasuk titik awal/akhir yang disembunyikan dari pengguna lain), postingan, dan **pesan chat** (tidak terenkripsi). Folder foto berisi foto pengguna dan kunci alamat foto. Simpan backup di tempat yang aman.
+- Perkiraan ruang foto: 1.000 pengguna × (avatar ±60 KB + sampul ±300 KB) ≈ 360 MB, belum termasuk foto postingan (maksimal 4 per postingan). Pantau dengan `du -sh /var/www/jejak.masamune.my.id/data/uploads`.
 
 Memulihkan backup:
 
 ```bash
 systemctl stop jejak
 cd /var/www/jejak.masamune.my.id/data
-mkdir -p rusak && mv jejak.db jejak.db-wal jejak.db-shm rusak/ 2>/dev/null
+mkdir -p rusak && mv jejak.db jejak.db-wal jejak.db-shm uploads rusak/ 2>/dev/null
 cp /root/backup/jejak-2026-10-28.db jejak.db
+tar -xzf /root/backup/jejak-uploads-2026-10-28.tar.gz      # mengembalikan uploads/ termasuk .kunci-media
 chown -R jejak:jejak . && chmod 600 jejak.db     # salinan dari root harus bisa dibuka user jejak
+chmod 700 uploads
 systemctl start jejak
 ```
 
@@ -295,6 +327,8 @@ Bila `nginx -t` gagal saat deploy, skrip otomatis mengembalikan config sebelumny
 
 Rollback kode jarang membutuhkan rollback database, karena skema umumnya hanya bertambah (`create table if not exists`). Bila data rusak, pulihkan dari backup seperti di atas; data sejak backup itu akan hilang.
 
+Rollback ke kode sebelum 0.2.0 (sebelum commit `140be21`) aman untuk database: tabel postingan/chat dan kolom `users.avatar`/`users.cover` dibiarkan saja oleh kode lama. Tetapi APK 0.2.0 yang sudah terpasang akan gagal di layar yang memanggil endpoint baru (`/timeline`, `/chats`, `/posts`, foto).
+
 Pengecualian: commit `cf2ef66` memigrasi tabel `sessions` (kolom `token` menjadi `token_hash` + `last_used_at`). Kode dari sebelum commit itu tidak bisa membaca tabel baru dan setiap permintaan yang butuh login akan error 500. Rollback ke sebelum `cf2ef66` harus disertai database dari backup sebelum migrasi (`/root/backup/jejak-2026-10-28-125216-sebelum-keamanan.db`), atau tabel `sessions` dikosongkan lalu dibuat ulang dengan skema lama (semua pengguna harus masuk lagi).
 
 ---
@@ -306,3 +340,5 @@ Pengecualian: commit `cf2ef66` memigrasi tabel `sessions` (kolom `token` menjadi
 - **Hanya satu versi cadangan.** `repo.old/` ditimpa setiap deploy. Untuk kembali lebih jauh, pasang commit lama dari komputer lokal.
 - **Jangan deploy commit dari sebelum pindah ke systemd** (sebelum commit yang menghapus `deploy/ecosystem.config.cjs`). `deploy.sh` versi lama akan menyalakan lagi PM2 `jejak` sebagai root dan berebut port 3014 dengan service systemd. Bila memang perlu, jalankan dulu `systemctl disable --now jejak` dan `chown -R root:root /var/www/jejak.masamune.my.id/data`. Rollback lewat `repo.old/` aman, karena kodenya dijalankan service yang sama.
 - **Satu proses, satu berkas database.** Tidak ada replikasi; backup adalah satu-satunya perlindungan data.
+- **Deploy server sebelum membagikan APK 0.2.0.** APK 0.2.0 memakai endpoint baru (`/timeline`, foto, postingan, chat). Server baru tetap melayani APK 0.1.x, karena `/feed` dan endpoint lama tidak berubah.
+- **Folder foto tidak dibersihkan otomatis.** Berkas foto pengguna yang dihapus langsung dari database (tidak ada endpoint hapus akun) tertinggal di `data/uploads/`.

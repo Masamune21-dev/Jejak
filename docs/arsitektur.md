@@ -12,10 +12,13 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 6. [Pemilihan implementasi peta](#pemilihan-implementasi-peta)
 7. [Pencatat crash dan ErrorBoundary](#pencatat-crash-dan-errorboundary)
 8. [Berbagi gambar dan berkas](#berbagi-gambar-dan-berkas)
-9. [Alamat server API](#alamat-server-api)
-10. [Login dan token](#login-dan-token)
-11. [React Query](#react-query)
-12. [Server](#server)
+9. [Tema](#tema)
+10. [Foto dan unggahan](#foto-dan-unggahan)
+11. [Polling chat](#polling-chat)
+12. [Alamat server API](#alamat-server-api)
+13. [Login dan token](#login-dan-token)
+14. [React Query](#react-query)
+15. [Server](#server)
 
 ---
 
@@ -25,24 +28,26 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 
 | Bagian | Lokasi | Peran |
 | --- | --- | --- |
-| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `masuk` hanya untuk yang belum). Tab ada di `(tabs)/`. |
-| Komponen | `src/components/` | UI bersama (`ui.tsx`), kartu aktivitas, profil, grafik, tab bar, peta, banner petunjuk arah (`GuideBanner.tsx`), template bagikan (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
+| Layar | `src/app/` | Expo Router berbasis berkas. `_layout.tsx` memasang pencatat crash, React Query, `AuthProvider`, font, tema, `ErrorBoundary`, dan `Stack` dengan `Stack.Protected` (layar utama hanya untuk yang sudah masuk; `masuk` hanya untuk yang belum). Tab ada di `(tabs)/`. |
+| Komponen | `src/components/` | UI bersama (`ui.tsx`, termasuk `Avatar` dengan foto), kartu aktivitas, kartu postingan (`PostCard.tsx`), profil, grafik, tab bar, peta, menu bawah (`Sheet.tsx`), banner petunjuk arah (`GuideBanner.tsx`), stiker bagikan (`ShareStickers.tsx`), template bagikan lama (`ShareTemplates.tsx`), dan layar laporan error (`CrashReport.tsx`). |
 | Perekam | `src/lib/recorder.ts` | Mesin status perekaman, filter titik GPS, stopwatch, penyimpanan lokal, pemandu rute. |
 | Lokasi | `src/lib/gps.ts`, `location-task.ts`, `sim.ts`, `location-source.ts` | Sumber posisi: GPS latar, GPS layar menyala, atau simulasi. |
 | API | `src/lib/api.ts` | Alamat server, `fetch` dengan token dan batas waktu, pesan error. |
 | Login | `src/lib/auth.tsx`, `storage.ts`, `storage.web.ts` | Konteks pengguna, simpan/hapus token. |
 | Berbagi | `src/lib/share-file.ts`, `share-file.web.ts`, `gpx.ts`, `route-path.ts` | Membagikan/menyimpan gambar dan berkas, membuat GPX, memproyeksikan garis rute ke kanvas template. |
+| Foto | `src/lib/photo.ts` | Memilih, memotong, memperkecil, dan menyimpan ulang foto sebelum unggah; menempelkan foto ke `FormData`. |
 | Crash | `src/lib/crash.ts` | Mencatat error JavaScript fatal untuk ditampilkan saat app dibuka lagi. |
 | Format | `src/lib/format.ts` | Jarak, durasi, pace, kecepatan, tanggal, kalimat meta (*Lari, hari ini pukul 06.12*), judul bawaan. |
-| Tema | `src/lib/theme.ts` | Warna dari jalan (`ROAD`: aspal, beton, marka, patok, rambu) untuk tema terang/gelap, font (Plus Jakarta Sans untuk teks, Big Shoulders Display untuk angka), jarak, sudut. Lihat [desain.md](desain.md). |
+| Tema | `src/lib/theme.ts` | Palet gelap/terang × lima warna aksen, penyimpanan pilihan tema (lihat [Tema](#tema)), warna benda jalan untuk template lama (`ROAD`: aspal, beton, marka, patok, rambu), font (Plus Jakarta Sans untuk teks dan angka, Big Shoulders Display untuk template bagikan lama), jarak, sudut. Lihat [desain.md](desain.md). |
 
 ### Server (`server/`)
 
 | Berkas | Peran |
 | --- | --- |
-| `src/index.ts` | Membaca `PORT`, `HOST`, `DB_PATH`, membuka database, menjalankan Hono lewat `@hono/node-server`. |
-| `src/app.ts` | `createApp(db)`: semua endpoint, validasi input, perhitungan saat aktivitas/segmen disimpan. |
-| `src/db.ts` | Skema SQLite, pragma, migrasi tabel sesi lama, helper transaksi `tx()`. |
+| `src/index.ts` | Membaca `PORT`, `HOST`, `DB_PATH`, `UPLOAD_DIR`, membuka database dan folder unggahan, menjalankan Hono lewat `@hono/node-server`. |
+| `src/app.ts` | `createApp(db, { planRoute, media })`: semua endpoint, validasi input, perhitungan saat aktivitas/segmen disimpan. |
+| `src/db.ts` | Skema SQLite, pragma, migrasi tabel sesi lama dan kolom foto pengguna, helper transaksi `tx()`. |
+| `src/media.ts` | Folder unggahan dan kunci HMAC (`openMedia`), pembersih EXIF JPEG (`cleanJpeg`), simpan/baca/hapus berkas, alamat foto bertanda tangan (`mediaPath`, `verifyMedia`). |
 | `src/routing.ts` | Permintaan ke OSRM FOSSGIS dan teks belok bahasa Indonesia. |
 | `src/auth.ts` | Hash kata sandi (scrypt), token acak, dan hash token untuk tabel sesi. |
 
@@ -217,8 +222,8 @@ Semua peta menerima props yang sama (`MapProps` di `components/map-types.ts`): `
 
 | Platform | Berkas | Mesin peta | Ubin |
 | --- | --- | --- | --- |
-| Web | `Map.web.tsx` (dipilih otomatis lewat ekstensi `.web`) | Leaflet | OpenStreetMap, digelapkan dengan filter CSS pada lapisan ubin |
-| Android, build sendiri (APK/AAB, development build) | `LibreMap.tsx` | MapLibre (`@maplibre/maplibre-react-native`) | OpenStreetMap yang sama, raster digelapkan lewat cat raster |
+| Web | `Map.web.tsx` (dipilih otomatis lewat ekstensi `.web`) | Leaflet | OpenStreetMap, di tema gelap digelapkan dengan filter CSS pada lapisan ubin |
+| Android, build sendiri (APK/AAB, development build) | `LibreMap.tsx` | MapLibre (`@maplibre/maplibre-react-native`) | OpenStreetMap yang sama, di tema gelap raster digelapkan lewat cat raster |
 | Android di Expo Go | `NativeMap.tsx` | react-native-maps (Google Maps bawaan Expo Go) | Gaya Google dengan POI dan transit disembunyikan |
 | iOS (Expo Go maupun build) | `NativeMap.tsx` | react-native-maps (Apple Maps, `mutedStandard`) | Apple |
 
@@ -240,9 +245,9 @@ Alasan MapLibre di APK Android: react-native-maps di Android memakai Google Maps
 
 Tabel di atas berlaku bila MapLibre berhasil dimuat; bila gagal, Android build sendiri juga jatuh ke `NativeMap.tsx` (lihat cadangan di bawah). Lihat juga [build-apk.md](build-apk.md#peta-di-apk-android-maplibre).
 
-Ubin OpenStreetMap tersedia sampai zoom 19 dan digelapkan di sisi app (lihat [desain.md](desain.md#peta)). Atribusi *© OpenStreetMap* wajib ditampilkan, dan permintaan ubin dari HP membawa User-Agent `Jejak/1.0` sesuai kebijakan ubin OSM. Alamat dan header ubin ada di `app/src/lib/tiles.ts`.
+Ubin OpenStreetMap tersedia sampai zoom 19 dan, di tema gelap, digelapkan di sisi app (lihat [desain.md](desain.md#peta)). Gaya peta MapLibre dibuat ulang (`mapStyle(gelap, bg)`) saat tema berganti, dan filter Leaflet dipasang/dilepas lewat `useIsDark()`. Atribusi *© OpenStreetMap* wajib ditampilkan, dan permintaan ubin dari HP membawa User-Agent `Jejak/1.0` sesuai kebijakan ubin OSM. Alamat dan header ubin ada di `app/src/lib/tiles.ts`.
 
-**Cuplikan peta** (`StaticMap.tsx`) bukan peta interaktif: komponen ini memilih zoom tertinggi (maksimal 17) yang memuat seluruh garis dengan padding 28 px, menaruh ubin OpenStreetMap sebagai gambar yang digelapkan dengan filter (`expo-image`, cache memori + disk), lalu menggambar garis dan titik awal/akhir dengan SVG. Dipakai di feed, daftar rute, daftar segmen, pemilih rute, dan layar simpan. Cuplikan hanya digambar bila ada minimal 2 titik.
+**Cuplikan peta** (`StaticMap.tsx`) bukan peta interaktif: komponen ini memilih zoom tertinggi (maksimal 17) yang memuat seluruh garis dengan padding 28 px, menaruh ubin OpenStreetMap sebagai gambar (`expo-image`, cache memori + disk; di tema gelap digelapkan dengan filter), lalu menggambar garis dan titik awal/akhir dengan SVG. Dipakai di feed, daftar rute, daftar segmen, pemilih rute, dan layar simpan. Cuplikan hanya digambar bila ada minimal 2 titik.
 
 ---
 
@@ -285,13 +290,101 @@ Fitur **Bagikan ke foto** dan **Ekspor GPX** memakai modul dengan dua versi; Met
 Alur layar Bagikan (`aktivitas/[id]/bagikan.tsx`):
 
 1. Data aktivitas diambil dengan kunci React Query `['activity', id]` (sama dengan layar detail, jadi biasanya langsung dari cache).
-2. Kanvas pratinjau = foto (`expo-image`, `contentFit="cover"`) atau `PlainBackground`, ditimpa template dari `ShareTemplates.tsx`. Ukuran pratinjau = lebar terkecil dari (lebar layar − 32), (55% tinggi layar × rasio), dan 440 px. Semua ukuran di template diskalakan dari lebar kanvas (desain dasar 360 px).
-3. `captureRef` dari `react-native-view-shot` menangkap kanvas sebagai PNG dengan lebar keluaran 1080 px fisik (`1080 / PixelRatio.get()` titik), tinggi sesuai rasio 4:5 atau 9:16.
-4. Hasilnya diteruskan ke `shareImage` atau `saveImage`.
+2. Galeri = `FlatList` horizontal dengan `pagingEnabled`, satu halaman selebar layar. Isinya `STICKERS` (`ShareStickers.tsx`) lalu `TEMPLATES` (`ShareTemplates.tsx`). Indeks halaman aktif dihitung dari `contentOffset.x / lebar layar` saat geseran berhenti (di web juga saat menggulir) dan dipakai untuk titik-titik penanda halaman.
+3. Tiap halaman: bingkai bersudut bulat berisi pola papan catur (SVG `Pattern`, hanya untuk stiker tanpa foto), lalu **wadah yang diekspor** tanpa sudut membulat dan tanpa warna latar. Isi wadah = foto (`expo-image`, `contentFit="cover"`) atau, untuk template lama tanpa foto, `PlainBackground`; ditimpa stiker atau template. Karena papan catur ada di luar wadah, PNG stiker tanpa foto tetap transparan. Hanya wadah halaman aktif yang dipasangi `ref` untuk ditangkap.
+4. Ukuran pratinjau = lebar terkecil dari (lebar layar − 32), (52% tinggi layar × rasio), dan 440 px. Semua ukuran di stiker dan template diskalakan dari lebar kanvas (desain dasar 360 px).
+5. `captureRef` dari `react-native-view-shot` menangkap wadah sebagai PNG (`format: 'png'`, `quality: 1`) dengan lebar keluaran 1080 px fisik (`1080 / PixelRatio.get()` titik), tinggi sesuai rasio 9:16 atau 4:5.
+6. Hasilnya diteruskan ke `saveImage` (**Simpan**), `shareImage` (**Lainnya**), atau, untuk **Salin**, ditangkap ulang sebagai `base64` lalu `Clipboard.setImageAsync()` dari `expo-clipboard` (tombol Salin tidak ditampilkan di web).
 
-`route-path.ts` memproyeksikan `preview` aktivitas (Web Mercator) ke dalam kotak w × h dengan padding, proporsional dan di tengah, lalu menghasilkan atribut `d` untuk `<Path>` SVG beserta titik awal dan akhir. Dipakai template *Rute* dan latar polos.
+`route-path.ts` memproyeksikan `preview` aktivitas (Web Mercator) ke dalam kotak w × h dengan padding, proporsional dan di tengah, lalu menghasilkan atribut `d` untuk `<Path>` SVG beserta titik awal dan akhir. Dipakai semua stiker, template *Rute*, dan latar polos.
+
+Angka stiker dihitung di app dari `Activity`: jarak, tanjakan, waktu bergerak, pace/kecepatan (`tempoParts`), kecepatan maksimum (sepeda), dan **Elev Maks** = ketinggian tertinggi dari kolom ketinggian semua titik `track` (dilewati bila tidak ada titik berketinggian). Untuk aktivitas sendiri `track` selalu lengkap, jadi zona privasi tidak memengaruhi angka ini.
 
 Ekspor GPX: `gpx.ts` membangun teks GPX 1.1 dari `Activity` (lihat [fitur.md](fitur.md#ekspor-gpx)), lalu `shareTextFile(gpxFileName(a), 'application/gpx+xml', …)`.
+
+---
+
+## Tema
+
+Seperti perekam, state tema hidup **di luar React** (variabel modul di `lib/theme.ts`) dan dibaca lewat `useSyncExternalStore`, tanpa context provider.
+
+| Bagian | Isi |
+| --- | --- |
+| Pilihan (`ThemePrefs`) | `{ mode: 'system' \| 'dark' \| 'light', accent: 'kuning' \| 'mint' \| 'biru' \| 'oranye' \| 'pink' }`. Bawaan `{ mode: 'dark', accent: 'kuning' }`. |
+| Penyimpanan | AsyncStorage, kunci `jejak.tema`, berisi JSON `ThemePrefs`. Nilai yang tidak dikenal diganti bawaan. Tersimpan per HP, tidak ikut akun dan tidak dihapus saat keluar. |
+| State | `{ colors, dark, prefs }`. `recompute()` menghitung `dark` (dari `mode`, atau dari `Appearance` bila `system`), membangun palet dengan `buildPalette(dark, accent)`, lalu memberi tahu semua pendengar. |
+| Hook | `useColors()` (palet), `useIsDark()`, `useThemePrefs()`. Ketiganya membaca objek state yang sama. |
+| Di luar React | `currentColors()` (mis. warna notifikasi layanan lokasi latar), `glow()` dan `shadow()` membaca mode aktif. |
+| Mengubah | `setThemePrefs(patch)` dari layar Pengaturan: hitung ulang dan render ulang seketika, lalu tulis ke AsyncStorage (error diabaikan). |
+| Mode sistem | `Appearance.addChangeListener` menghitung ulang bila `mode = 'system'`. `app.json` memakai `userInterfaceStyle: "automatic"` supaya `Appearance` melaporkan setelan HP. |
+
+**Dimuat sebelum layar pembuka ditutup.** `Root` di `_layout.tsx` memanggil `loadTheme()` sekali saat mulai (bersamaan dengan `recorder.restore()` dan `takeLastCrash()`), dan splash screen baru ditutup setelah login, font, **dan** tema siap. Jadi app tidak sempat tampil gelap lalu berkedip ke terang. Status bar (`light`/`dark`) dan tema navigasi (`DarkTheme`/`DefaultTheme` Expo Router) mengikuti `useIsDark()`.
+
+`palette` = `buildPalette(true, 'kuning')`, hanya untuk `CrashReportView`, yang bisa tampil sebelum tema dimuat. Komponen lain memakai `useColors()` supaya ikut pilihan pengguna.
+
+---
+
+## Foto dan unggahan
+
+Foto profil, foto sampul, dan foto postingan memakai jalur yang sama.
+
+```mermaid
+sequenceDiagram
+  participant UI as Layar (Profil / Tulis)
+  participant P as lib/photo.ts
+  participant S as Server (PUT /me/avatar, POST /posts)
+  participant M as media.ts
+  participant D as data/uploads
+
+  UI->>P: pickPhoto({ camera, aspect, maxWidth })
+  P->>P: expo-image-picker (potong bila ada aspect)
+  P->>P: expo-image-manipulator: perkecil, simpan ulang JPEG 0,8 (EXIF hilang)
+  P-->>UI: uri berkas lokal
+  UI->>S: FormData isian foto (appendPhoto)
+  S->>M: cleanJpeg: tolak bukan JPEG, buang APP1/APP13
+  M->>D: tulis berkas bernama acak (32 hex).jpg
+  S-->>UI: Profile / Post dengan alamat /media/…?exp=&sig=
+  UI->>S: GET /media/… (expo-image, tanpa Authorization)
+  S->>M: verifyMedia (HMAC, kedaluwarsa), readMedia
+  S-->>UI: JPEG, Cache-Control private 7 hari
+```
+
+**Di app** (`lib/photo.ts`):
+
+| Langkah | Profil | Sampul | Postingan |
+| --- | --- | --- | --- |
+| Potong (`allowsEditing` + `aspect`) | 1:1 | 16:9 | tidak |
+| Lebar maksimum | 512 px | 1600 px | 1600 px |
+| Simpan ulang | JPEG kualitas 0,8 | sama | sama |
+| Batas waktu unggah | 60 detik | 60 detik | 90 detik |
+
+Foto yang lebih kecil dari lebar maksimum tidak diperbesar. Penyimpanan ulang lewat `ImageManipulator` membuat JPEG baru tanpa metadata EXIF, termasuk lokasi GPS. Di HP, `appendPhoto()` menempelkan `{ uri, name: 'foto.jpg', type: 'image/jpeg' }` ke `FormData`; di web, foto diambil dulu sebagai `Blob`. Bila `body` berupa `FormData`, `api()` mengirimnya apa adanya tanpa header `Content-Type`, supaya `fetch` mengisi batas multipart sendiri.
+
+**Di server** (`server/src/media.ts`): `cleanJpeg()` menelusuri segmen JPEG dari awal sampai `SOS` (awal data gambar) dan membuang segmen `APP1` (EXIF/XMP) dan `APP13` (IPTC); berkas yang bukan JPEG utuh ditolak. Ini pengaman kedua bila foto tidak lewat app. Berkas disimpan dengan nama acak di folder unggahan (`UPLOAD_DIR`, bawaan `uploads/` di sebelah database). Di tes, `createApp()` tanpa `media` memakai folder sementara.
+
+**Menampilkan**: semua alamat foto dari API berupa path relatif bertanda tangan; `mediaUri(path)` di `lib/api.ts` menempelkan alamat API di depannya. `Avatar`, `PostCard`, dan hero profil menampilkannya dengan `expo-image` (`cachePolicy="memory-disk"`). Karena `exp` sama selama seminggu, alamatnya tidak berubah dan cache gambar tetap terpakai; setelah alamat berganti, gambar diunduh ulang sekali. Aturan tanda tangan ada di [api.md](api.md#get-medianameexpdetiksigtanda-tangan).
+
+---
+
+## Polling chat
+
+Tidak ada notifikasi push dan tidak ada WebSocket (keputusan pemilik). Pesan baru diambil dengan polling `GET` biasa, hanya selama layarnya terbuka:
+
+| Yang diperbarui | Cara | Selang |
+| --- | --- | --- |
+| Isi percakapan (`pesan/[id].tsx`) | `setInterval` di dalam `useFocusEffect`: `GET /chats/:userId?after=<id pesan terakhir>`, pesan baru ditambahkan ke daftar (tanpa duplikat). Berhenti saat layar kehilangan fokus. | 3 detik |
+| Daftar percakapan (`pesan/index.tsx`) | `refetchInterval` React Query untuk `['chats']`, ditambah ambil ulang saat layar kembali difokuskan. | 15 detik |
+| Angka belum dibaca di Beranda | `refetchInterval` untuk `['chats', 'unread']` (`GET /chats/unread`), ditambah ambil ulang saat Beranda difokuskan dan saat ditarik ke bawah. | 30 detik |
+
+Detail layar percakapan:
+
+- Muatan pertama `GET /chats/:userId` (30 pesan terakhir), lalu `POST /chats/:userId/read`. Penandaan dibaca diulang setiap ada pesan baru dari teman, lalu `['chats']` diinvalidasi supaya angka belum dibaca ikut turun.
+- Pesan disimpan di state lokal layar (bukan React Query). `lastId` menyimpan id terbesar untuk kursor `after`.
+- Gulir ke atas memanggil `GET /chats/:userId?before=<id pesan pertama>` selama halaman sebelumnya berisi 30 pesan.
+- `FlatList` terbalik (`inverted`) di dalam `KeyboardAvoidingView`, jadi pesan terbaru di bawah dan kolom ketik ikut naik saat keyboard muncul.
+- Pesan terkirim langsung ditambahkan dari respons `POST /chats/:userId`, tanpa menunggu polling.
+
+Saat app di latar atau layar chat tertutup, tidak ada yang diambil; pesan baru baru terlihat saat app dibuka lagi.
 
 ---
 
@@ -316,12 +409,14 @@ Variabel `EXPO_PUBLIC_*` ditanam ke bundel JavaScript saat bundling, jadi setela
 
 Perilaku `api()`:
 
-- header `Content-Type: application/json` dan `Authorization: Bearer <token>` bila sudah masuk;
+- header `Content-Type: application/json` dan `Authorization: Bearer <token>` bila sudah masuk. Bila `body` berupa `FormData` (unggah foto), badan dikirim apa adanya tanpa `Content-Type` dan tanpa `JSON.stringify`;
 - metode bawaan `GET`, atau `POST` bila ada `body`;
-- batas waktu 20 detik (unggah aktivitas 60 detik);
+- batas waktu 20 detik (unggah aktivitas dan foto profil/sampul 60 detik, kirim postingan 90 detik);
 - gagal jaringan/batas waktu: `ApiError(0, "Tidak bisa terhubung ke server (<URL>). Pastikan server jalan dan HP satu WiFi dengan komputer.")`;
 - respons bukan 2xx: `ApiError(status, body.error)` atau `Permintaan gagal (<status>)` bila badan bukan JSON;
 - **401 saat punya token**: memanggil handler yang mengeluarkan pengguna (token, data pengguna, dan cache dihapus), sehingga app kembali ke layar masuk.
+
+`mediaUri(path)` mengubah path foto bertanda tangan dari API (`/media/…`) menjadi alamat lengkap (`API_URL + path`), atau `null` bila kosong.
 
 ---
 
@@ -345,10 +440,16 @@ Di server, token adalah 32 byte acak (base64url). Tabel `sessions` hanya menyimp
 
 | Kunci | Endpoint | Dipakai di |
 | --- | --- | --- |
-| `['feed']` | `GET /feed` (infinite, `before`) | Beranda |
+| `['timeline']` | `GET /timeline` (infinite, `before` = `at`) | Beranda |
 | `['stats', userId, type]` | `GET /users/:id/stats?type=…&tz=…` | Beranda (`type = 'all'`), Profil |
-| `['user', userId]` | `GET /users/:id` | Profil |
+| `['user', userId]` | `GET /users/:id` | Profil, Beranda (foto profil terbaru), Pengikut, Percakapan (judul dan `canMessage`) |
 | `['userActivities', userId]` | `GET /users/:id/activities` (infinite) | Profil |
+| `['connections', userId, tab]` | `GET /users/:id/followers` atau `/following` (infinite, `before` = `since`) | Pengikut / mengikuti |
+| `['chats']` | `GET /chats` (`refetchInterval` 15 dtk) | Daftar pesan |
+| `['chats', 'unread']` | `GET /chats/unread` (`refetchInterval` 30 dtk) | Ikon Pesan di Beranda |
+| `['post', id]` | `GET /posts/:id` | Detail postingan |
+| `['post', id, 'replies']` | `GET /posts/:id/replies` | Detail postingan |
+| `['segmentPosts', id]` | `GET /segments/:id/posts` | Diskusi di detail segmen |
 | `['activity', id]` | `GET /activities/:id` | Detail aktivitas, Buat segmen, Bagikan |
 | `['comments', activityId]` | `GET /activities/:id/comments` | Detail aktivitas |
 | `['routes']` | `GET /routes` | Tab Rute, pemilih rute di Rekam |
@@ -361,26 +462,35 @@ Invalidasi setelah perubahan:
 
 | Aksi | Kunci yang diinvalidasi |
 | --- | --- |
-| Simpan aktivitas, hapus aktivitas | `feed`, `userActivities`, `stats`, `user` |
-| Kudos | `feed`, `['activity', id]`, `userActivities` |
-| Kirim/hapus komentar | `['comments', id]`, `feed` |
-| Ikuti dari Cari | `users`, `feed`, `user` |
-| Ikuti dari Profil | `['user', id]` diisi langsung dari respons, `feed` diinvalidasi |
+| Simpan aktivitas, hapus aktivitas | `feed`, `userActivities`, `stats`, `user` (masih kunci lama `feed`, bukan `timeline`; Beranda tetap segar karena diambil ulang saat difokuskan) |
+| Kudos | `timeline`, `['activity', id]`, `userActivities` |
+| Kirim/hapus komentar | `['comments', id]`, `feed` (kunci lama, lihat di atas) |
+| Ikuti dari Cari | `users`, `timeline`, `user` |
+| Ikuti dari Profil | `['user', id]` diisi langsung dari respons, `timeline` diinvalidasi |
+| Ikuti dari daftar pengikut | `connections`, `user`, `timeline`, `users` |
+| Blokir / buka blokir | `['user', id]` diisi langsung dari respons, `timeline` diinvalidasi |
+| Ganti/hapus foto profil atau sampul | `['user', id]` diisi langsung dari respons; `timeline`, `userActivities`, `chats` diinvalidasi (alamat avatar di dalamnya berubah) |
+| Kirim/hapus postingan | `timeline`, `post`, `segmentPosts` |
+| Suka / batal suka | Tidak ada; kartu menyimpan `LikeState` sendiri, langsung berubah saat diketuk lalu disamakan dengan respons (dikembalikan bila gagal) |
+| Kirim/hapus balasan | `['post', id]` (termasuk balasannya), `timeline`, `segmentPosts` |
+| Kirim pesan, tandai dibaca | `chats` (termasuk `['chats', 'unread']`) |
 | Simpan/hapus rute | `routes` |
 | Buat segmen | `['activity', id]`, `segments` |
 | Hapus segmen | `segments` |
 | Keluar / 401 | seluruh cache dibersihkan (`queryClient.clear()`) |
 
-Infinite query feed dan aktivitas profil memakai `startedAt` aktivitas terakhir sebagai `before` untuk halaman berikutnya, dan berhenti bila satu halaman berisi kurang dari 20 item.
+Infinite query aktivitas profil memakai `startedAt` aktivitas terakhir sebagai `before` untuk halaman berikutnya, timeline memakai `at` item terakhir, dan daftar pengikut memakai `since`. Semuanya berhenti bila satu halaman berisi kurang dari ukuran halamannya (20, atau 30 untuk pengikut).
 
 ---
 
 ## Server
 
 - **Hono** dengan `cors()` untuk semua origin, sehingga versi web di domain lain (atau `localhost` saat dev) bisa memanggil API.
-- **Middleware login** dipasang setelah `/health`, `/auth/register`, dan `/auth/login`. Semua path lain wajib `Authorization: Bearer <token>`; permintaan `OPTIONS` dilewatkan.
+- **Middleware login** dipasang setelah `/health`, `/auth/register`, `/auth/login`, dan `/media/:name`. Semua path lain wajib `Authorization: Bearer <token>`; permintaan `OPTIONS` dilewatkan. `/media/:name` dijaga tanda tangan URL, bukan token (lihat [Foto dan unggahan](#foto-dan-unggahan)).
+- **Unggah foto**: `c.req.parseBody({ all: true })` membaca `multipart/form-data` (isian `foto` yang diulang menjadi array). Tidak ada paket tambahan; HMAC memakai `node:crypto`.
 - **Error**: `fail(status, pesan)` melempar `HTTPException`; `onError` mengubahnya menjadi `{ "error": "<pesan>" }`. Error tak terduga dicatat ke konsol dan dibalas 500 *Terjadi kesalahan di server*.
 - **Database**: satu koneksi `DatabaseSync` (`node:sqlite`) dengan WAL, foreign key aktif, dan `busy_timeout` 5000 ms. Penyimpanan aktivitas dan pembuatan segmen memakai transaksi (`tx()`).
 - **Routing**: `createApp(db, { planRoute })` bisa menerima `planRoute` tiruan; tes memakainya supaya tidak memanggil OSRM.
+- **Media**: `createApp(db, { media })` menerima folder unggahan dan kunci dari `openMedia(dir)`. `index.ts` memberi `UPLOAD_DIR` atau `uploads/` di sebelah `DB_PATH`; tanpa `media`, `createApp` memakai folder sementara (untuk tes).
 
 Detail endpoint ada di [api.md](api.md), skema di [data.md](data.md).

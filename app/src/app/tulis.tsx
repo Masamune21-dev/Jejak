@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { Post } from '@shared/api';
+import type { Post, Profile } from '@shared/api';
 
 import { useRefreshPosts } from '@/components/PostCard';
 import { Avatar, Button, Card, ErrorBox, Row, T } from '@/components/ui';
@@ -22,6 +22,8 @@ export default function ComposeScreen() {
   const c = useColors();
   const me = useMe();
   const refresh = useRefreshPosts();
+  // Foto profil dari profil terbaru; alamat di data login bisa basi setelah ganti foto.
+  const profile = useQuery({ queryKey: ['user', me.id], queryFn: () => api<Profile>(`/users/${me.id}`) });
   const params = useLocalSearchParams<{ segmentId?: string; segmentName?: string }>();
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -60,7 +62,7 @@ export default function ComposeScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <Row>
-          <Avatar name={me.name} uri={me.avatarUrl} size={40} />
+          <Avatar name={me.name} uri={profile.data?.avatarUrl ?? null} size={40} />
           <T v="strong">{me.name}</T>
         </Row>
         <TextInput

@@ -19,6 +19,7 @@ Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://je
 | [troubleshooting.md](troubleshooting.md) | Masalah umum dan cara mengatasinya, termasuk APK yang tertutup sendiri dan gambar yang tidak tersimpan. |
 | [desain.md](desain.md) | Riset UI/UX dan sistem desain: kosakata visual dari jalan (aspal, marka, patok, rambu), warna, huruf, template bagikan. |
 | [ide-fitur.md](ide-fitur.md) | Daftar fitur yang sudah ada dan ide fitur berikutnya, dengan perkiraan usaha dan perlu-tidaknya build baru. |
+| [rencana-update.md](rencana-update.md) | Rencana update berikutnya: template bagikan ala Strava, foto profil & sampul, daftar pengikut, postingan, chat, tema terang/gelap & warna, info aplikasi; urutan, perubahan data, keamanan, tahapan rilis, keputusan pemilik. |
 
 Dokumentasi di atas ditulis berdasarkan kode pada commit `f42d7fa`. Bila perilaku app atau server berubah, perbarui dokumen yang bersangkutan.
 

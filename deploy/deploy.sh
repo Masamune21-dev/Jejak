@@ -1,34 +1,32 @@
 #!/usr/bin/env bash
 # Deploy Jejak ke jejak.masamune.my.id.
-#   deploy/deploy.sh          server (git pull + pm2) dan versi web
+#   deploy/deploy.sh          server dan versi web
 #   deploy/deploy.sh server   hanya server
 #   deploy/deploy.sh web      hanya versi web
-# Server mengambil kode dari GitHub, jadi push dulu perubahan yang mau dipasang.
+# Kode server dikirim lewat SSH dari commit HEAD (git archive), jadi server tidak
+# butuh akses ke GitHub (repo boleh private). Commit dulu perubahan yang mau dipasang.
 set -euo pipefail
 
 HOST="${JEJAK_HOST:-root@103.189.249.115}"
 ROOT=/var/www/jejak.masamune.my.id
-REPO=https://github.com/Masamune21-dev/Jejak.git
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WHAT="${1:-all}"
 
 if [[ "$WHAT" == all || "$WHAT" == server ]]; then
   if [[ -n "$(git -C "$HERE" status --porcelain -- server shared deploy)" ]]; then
-    echo "Ada perubahan server/shared/deploy yang belum di-commit. Commit & push dulu." >&2
+    echo "Ada perubahan server/shared/deploy yang belum di-commit. Commit dulu." >&2
     exit 1
   fi
-  if [[ "$(git -C "$HERE" branch --show-current)" != main ]]; then
-    echo "Server selalu memasang origin/main. Pindah ke branch main dulu." >&2
-    exit 1
-  fi
-  git -C "$HERE" push --quiet origin main
-  echo "→ server: git pull + npm ci + pm2"
+  REV="$(git -C "$HERE" rev-parse --short HEAD)"
+  echo "→ server: kirim $REV, npm ci, pm2"
+  # Ekstrak ke folder baru, pasang dependensi, baru tukar; server lama tetap jalan bila ada yang gagal.
+  git -C "$HERE" archive --format=tar HEAD server shared deploy |
+    ssh "$HOST" "rm -rf $ROOT/repo.new && mkdir -p $ROOT/repo.new && tar -x -C $ROOT/repo.new && echo $REV > $ROOT/repo.new/REVISION"
   ssh "$HOST" bash -s <<EOF
 set -euo pipefail
 export NVM_DIR=/root/.nvm; . "\$NVM_DIR/nvm.sh" >/dev/null
 mkdir -p $ROOT/data $ROOT/web
-if [ ! -d $ROOT/repo/.git ]; then git clone --quiet $REPO $ROOT/repo; fi
-cd $ROOT/repo && git fetch --quiet && git reset --quiet --hard origin/main
+cd $ROOT/repo.new
 npm ci --omit=dev --prefix server --no-audit --no-fund --loglevel=error
 # Pasang config nginx; kalau gagal dites, kembalikan yang lama supaya situs lain tidak ikut rusak.
 SITE=/etc/nginx/sites-enabled/jejak
@@ -38,10 +36,14 @@ if ! nginx -t -q; then
   if [ -f /tmp/jejak.nginx.bak ]; then cp /tmp/jejak.nginx.bak \$SITE; else rm -f \$SITE; fi
   echo "config nginx gagal dites, dibatalkan" >&2; exit 1
 fi
+cd $ROOT
+rm -rf repo.old
+[ -d repo ] && mv repo repo.old
+mv repo.new repo
 systemctl reload nginx
-pm2 startOrReload deploy/ecosystem.config.cjs --update-env >/dev/null && pm2 save >/dev/null
+pm2 startOrReload repo/deploy/ecosystem.config.cjs --update-env >/dev/null && pm2 save >/dev/null
 sleep 1
-curl -fsS http://127.0.0.1:3014/health && echo "  ← server sehat ($(git rev-parse --short HEAD))"
+curl -fsS http://127.0.0.1:3014/health && echo "  ← server sehat (\$(cat repo/REVISION))"
 EOF
 fi
 

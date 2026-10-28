@@ -8,10 +8,10 @@ import type { AuthResult } from '@shared/api';
 import { Button, ErrorBox, Field, Segmented, T } from '@/components/ui';
 import { api, API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, radius, ROAD, space, useColors } from '@/lib/theme';
 
 const INK = '#0E1114';
-const VOLT = '#C6F03C';
+const VOLT = ROAD.marka;
 
 /** Garis kontur & jejak rute sebagai ilustrasi sampul. */
 function Trail() {

@@ -7,8 +7,8 @@ import type { ActivitySummary, KudosState } from '@shared/api';
 
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
-import { distanceParts, duration, tempoParts, TYPE_ICON, TYPE_LABEL, when } from '@/lib/format';
-import { font, radius, shadow, space, useColors } from '@/lib/theme';
+import { activityMeta, distanceParts, duration, tempoParts, TYPE_ICON } from '@/lib/format';
+import { font, radius, space, useColors } from '@/lib/theme';
 
 import StaticMap from './StaticMap';
 import { Avatar, Badge, Row, Stat, T } from './ui';
@@ -36,9 +36,9 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
   return (
     <Pressable
       onPress={() => router.push(`/aktivitas/${a.id}`)}
-      style={({ pressed }) => [styles.card, { backgroundColor: c.surface }, shadow(c), pressed && { opacity: 0.92 }]}>
-      {/* Bayangan di luar, kliping sudut di dalam: iOS memotong bayangan bila overflow hidden. */}
-      <View style={[styles.clip, { borderColor: c.line }]}>
+      style={({ pressed }) => [styles.card, { backgroundColor: c.surface, borderColor: c.line }, pressed && { opacity: 0.92 }]}>
+      {/* Selebar layar: peta dari tepi ke tepi, dipisah garis tipis (bukan kartu bulat berbayang). */}
+      <View>
         <View style={styles.top}>
           <Pressable onPress={() => router.push(`/atlet/${a.user.id}`)} hitSlop={4}>
             <Row gap={space.md}>
@@ -49,9 +49,7 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
                 </T>
                 <Row gap={5}>
                   <Ionicons name={TYPE_ICON[a.type]} size={13} color={c.muted} />
-                  <T v="small">
-                    {TYPE_LABEL[a.type]} · {when(a.startedAt)}
-                  </T>
+                  <T v="small">{activityMeta(a.type, a.startedAt)}</T>
                 </Row>
               </View>
               {a.prCount > 0 ? <Badge icon="trophy" text={`${a.prCount} PR`} color={c.gold} textColor="#1a1400" /> : null}
@@ -100,8 +98,7 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg },
-  clip: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { marginHorizontal: -space.lg, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
   top: { padding: space.lg, gap: space.md },
   bottom: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
   kudos: {

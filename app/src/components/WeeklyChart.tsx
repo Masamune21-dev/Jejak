@@ -17,7 +17,7 @@ export default function WeeklyChart({ weeks }: { weeks: WeekTotal[] }) {
     return `${Number(d)}/${Number(m)}`;
   };
   // Di tema terang batang volt kurang kontras, jadi pakai tinta gelap dengan minggu ini volt.
-  const past = dark ? 'rgba(198,240,60,0.4)' : c.slab;
+  const past = dark ? 'rgba(255,198,41,0.45)' : c.slab;
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 110, gap: 6 }}>

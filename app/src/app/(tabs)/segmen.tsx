@@ -70,7 +70,7 @@ export default function SegmentsScreen() {
               <Row gap={6}>
                 <Ionicons name={TYPE_ICON[item.type]} size={14} color={c.muted} />
                 <T v="small">
-                  {distance(item.distanceM)} · {item.athletes} atlet
+                  {distance(item.distanceM)}, {item.athletes} atlet
                 </T>
               </Row>
               {here ? (

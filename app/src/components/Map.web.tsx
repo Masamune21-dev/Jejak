@@ -24,7 +24,7 @@ const TILES = {
 const pinHtml = (color: string, label?: string) =>
   `<div style="min-width:26px;height:26px;border-radius:13px;border:3px solid #fff;background:${color};` +
   `display:flex;align-items:center;justify-content:center;padding:0 5px;box-sizing:border-box;` +
-  `color:#fff;font:700 11px Inter_700Bold,system-ui;box-shadow:0 2px 6px rgba(0,0,0,.35)">${label ?? ''}</div>`;
+  `color:#fff;font:700 11px PlusJakartaSans_700Bold,system-ui;box-shadow:0 2px 6px rgba(0,0,0,.35)">${label ?? ''}</div>`;
 
 const ME_HTML =
   '<div style="width:30px;height:30px;border-radius:15px;background:rgba(47,107,255,.22);display:flex;align-items:center;justify-content:center">' +

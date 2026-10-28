@@ -9,6 +9,7 @@ import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import { useKudos } from '@/components/ActivityCard';
 import JejakMap from '@/components/Map';
+import Patok from '@/components/Patok';
 import type { MapLine, MapPin } from '@/components/map-types';
 import {
   Avatar,
@@ -25,10 +26,12 @@ import {
   Stat,
   T,
 } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, errorText } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
-import { distanceParts, duration, pace, speed, tempoParts, TYPE_ICON, TYPE_LABEL, when } from '@/lib/format';
+import { buildGpx, gpxFileName } from '@/lib/gpx';
+import { shareTextFile } from '@/lib/share-file';
+import { activityMeta, distanceParts, duration, pace, speed, tempoParts, TYPE_ICON, when } from '@/lib/format';
 import { font, radius, space, useColors } from '@/lib/theme';
 
 export default function ActivityScreen() {
@@ -38,6 +41,8 @@ export default function ActivityScreen() {
   const id = Number(useLocalSearchParams<{ id: string }>().id);
   const q = useQuery({ queryKey: ['activity', id], queryFn: () => api<Activity>(`/activities/${id}`) });
   const [selectedEffort, setSelectedEffort] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const points = useMemo(() => (q.data ? flatten(q.data.track) : []), [q.data]);
   const fit = useMemo<LatLon[] | null>(() => (points.length ? toLatLon(points) : null), [points]);
@@ -76,9 +81,10 @@ export default function ActivityScreen() {
   const d = distanceParts(a.distanceM);
   const t = tempoParts(a.type, a.distanceM, a.movingS);
   const splitRate = (s: { distanceM: number; elapsedS: number }) => s.elapsedS / s.distanceM;
+  // Km tercepat hanya dari km penuh; panjang batang = kecepatan relatif terhadap km tercepat (jujur, tidak dibesar-besarkan).
   const fullSplits = a.splits.filter((s) => s.distanceM >= 900);
   const fastest = fullSplits.length ? Math.min(...fullSplits.map(splitRate)) : Infinity;
-  const slowest = fullSplits.length ? Math.max(...fullSplits.map(splitRate)) : Infinity;
+  const quickest = Math.min(...a.splits.map(splitRate));
 
   return (
     <Screen padded={false}>
@@ -94,9 +100,7 @@ export default function ActivityScreen() {
               <T v="strong">{a.user.name}</T>
               <Row gap={5}>
                 <Ionicons name={TYPE_ICON[a.type]} size={13} color={c.muted} />
-                <T v="small">
-                  {TYPE_LABEL[a.type]} · {when(a.startedAt)}
-                </T>
+                <T v="small">{activityMeta(a.type, a.startedAt)}</T>
               </Row>
             </View>
           </Row>
@@ -115,6 +119,36 @@ export default function ActivityScreen() {
             <Stat label="Kec. maks" value={speed(a.maxSpeedMps, 1).replace(' km/j', '')} unit="km/j" size={22} />
           </Row>
         </Card>
+
+        {mine ? (
+          <Row gap={space.sm}>
+            <Button
+              style={{ flex: 1 }}
+              icon="image-outline"
+              title="Bagikan"
+              onPress={() => router.push(`/aktivitas/${a.id}/bagikan`)}
+            />
+            <Button
+              style={{ flex: 1 }}
+              kind="soft"
+              icon="download-outline"
+              title="Ekspor GPX"
+              loading={exporting}
+              onPress={async () => {
+                setExporting(true);
+                setExportError(null);
+                try {
+                  await shareTextFile(gpxFileName(a), 'application/gpx+xml', buildGpx(a));
+                } catch (e) {
+                  setExportError(errorText(e));
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            />
+          </Row>
+        ) : null}
+        {exportError ? <ErrorBox error={new Error(exportError)} /> : null}
 
         <KudosRow a={a} mine={mine} />
 
@@ -137,7 +171,7 @@ export default function ActivityScreen() {
                         {e.segmentName}
                       </T>
                       <T v="small">
-                        {distanceParts(e.distanceM).value} {distanceParts(e.distanceM).unit} ·{' '}
+                        {distanceParts(e.distanceM).value} {distanceParts(e.distanceM).unit},{' '}
                         {a.type === 'ride' ? speed(e.distanceM, e.elapsedS) : pace(e.distanceM, e.elapsedS)}
                       </T>
                     </View>
@@ -173,13 +207,10 @@ export default function ActivityScreen() {
               {a.splits.map((s) => {
                 const rate = splitRate(s);
                 const best = rate === fastest;
-                // Lebar batang relatif: yang tercepat penuh, yang paling lambat tetap kelihatan.
-                const w = slowest > fastest ? 40 + ((slowest - rate) / (slowest - fastest)) * 60 : 100;
+                const w = (quickest / rate) * 100;
                 return (
                   <Row key={s.index} gap={space.md}>
-                    <T v="small" style={{ width: 22 }}>
-                      {s.index}
-                    </T>
+                    <Patok km={s.index} />
                     <Text style={[styles.splitPace, { color: c.text }]}>
                       {a.type === 'ride'
                         ? speed(s.distanceM, s.elapsedS).replace(' km/j', '')
@@ -198,7 +229,9 @@ export default function ActivityScreen() {
                   </Row>
                 );
               })}
-              <T v="small">{a.type === 'ride' ? 'Kecepatan km/j per km' : 'Pace per km'} · oranye = tercepat</T>
+              <T v="small">
+                {a.type === 'ride' ? 'Kecepatan per km dalam km/j.' : 'Pace per km.'} Batang merah menandai km tercepat.
+              </T>
             </Card>
           </>
         ) : null}
@@ -215,7 +248,7 @@ export default function ActivityScreen() {
                     </T>
                     {b.isPr ? <Ionicons name="trophy" size={14} color={c.gold} /> : null}
                   </Row>
-                  <T v="num" size={28} color={b.isPr ? '#C6F03C' : undefined}>
+                  <T v="num" size={28} color={b.isPr ? c.accent : undefined}>
                     {duration(b.elapsedS)}
                   </T>
                 </View>

@@ -27,7 +27,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, pace, speed, TYPE_ICON, TYPE_LABEL } from '@/lib/format';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, radius, ROAD, space, useColors } from '@/lib/theme';
 
 export default function SegmentScreen() {
   const c = useColors();
@@ -83,7 +83,7 @@ export default function SegmentScreen() {
               <Text style={styles.mineLabel}>Waktu terbaikmu</Text>
               <Text style={styles.mineTime}>{duration(s.myBest.elapsedS)}</Text>
               <Text style={styles.mineSub}>
-                {tempoOf(s.myBest)} · {dateShort(s.myBest.date)}
+                {tempoOf(s.myBest)}, {dateShort(s.myBest.date)}
               </Text>
             </View>
             <View style={[styles.mineRank, { borderColor: s.myBest.rank <= 3 ? c.gold : 'rgba(255,255,255,0.25)' }]}>
@@ -129,7 +129,7 @@ export default function SegmentScreen() {
                     {r.user.id === me.id ? ' (kamu)' : ''}
                   </T>
                   <T v="small">
-                    {dateShort(r.date)} · {tempoOf(r)}
+                    {dateShort(r.date)}, {tempoOf(r)}
                   </T>
                 </View>
                 <T v="num" size={24}>
@@ -170,11 +170,9 @@ const styles = StyleSheet.create({
   mineLabel: {
     fontFamily: font.bold,
     fontSize: 11,
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
     color: 'rgba(255,255,255,0.6)',
   },
-  mineTime: { fontFamily: font.numBold, fontSize: 44, color: '#C6F03C', lineHeight: 48 },
+  mineTime: { fontFamily: font.numBold, fontSize: 44, color: ROAD.marka, lineHeight: 48 },
   mineSub: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   mineRank: {
     alignItems: 'center',
@@ -183,7 +181,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  mineRankLabel: { fontFamily: font.semibold, fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' },
+  mineRankLabel: { fontFamily: font.semibold, fontSize: 10, color: 'rgba(255,255,255,0.6)' },
   mineRankNum: { fontFamily: font.numBold, fontSize: 30 },
   row: { paddingHorizontal: space.lg, paddingVertical: space.md },
 });

@@ -10,22 +10,23 @@ import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import { DEFAULT_CENTER, endPins, type MapLine, type MapPin } from '@/components/map-types';
+import Rambu from '@/components/Rambu';
 import StaticMap from '@/components/StaticMap';
-import { Button, ErrorBox, Field, IconButton, Num, Row, Sheet, Stat, T, TypePicker, type IconName } from '@/components/ui';
+import { Button, ErrorBox, Field, IconButton, Row, Sheet, Stat, T, TypePicker, type IconName } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_LABEL } from '@/lib/format';
 import { createGpsSource, currentPosition } from '@/lib/gps';
 import { elapsedMs, recorder, useRecorder } from '@/lib/recorder';
 import { createSimSource, loopAround } from '@/lib/sim';
-import { font, radius, shadow, space, useColors } from '@/lib/theme';
+import { font, radius, ROAD, shadow, space, useColors } from '@/lib/theme';
 
 const SIM_SPEED: Record<ActivityType, number> = { run: 3.2, ride: 7, walk: 1.4 };
 
 const SOURCE_TEXT = {
-  'gps-bg': 'GPS aktif · tetap merekam saat layar mati',
-  'gps-fg': 'GPS aktif · biarkan layar menyala',
-  sim: 'Simulasi GPS · 8× lebih cepat',
+  'gps-bg': 'GPS aktif, tetap merekam saat layar mati',
+  'gps-fg': 'GPS aktif. Biarkan layar menyala',
+  sim: 'Simulasi GPS, 8× lebih cepat',
 } as const;
 
 export default function RecordScreen() {
@@ -168,7 +169,7 @@ export default function RecordScreen() {
                 <View style={{ flex: 1 }}>
                   <T v="label">Rute</T>
                   <T v="strong" numberOfLines={1}>
-                    {s.route ? `${s.route.name} · ${distance(s.route.distanceM)}` : 'Bebas, tanpa rute'}
+                    {s.route ? `${s.route.name}, ${distance(s.route.distanceM)}` : 'Bebas, tanpa rute'}
                   </T>
                 </View>
                 <Ionicons name="chevron-down" size={18} color={c.muted} />
@@ -231,7 +232,8 @@ export default function RecordScreen() {
                       icon="flag"
                       bg={c.track}
                       color="#fff"
-                      label="Selesai"
+                      label="Tahan untuk selesai"
+                      hold
                       disabled={busy}
                       onPress={() => act(recorder.finish)}
                     />
@@ -256,6 +258,7 @@ function RoundButton({
   color,
   size,
   disabled,
+  hold,
 }: {
   icon: IconName;
   label: string;
@@ -264,12 +267,22 @@ function RoundButton({
   color: string;
   size: number;
   disabled?: boolean;
+  /** Harus ditekan-tahan (untuk aksi yang tidak bisa dibatalkan, seperti Selesai). */
+  hold?: boolean;
 }) {
   const c = useColors();
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (!hint) return;
+    const t = setTimeout(() => setHint(false), 2500);
+    return () => clearTimeout(t);
+  }, [hint]);
   return (
     <View style={{ alignItems: 'center', gap: 6 }}>
       <Pressable
-        onPress={onPress}
+        onPress={hold ? () => setHint(true) : onPress}
+        onLongPress={hold ? onPress : undefined}
+        delayLongPress={600}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -292,8 +305,8 @@ function RoundButton({
           style={icon === 'play' ? { marginLeft: size * 0.05 } : undefined}
         />
       </Pressable>
-      <T v="strong" size={14}>
-        {label}
+      <T v="strong" size={14} color={hint ? c.danger : undefined}>
+        {hint ? 'Tekan lebih lama' : label}
       </T>
     </View>
   );
@@ -315,57 +328,37 @@ function TopOverlay({ sourceText, accuracy }: { sourceText: string | null; accur
           <View style={[styles.dot, { backgroundColor: goodGps ? c.start : c.gold }]} />
           <T v="small" color={c.text}>
             {sourceText}
-            {accuracy != null ? ` · ±${Math.round(accuracy)} m` : ''}
+            {accuracy != null ? ` (±${Math.round(accuracy)} m)` : ''}
           </T>
         </View>
       ) : null}
 
       {showGuide && s.status === 'idle' ? (
-        <View style={[styles.guide, { backgroundColor: c.slab }]}>
-          <View style={[styles.turn, { backgroundColor: c.route }]}>
-            <Ionicons name="navigate" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.guideTitle} numberOfLines={1}>
-              {s.route!.name}
-            </Text>
-            <Text style={styles.guideSub}>
-              {g!.offRoute ? `Titik terdekat rute ${distance(g!.offM)} dari sini` : 'Kamu sudah di rute'} ·{' '}
-              {distance(s.route!.distanceM)}
-            </Text>
-          </View>
-        </View>
+        <Rambu
+          color={ROAD.rambu}
+          icon="navigate"
+          title={s.route!.name}
+          sub={`${g!.offRoute ? `Titik terdekat rute ${distance(g!.offM)} dari sini` : 'Kamu sudah di rute'}. Total ${distance(s.route!.distanceM)}`}
+        />
       ) : null}
 
       {showGuide && s.status !== 'idle' && g!.offRoute ? (
-        <View style={[styles.guide, { backgroundColor: c.danger }]}>
-          <View style={[styles.turn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <Ionicons name="warning" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.guideTitle}>Keluar dari rute</Text>
-            <Text style={styles.guideSub}>
-              {distance(g!.offM)} dari garis rute · sisa {distance(g!.remainingM)}
-            </Text>
-          </View>
-        </View>
+        <Rambu
+          color={ROAD.patok}
+          icon="warning"
+          title="Keluar dari rute"
+          sub={`${distance(g!.offM)} dari garis rute, sisa ${distance(g!.remainingM)}`}
+        />
       ) : null}
 
       {showGuide && s.status !== 'idle' && !g!.offRoute ? (
-        <View style={[styles.guide, { backgroundColor: c.slab }]}>
-          <View style={[styles.turn, { backgroundColor: c.accent }]}>
-            <Ionicons name={turnIcon(g!.next?.text)} size={26} color={c.accentInk} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            {g!.next ? (
-              <Num value={distanceParts(g!.next.inM).value} unit={distanceParts(g!.next.inM).unit} size={30} color="#C6F03C" />
-            ) : null}
-            <Text style={styles.guideTitle} numberOfLines={2}>
-              {g!.next ? g!.next.text : 'Ikuti garis rute'}
-            </Text>
-            <Text style={styles.guideSub}>Sisa {distance(g!.remainingM)}</Text>
-          </View>
-        </View>
+        <Rambu
+          color={ROAD.rambu}
+          icon={turnIcon(g!.next?.text)}
+          big={g!.next ? distance(g!.next.inM) : undefined}
+          title={g!.next ? g!.next.text : 'Ikuti garis rute'}
+          sub={`Sisa ${distance(g!.remainingM)}`}
+        />
       ) : null}
     </View>
   );
@@ -461,7 +454,7 @@ function RoutePicker({ visible, onClose }: { visible: boolean; onClose: () => vo
               key={r.id}
               preview={r.preview}
               title={r.name}
-              subtitle={`${TYPE_LABEL[r.type]} · ${distance(r.distanceM)}`}
+              subtitle={`${TYPE_LABEL[r.type]}, ${distance(r.distanceM)}`}
               active={current?.id === r.id}
               loading={loading === r.id}
               onPress={() => pick(r.id)}

@@ -96,14 +96,20 @@ export function when(iso: string): string {
   const now = new Date();
   const time = `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`;
   const days = Math.floor((startOfDay(now) - startOfDay(d)) / 86_400_000);
-  if (days === 0) return `Hari ini ${time}`;
-  if (days === 1) return `Kemarin ${time}`;
+  if (days === 0) return `Hari ini pukul ${time}`;
+  if (days === 1) return `Kemarin pukul ${time}`;
   if (days < 7) return `${days} hari lalu`;
   return dateShort(iso);
 }
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** "Lari, kemarin pukul 06.12" */
+export function activityMeta(type: ActivityType, iso: string): string {
+  const w = when(iso);
+  return `${TYPE_LABEL[type]}, ${w.charAt(0).toLowerCase()}${w.slice(1)}`;
 }
 
 export function defaultTitle(type: ActivityType, startedAt: number): string {

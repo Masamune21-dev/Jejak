@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { WeekTotal } from '@shared/api';
 
 import { durationShort, km } from '@/lib/format';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, radius, ROAD, space, useColors } from '@/lib/theme';
 
 /** Panel gelap ringkasan minggu ini + batang 8 minggu terakhir. */
 export default function WeekCard({ weeks, title = 'Minggu ini' }: { weeks: WeekTotal[]; title?: string }) {
@@ -20,7 +20,7 @@ export default function WeekCard({ weeks, title = 'Minggu ini' }: { weeks: WeekT
           <Text style={styles.unit}> km</Text>
         </Text>
         <Text style={styles.meta}>
-          {now.count} aktivitas · {durationShort(now.movingS)}
+          {now.count} aktivitas, {durationShort(now.movingS)} bergerak
         </Text>
       </View>
       <View style={styles.bars}>
@@ -32,7 +32,7 @@ export default function WeekCard({ weeks, title = 'Minggu ini' }: { weeks: WeekT
                 style={{
                   height: `${Math.max(w.distanceM > 0 ? 10 : 4, (w.distanceM / max) * 100)}%`,
                   borderRadius: 4,
-                  backgroundColor: last ? c.accent : w.distanceM > 0 ? 'rgba(198,240,60,0.38)' : 'rgba(255,255,255,0.12)',
+                  backgroundColor: last ? c.accent : w.distanceM > 0 ? 'rgba(255,198,41,0.4)' : 'rgba(255,255,255,0.12)',
                 }}
               />
             </View>
@@ -45,8 +45,8 @@ export default function WeekCard({ weeks, title = 'Minggu ini' }: { weeks: WeekT
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', borderRadius: radius.lg, padding: space.lg + 2, gap: space.lg, alignItems: 'flex-end' },
-  label: { fontFamily: font.bold, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' },
-  big: { fontFamily: font.numBold, fontSize: 54, color: '#C6F03C', lineHeight: 58 },
+  label: { fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,0.6)' },
+  big: { fontFamily: font.numBold, fontSize: 54, color: ROAD.marka, lineHeight: 58 },
   unit: { fontFamily: font.semibold, fontSize: 18, color: 'rgba(255,255,255,0.7)' },
   meta: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
   bars: { width: 120, height: 70, flexDirection: 'row', alignItems: 'flex-end', gap: 5 },

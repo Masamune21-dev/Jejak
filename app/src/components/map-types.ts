@@ -43,9 +43,9 @@ export function endPins(line: LatLon[], labels: [string, string] = ['A', 'B']): 
   if (line.length === 0) return [];
   const start = line[0];
   const end = line[line.length - 1];
-  if (haversine(start, end) < 30) return [{ id: 'start', at: start, color: '#17B26A', label: `${labels[0]}·${labels[1]}` }];
+  if (haversine(start, end) < 30) return [{ id: 'start', at: start, color: '#0B7A55', label: `${labels[0]}/${labels[1]}` }];
   return [
-    { id: 'start', at: start, color: '#17B26A', label: labels[0] },
-    { id: 'end', at: end, color: '#E5484D', label: labels[1] },
+    { id: 'start', at: start, color: '#0B7A55', label: labels[0] },
+    { id: 'end', at: end, color: '#D7332A', label: labels[1] },
   ];
 }

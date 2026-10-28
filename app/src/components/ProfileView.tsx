@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { dateShort, distanceParts, duration, durationShort, km, TYPE_LABEL } from '@/lib/format';
 import { useRefetchOnFocus } from '@/lib/hooks';
-import { font, radius, space, useColors } from '@/lib/theme';
+import { font, radius, ROAD, space, useColors } from '@/lib/theme';
 
 import ActivityCard from './ActivityCard';
 import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
@@ -228,14 +228,12 @@ const styles = StyleSheet.create({
   count: { color: 'rgba(255,255,255,0.65)', fontFamily: font.medium, fontSize: 14 },
   countNum: { color: '#fff', fontFamily: font.bold },
   totals: { flexDirection: 'row', alignSelf: 'stretch', borderTopWidth: 1, paddingTop: space.md, marginTop: space.xs },
-  heroNum: { color: '#C6F03C', fontFamily: font.numBold, fontSize: 30 },
+  heroNum: { color: ROAD.marka, fontFamily: font.numBold, fontSize: 30 },
   heroUnit: { color: 'rgba(255,255,255,0.7)', fontFamily: font.semibold, fontSize: 13 },
   heroLabel: {
     color: 'rgba(255,255,255,0.6)',
     fontFamily: font.bold,
     fontSize: 10,
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
   },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile: {

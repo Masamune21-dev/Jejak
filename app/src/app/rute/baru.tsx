@@ -13,7 +13,7 @@ import { Button, ErrorBox, Field, Row, Sheet, Stat, T, ToolButton, TypePicker } 
 import { api } from '@/lib/api';
 import { distanceParts, durationShort, TYPE_SPEED } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
-import { font, space, useColors } from '@/lib/theme';
+import { font, ROAD, space, useColors } from '@/lib/theme';
 
 export default function RouteBuilderScreen() {
   const c = useColors();
@@ -88,7 +88,7 @@ export default function RouteBuilderScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} me={here} initialCenter={here ?? undefined} fit={fitHere} onPress={add} />
       <View style={[styles.hint, { backgroundColor: c.slab }]} pointerEvents="none">
-        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color="#C6F03C" />
+        <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={ROAD.marka} />
         <Text style={styles.hintText}>
           {waypoints.length === 0
             ? 'Ketuk peta untuk titik awal'
@@ -98,7 +98,7 @@ export default function RouteBuilderScreen() {
                 ? 'Menghitung rute…'
                 : plan && !plan.snapped && snap
                   ? 'Layanan rute tidak tersedia, pakai garis lurus'
-                  : `${waypoints.length} titik · ketuk untuk menambah`}
+                  : `${waypoints.length} titik. Ketuk untuk menambah`}
         </Text>
       </View>
       <Sheet>

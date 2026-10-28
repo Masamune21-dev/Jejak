@@ -33,8 +33,8 @@ const VARIANT: Record<Variant, TextStyle> = {
   body: { fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
   strong: { fontFamily: font.semibold, fontSize: 15, lineHeight: 21 },
   small: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
-  label: { fontFamily: font.bold, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase' },
-  num: { fontFamily: font.numBold, fontSize: 26, letterSpacing: 0.2, fontVariant: ['tabular-nums'] },
+  label: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16 },
+  num: { fontFamily: font.numBold, fontSize: 26, fontVariant: ['tabular-nums'] },
 };
 
 export function T({
@@ -160,20 +160,32 @@ export function Header({ title, subtitle, right }: { title: string; subtitle?: s
   );
 }
 
+/** Blok konten datar berbingkai tipis; bayangan hanya untuk benda yang melayang (`raised`). */
 export function Card({
   children,
   style,
   onPress,
   flat,
+  raised,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  /** Tanpa bingkai (untuk blok berwarna). */
   flat?: boolean;
+  raised?: boolean;
 }) {
   const c = useColors();
   const body = (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }, !flat && shadow(c), style]}>{children}</View>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: c.surface, borderColor: flat ? 'transparent' : c.line },
+        raised && shadow(c),
+        style,
+      ]}>
+      {children}
+    </View>
   );
   if (!onPress) return body;
   return (

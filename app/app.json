@@ -56,7 +56,38 @@
         }
       ],
       "@maplibre/maplibre-react-native",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Jejak membuka galeri supaya kamu bisa menempelkan hasil aktivitas di fotomu.",
+          "cameraPermission": "Jejak memakai kamera supaya kamu bisa memotret lalu menempelkan hasil aktivitas.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Jejak membuka galeri untuk menyimpan gambar hasil aktivitas.",
+          "savePhotosPermission": "Jejak menyimpan gambar hasil aktivitas ke galerimu.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": [
+              "arm64-v8a"
+            ],
+            "useLegacyPackaging": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,22 +1,29 @@
-// Tugas lokasi latar harus terdaftar sebelum navigasi apa pun berjalan.
+// Pencatat crash dipasang paling awal; tugas lokasi latar harus terdaftar sebelum navigasi berjalan.
+import '@/lib/crash';
 import '@/lib/location-task';
 
-import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  Inter_800ExtraBold,
+  BigShouldersDisplay_700Bold,
+  BigShouldersDisplay_800ExtraBold,
+  BigShouldersDisplay_900Black,
+} from '@expo-google-fonts/big-shoulders-display';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
   useFonts,
-} from '@expo-google-fonts/inter';
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
+import CrashReportView from '@/components/CrashReport';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { takeLastCrash, toReport, type CrashReport } from '@/lib/crash';
 import { recorder } from '@/lib/recorder';
 import { font, useColors, useIsDark } from '@/lib/theme';
 
@@ -25,6 +32,11 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 15_000 } },
 });
+
+/** Error saat menampilkan layar: tunjukkan laporannya, jangan menutup app. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return <CrashReportView title="Ada yang gagal di layar ini" report={toReport(error)} onRetry={() => void retry()} />;
+}
 
 export default function RootLayout() {
   return (
@@ -41,18 +53,22 @@ function Root() {
   const c = useColors();
   const { user, ready } = useAuth();
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Inter_800ExtraBold,
-    BarlowCondensed_600SemiBold,
-    BarlowCondensed_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    BigShouldersDisplay_700Bold,
+    BigShouldersDisplay_800ExtraBold,
+    BigShouldersDisplay_900Black,
   });
   const loaded = ready && (fontsLoaded || !!fontError);
 
+  const [lastCrash, setLastCrash] = useState<CrashReport | null>(null);
+
   useEffect(() => {
     void recorder.restore();
+    void takeLastCrash().then(setLastCrash);
   }, []);
 
   useEffect(() => {
@@ -60,6 +76,9 @@ function Root() {
   }, [loaded]);
 
   if (!loaded) return null;
+  if (lastCrash) {
+    return <CrashReportView title="Jejak sempat berhenti" report={lastCrash} onClose={() => setLastCrash(null)} />;
+  }
 
   const base = dark ? DarkTheme : DefaultTheme;
   const theme = {
@@ -83,6 +102,7 @@ function Root() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="aktivitas/[id]/index" options={{ title: '' }} />
           <Stack.Screen name="aktivitas/[id]/segmen" options={{ title: 'Buat segmen' }} />
+          <Stack.Screen name="aktivitas/[id]/bagikan" options={{ title: 'Bagikan' }} />
           <Stack.Screen name="segmen/[id]" options={{ title: '' }} />
           <Stack.Screen name="rute/baru" options={{ title: 'Rute baru' }} />
           <Stack.Screen name="rute/[id]" options={{ title: '' }} />

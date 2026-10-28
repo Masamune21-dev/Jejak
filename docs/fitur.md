@@ -53,7 +53,7 @@ Layar `masuk.tsx` punya dua mode lewat pilihan **Masuk / Daftar**.
 | --- | --- |
 | Username | 3–20 karakter, hanya huruf, angka, titik, dan garis bawah. Disimpan dalam huruf kecil, jadi `Dicky` dan `dicky` dianggap sama. |
 | Nama tampilan | 1–50 karakter. |
-| Kata sandi | 6–200 karakter. |
+| Kata sandi | 6–200 karakter, dan tidak boleh mudah ditebak: kata sandi umum (`123456`, `password`, `sayang`, …), satu huruf diulang, deret angka, atau memuat username. Pesannya *Kata sandi terlalu mudah ditebak*. |
 
 Bila username sudah dipakai, muncul pesan *Username sudah dipakai*.
 

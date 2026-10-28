@@ -100,6 +100,30 @@ function str(v: unknown, field: string, min = 1, max = 100): string {
   return s;
 }
 
+/** Kata sandi yang paling sering dipakai, jadi paling dulu dicoba penebak (termasuk yang umum di Indonesia). */
+const COMMON_PASSWORDS = new Set(
+  (
+    'password password1 password123 qwerty qwerty123 qwertyuiop abc123 abcdef abcd1234 iloveyou admin admin123 ' +
+    'welcome letmein monkey dragon football sunshine princess 1q2w3e 1q2w3e4r zxcvbn asdfgh asdf1234 ' +
+    '123123 112233 121212 123321 654321 159753 147258 ' +
+    'sayang sayangku cinta cintaku bismillah indonesia rahasia rahasia123 katasandi jakarta merdeka garuda ' +
+    'anjing kucing persib persija jejak jejak123 lari123'
+  ).split(' '),
+);
+
+/** Kata sandi yang mudah ditebak: umum, satu karakter diulang, deret angka, atau berisi username. */
+function weakPassword(password: string, username: string): boolean {
+  const p = password.toLowerCase();
+  return (
+    COMMON_PASSWORDS.has(p) ||
+    /^(.)\1+$/.test(p) ||
+    '01234567890123456789'.includes(p) ||
+    '98765432109876543210'.includes(p) ||
+    // Username pendek (mis. "ika") bisa muncul tanpa sengaja di kata sandi biasa, jadi tidak dicek.
+    (username.length >= 4 && p.includes(username))
+  );
+}
+
 function actType(v: unknown): ActivityType {
   if (!TYPES.includes(v as ActivityType)) fail(400, 'Jenis aktivitas tidak dikenal');
   return v as ActivityType;
@@ -528,6 +552,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const password = typeof b.password === 'string' ? b.password : '';
     if (password.length < 6) fail(400, 'Kata sandi minimal 6 karakter');
     if (password.length > 200) fail(400, 'Kata sandi maksimal 200 karakter');
+    if (weakPassword(password, username))
+      fail(400, 'Kata sandi terlalu mudah ditebak. Pakai gabungan kata dan angka yang tidak umum.');
     if (one('select 1 from users where username = ?', username)) fail(409, 'Username sudah dipakai');
     const id = Number(
       run('insert into users (username, name, password_hash) values (?, ?, ?)', username, name, hashPassword(password))
@@ -621,8 +647,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const type = rawType === 'all' ? 'all' : actType(rawType);
     const byType = type === 'all' ? '' : 'and type = ?';
     const typeArg = type === 'all' ? [] : [type];
-    // Zona waktu pengguna dalam menit di timur UTC (WIB = 420).
-    const tz = Number(c.req.query('tz') ?? 420) || 0;
+    // Zona waktu pengguna dalam menit di timur UTC (WIB = 420), dibatasi ke zona yang ada (UTC−12 s.d. UTC+14).
+    const tz = Math.min(840, Math.max(-720, Number(c.req.query('tz') ?? 420) || 0));
     const local = (iso: string | number) => new Date(new Date(iso).getTime() + tz * 60_000);
     const weekStart = (d: Date) => {
       const offset = (d.getUTCDay() + 6) % 7;

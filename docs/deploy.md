@@ -92,7 +92,8 @@ Lokasi:
 | `location` | Perilaku |
 | --- | --- |
 | `/api/auth/` | Batas laju zona `jejak_auth`: 10 permintaan/menit per IP, `burst=10 nodelay`, kelebihan → **429**. Diteruskan ke `http://127.0.0.1:3014/auth/`. |
-| `/api/` | Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
+| `/api/` | Batas laju zona `jejak_api` (10 permintaan/detik per IP, `burst=100`) dan `jejak_write` (hanya `POST`/`PATCH`/`DELETE`: 30/menit per IP, `burst=30`; `map $request_method` memberi kunci kosong untuk metode lain, yang tidak dihitung nginx). Diteruskan ke `http://127.0.0.1:3014/` (awalan `/api` dibuang), `proxy_read_timeout 120s`. |
+| `@jejak_terlalu_banyak` | `error_page 429` untuk semua lokasi: badan JSON `{"error":"Terlalu banyak permintaan. …"}` supaya app menampilkan pesannya. |
 | `/_expo/` | Berkas build web ber-hash: `expires 1y`, `Cache-Control: public, immutable`, 404 bila tidak ada. |
 | `/` | Berkas web; bila tidak ada, `$uri.html`, lalu `/index.html` (aplikasi satu halaman). `Cache-Control: no-cache`. |
 
@@ -190,7 +191,7 @@ Yang biasa muncul di log Node:
 | `[routing] gagal, pakai garis lurus: …` | OSRM gagal/timeout; pengguna mendapat rute garis lurus. |
 | Stack trace error | Penyebab respons 500 *Terjadi kesalahan di server*. |
 
-Di log akses nginx, status 429 pada `/api/auth/` menandakan batas laju terpicu, dan 444 menandakan pemindai yang diblokir.
+Di log akses nginx, status 429 menandakan batas laju terpicu (di `/api/auth/` atau di API lain), dan 444 menandakan pemindai yang diblokir.
 
 ---
 

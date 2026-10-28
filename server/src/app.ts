@@ -1,3 +1,7 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -6,6 +10,13 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type {
   Activity,
   ActivitySummary,
+  ChatMessage,
+  ChatSummary,
+  FollowItem,
+  LikeState,
+  Post,
+  PostReply,
+  TimelineItem,
   ActivityType,
   AuthResult,
   BestEffort,
@@ -29,6 +40,7 @@ import * as geo from '../../shared/geo.ts';
 import type { LatLon, TrackPoint } from '../../shared/geo.ts';
 import { hashPassword, hashToken, newToken, verifyPassword } from './auth.ts';
 import { tx, type DB } from './db.ts';
+import { cleanJpeg, MAX_PHOTO_BYTES, mediaPath, openMedia, readMedia, removeMedia, saveJpeg, verifyMedia, type MediaStore } from './media.ts';
 import { planRoute as defaultPlanRoute } from './routing.ts';
 
 type Row = Record<string, any>;
@@ -212,18 +224,21 @@ async function body(c: Context): Promise<Row> {
 
 // --- Aplikasi ---
 
-export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } = {}) {
+export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; media?: MediaStore } = {}) {
   const planRoute = opts.planRoute ?? defaultPlanRoute;
+  // Tes memakai folder sementara; server sungguhan memberi data/uploads (lihat index.ts).
+  const media = opts.media ?? openMedia(mkdtempSync(join(tmpdir(), 'jejak-media-')));
+  const photoUrl = (file: string | null | undefined) => (file ? mediaPath(media, file) : null);
   const one = <T = Row>(sql: string, ...p: any[]) => db.prepare(sql).get(...p) as T | undefined;
   const all = <T = Row>(sql: string, ...p: any[]) => db.prepare(sql).all(...p) as T[];
   const run = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
 
-  const userOf = (r: Row): UserSummary => ({ id: r.u_id, username: r.u_username, name: r.u_name });
+  const userOf = (r: Row): UserSummary => ({ id: r.u_id, username: r.u_username, name: r.u_name, avatarUrl: photoUrl(r.u_avatar) });
 
   const ACTIVITY_SELECT = `
     select a.id, a.type, a.title, a.started_at, a.elapsed_s, a.moving_s, a.distance_m, a.elev_gain_m,
            a.preview, a.route_id, a.pr_count,
-           u.id as u_id, u.username as u_username, u.name as u_name,
+           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
            (select count(*) from kudos k where k.activity_id = a.id) as kudos,
            exists(select 1 from kudos k where k.activity_id = a.id and k.user_id = $me) as has_kudo,
            (select count(*) from comments c where c.activity_id = a.id) as comments
@@ -259,19 +274,30 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     return { count: r.count, distanceM: r.d, movingS: r.m };
   };
 
+  const blockedBy = (blocker: number, blocked: number) =>
+    !!one('select 1 from blocks where blocker_id = ? and blocked_id = ?', blocker, blocked);
+
   function profile(id: number, me: number): Profile {
-    const u = one('select id, username, name, created_at from users where id = ?', id);
+    const u = one('select id, username, name, created_at, avatar, cover from users where id = ?', id);
     if (!u) fail(404, 'Pengguna tidak ditemukan');
+    const following = isFollowing(me, id);
+    const mutual = following && isFollowing(id, me);
+    const blocked = blockedBy(me, id);
     return {
       id: u.id,
       username: u.username,
       name: u.name,
+      avatarUrl: photoUrl(u.avatar),
+      coverUrl: photoUrl(u.cover),
       createdAt: u.created_at,
       followers: one('select count(*) as n from follows where followee_id = ?', id)!.n,
       following: one('select count(*) as n from follows where follower_id = ?', id)!.n,
-      isFollowing: isFollowing(me, id),
+      isFollowing: following,
       isMe: id === me,
       totals: totalsOf('user_id = ?', id),
+      isMutual: mutual,
+      blocked,
+      canMessage: id !== me && mutual && !blocked && !blockedBy(id, me),
     };
   }
 
@@ -317,7 +343,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       isPr: !!e.is_pr,
     }));
     const kudosBy = all(
-      `select u.id as u_id, u.username as u_username, u.name as u_name
+      `select u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
        from kudos k join users u on u.id = k.user_id where k.activity_id = ? order by k.created_at desc limit 50`,
       id,
     ).map(userOf);
@@ -444,7 +470,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     createdAt: r.created_at,
   });
 
-  const ROUTE_SELECT = `select r.*, u.id as u_id, u.username as u_username, u.name as u_name
+  const ROUTE_SELECT = `select r.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
     from routes r join users u on u.id = r.user_id`;
 
   /** Rute rencana hanya untuk pembuatnya (sering dimulai dari rumah). */
@@ -459,7 +485,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     };
   }
 
-  const SEGMENT_SELECT = `select s.*, u.id as u_id, u.username as u_username, u.name as u_name,
+  const SEGMENT_SELECT = `select s.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
       (select count(distinct e.user_id) from segment_efforts e where e.segment_id = s.id) as athletes
     from segments s join users u on u.id = s.user_id`;
 
@@ -485,7 +511,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       : '';
     // SQLite mengambil activity_id & started_at dari baris dengan min(elapsed_s).
     const board = all(
-      `select e.user_id as u_id, u.username as u_username, u.name as u_name,
+      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
               min(e.elapsed_s) as elapsed_s, e.activity_id, e.started_at
        from segment_efforts e join users u on u.id = e.user_id
        where e.segment_id = $id ${filter}
@@ -500,7 +526,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       date: b.started_at,
     }));
     const mine = one(
-      `select e.user_id as u_id, u.username as u_username, u.name as u_name,
+      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
               min(e.elapsed_s) as elapsed_s, e.activity_id, e.started_at
        from segment_efforts e join users u on u.id = e.user_id
        where e.segment_id = ? and e.user_id = ?`,
@@ -566,15 +592,29 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const b = await body(c);
     const username = str(b.username, 'Username', 1, 50).toLowerCase();
     const password = typeof b.password === 'string' ? b.password : '';
-    const u = one('select id, username, name, password_hash from users where username = ?', username);
+    const u = one('select id, username, name, avatar, password_hash from users where username = ?', username);
     // Akun lama didaftarkan dengan kata sandi yang di-trim, jadi coba juga versi tanpa spasi tepi.
     const ok = u && (verifyPassword(password, u.password_hash) || verifyPassword(password.trim(), u.password_hash));
     if (!u || !ok) fail(401, 'Username atau kata sandi salah');
-    return c.json(startSession({ id: u.id, username: u.username, name: u.name }));
+    return c.json(startSession({ id: u.id, username: u.username, name: u.name, avatarUrl: photoUrl(u.avatar) }));
+  });
+
+  // Foto disajikan tanpa header Authorization (tag <img> di web tidak bisa mengirimnya); aksesnya dijaga tanda tangan URL.
+  app.get('/media/:name', (c) => {
+    const name = c.req.param('name');
+    if (!verifyMedia(media, name, c.req.query('exp'), c.req.query('sig'))) fail(403, 'Alamat foto tidak berlaku');
+    const data = readMedia(media, name);
+    if (!data) fail(404, 'Foto tidak ditemukan');
+    return c.body(new Uint8Array(data), 200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'private, max-age=604800, immutable',
+      'X-Content-Type-Options': 'nosniff',
+    });
   });
 
   app.use('*', async (c, next) => {
-    if (c.req.path === '/health' || c.req.path.startsWith('/auth/') || c.req.method === 'OPTIONS') return next();
+    if (c.req.path === '/health' || c.req.path.startsWith('/auth/') || c.req.path.startsWith('/media/') || c.req.method === 'OPTIONS')
+      return next();
     const hash = hashToken(bearer(c) ?? '');
     const u = one(
       'select u.id, u.username, u.name, s.last_used_at from sessions s join users u on u.id = s.user_id where s.token_hash = ?',
@@ -606,12 +646,14 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const q = (c.req.query('q') ?? '').trim();
     const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
     const rows = all(
-      `select id, username, name, exists(select 1 from follows where follower_id = $me and followee_id = users.id) as f
+      `select id, username, name, avatar, exists(select 1 from follows where follower_id = $me and followee_id = users.id) as f
        from users where id != $me and (username like $q escape '\\' or name like $q escape '\\')
        order by username limit 30`,
       { me, q: like },
     );
-    return c.json(rows.map<UserListItem>((r) => ({ id: r.id, username: r.username, name: r.name, isFollowing: !!r.f })));
+    return c.json(
+      rows.map<UserListItem>((r) => ({ id: r.id, username: r.username, name: r.name, avatarUrl: photoUrl(r.avatar), isFollowing: !!r.f })),
+    );
   });
 
   app.get('/users/:id', (c) => c.json(profile(idParam(c), c.var.me.id)));
@@ -620,6 +662,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const id = idParam(c);
     if (id === c.var.me.id) fail(400, 'Tidak bisa mengikuti diri sendiri');
     if (!one('select 1 from users where id = ?', id)) fail(404, 'Pengguna tidak ditemukan');
+    if (blockedBy(id, c.var.me.id) || blockedBy(c.var.me.id, id)) fail(403, 'Tidak bisa mengikuti pengguna ini');
     run('insert or ignore into follows (follower_id, followee_id) values (?, ?)', c.var.me.id, id);
     return c.json(profile(id, c.var.me.id));
   });
@@ -772,7 +815,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     return c.json(kudosState(id, c.var.me.id));
   });
 
-  const COMMENT_SELECT = `select c.id, c.body, c.created_at, u.id as u_id, u.username as u_username, u.name as u_name
+  const COMMENT_SELECT = `select c.id, c.body, c.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
     from comments c join users u on u.id = c.user_id`;
   const toComment = (r: Row): Comment => ({ id: r.id, body: r.body, createdAt: r.created_at, user: userOf(r) });
 
@@ -945,6 +988,315 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     if (r.user_id !== c.var.me.id) fail(403, 'Hanya pembuat yang bisa menghapus');
     run('delete from segments where id = ?', id);
     return c.json({ ok: true });
+  });
+
+  // --- Foto profil & sampul ---
+
+  /** Ambil satu foto JPEG dari isian multipart, sudah dibersihkan dari EXIF (lokasi GPS). */
+  const photoFrom = async (v: unknown): Promise<Buffer> => {
+    if (!v || typeof v !== 'object' || !('arrayBuffer' in v)) fail(400, 'Foto wajib diunggah');
+    const f = v as File;
+    if (f.size > MAX_PHOTO_BYTES) fail(413, 'Foto maksimal 2 MB');
+    const clean = cleanJpeg(Buffer.from(await f.arrayBuffer()));
+    if (!clean) fail(400, 'Foto harus berformat JPEG');
+    return clean;
+  };
+
+  const formOf = async (c: Context) => {
+    try {
+      return await c.req.parseBody({ all: true });
+    } catch {
+      fail(400, 'Isi permintaan harus multipart/form-data');
+    }
+  };
+
+  for (const kind of ['avatar', 'cover'] as const) {
+    app.put(`/me/${kind}`, async (c) => {
+      const data = await photoFrom((await formOf(c)).foto);
+      const me = c.var.me.id;
+      const old = one(`select ${kind} as f from users where id = ?`, me)!.f;
+      run(`update users set ${kind} = ? where id = ?`, saveJpeg(media, data), me);
+      removeMedia(media, old);
+      return c.json(profile(me, me));
+    });
+    app.delete(`/me/${kind}`, (c) => {
+      const me = c.var.me.id;
+      removeMedia(media, one(`select ${kind} as f from users where id = ?`, me)!.f);
+      run(`update users set ${kind} = null where id = ?`, me);
+      return c.json(profile(me, me));
+    });
+  }
+
+  // --- Daftar pengikut & mengikuti ---
+
+  const followList = (sql: string) => (c: Context<Env>) => {
+    const id = idParam(c);
+    if (!one('select 1 from users where id = ?', id)) fail(404, 'Pengguna tidak ditemukan');
+    const rows = all(sql, { id, me: c.var.me.id, before: c.req.query('before') ?? '9999' });
+    return c.json(
+      rows.map<FollowItem>((r) => ({
+        id: r.id,
+        username: r.username,
+        name: r.name,
+        avatarUrl: photoUrl(r.avatar),
+        isFollowing: !!r.f,
+        since: r.since,
+      })),
+    );
+  };
+  const FOLLOW_COLS = `u.id, u.username, u.name, u.avatar, f.created_at as since,
+    exists(select 1 from follows x where x.follower_id = $me and x.followee_id = u.id) as f`;
+  app.get(
+    '/users/:id/followers',
+    followList(`select ${FOLLOW_COLS} from follows f join users u on u.id = f.follower_id
+      where f.followee_id = $id and f.created_at < $before order by f.created_at desc limit 30`),
+  );
+  app.get(
+    '/users/:id/following',
+    followList(`select ${FOLLOW_COLS} from follows f join users u on u.id = f.followee_id
+      where f.follower_id = $id and f.created_at < $before order by f.created_at desc limit 30`),
+  );
+
+  // --- Postingan ---
+
+  const POST_SELECT = `
+    select p.id, p.body, p.created_at, p.segment_id, p.activity_id, s.name as s_name, a.title as a_title, a.type as a_type,
+           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+           (select count(*) from post_likes l where l.post_id = p.id) as likes,
+           exists(select 1 from post_likes l where l.post_id = p.id and l.user_id = $me) as has_liked,
+           (select count(*) from post_replies r where r.post_id = p.id) as replies
+    from posts p join users u on u.id = p.user_id
+      left join segments s on s.id = p.segment_id
+      left join activities a on a.id = p.activity_id`;
+
+  const toPost = (r: Row): Post => ({
+    id: r.id,
+    user: userOf(r),
+    body: r.body,
+    photos: all('select file from post_photos where post_id = ? order by position', r.id).map((f) => photoUrl(f.file)!),
+    segment: r.segment_id != null && r.s_name != null ? { id: r.segment_id, name: r.s_name } : null,
+    activity: r.activity_id != null && r.a_title != null ? { id: r.activity_id, title: r.a_title, type: r.a_type } : null,
+    createdAt: r.created_at,
+    likes: r.likes,
+    hasLiked: !!r.has_liked,
+    replies: r.replies,
+  });
+
+  const getPost = (id: number, me: number): Post => {
+    const r = one(`${POST_SELECT} where p.id = $id`, { id, me });
+    if (!r) fail(404, 'Postingan tidak ditemukan');
+    return toPost(r);
+  };
+
+  app.post('/posts', async (c) => {
+    const me = c.var.me.id;
+    const form = await formOf(c);
+    const text = typeof form.body === 'string' ? form.body.trim() : '';
+    if (text.length > 500) fail(400, 'Postingan maksimal 500 karakter');
+    const raw = form.foto == null ? [] : Array.isArray(form.foto) ? form.foto : [form.foto];
+    if (raw.length > 4) fail(400, 'Maksimal 4 foto');
+    if (!text && raw.length === 0) fail(400, 'Tulis sesuatu atau pilih foto');
+    const photos = await Promise.all(raw.map(photoFrom));
+    let segmentId: number | null = null;
+    if (form.segmentId != null && form.segmentId !== '') {
+      segmentId = Number(form.segmentId);
+      if (!one('select 1 from segments where id = ?', segmentId)) fail(404, 'Segmen tidak ditemukan');
+    }
+    let activityId: number | null = null;
+    if (form.activityId != null && form.activityId !== '') {
+      activityId = Number(form.activityId);
+      const a = one('select user_id from activities where id = ?', activityId);
+      if (!a) fail(404, 'Aktivitas tidak ditemukan');
+      if (a.user_id !== me) fail(403, 'Hanya aktivitas sendiri yang bisa ditautkan');
+    }
+    const id = tx(db, () => {
+      const id = Number(
+        run('insert into posts (user_id, body, segment_id, activity_id) values (?, ?, ?, ?)', me, text, segmentId, activityId)
+          .lastInsertRowid,
+      );
+      photos.forEach((data, i) => run('insert into post_photos (post_id, position, file) values (?, ?, ?)', id, i, saveJpeg(media, data)));
+      return id;
+    });
+    return c.json(getPost(id, me), 201);
+  });
+
+  app.get('/posts/:id', (c) => c.json(getPost(idParam(c), c.var.me.id)));
+
+  app.delete('/posts/:id', (c) => {
+    const id = idParam(c);
+    const r = one('select user_id from posts where id = ?', id);
+    if (!r) fail(404, 'Postingan tidak ditemukan');
+    if (r.user_id !== c.var.me.id) fail(403, 'Hanya pemilik yang bisa menghapus');
+    const files = all('select file from post_photos where post_id = ?', id);
+    run('delete from posts where id = ?', id);
+    for (const f of files) removeMedia(media, f.file);
+    return c.json({ ok: true });
+  });
+
+  const likeState = (id: number, me: number): LikeState => ({
+    likes: one('select count(*) as n from post_likes where post_id = ?', id)!.n,
+    hasLiked: !!one('select 1 from post_likes where post_id = ? and user_id = ?', id, me),
+  });
+
+  app.post('/posts/:id/like', (c) => {
+    const id = idParam(c);
+    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    run('insert or ignore into post_likes (post_id, user_id) values (?, ?)', id, c.var.me.id);
+    return c.json(likeState(id, c.var.me.id));
+  });
+
+  app.delete('/posts/:id/like', (c) => {
+    const id = idParam(c);
+    run('delete from post_likes where post_id = ? and user_id = ?', id, c.var.me.id);
+    return c.json(likeState(id, c.var.me.id));
+  });
+
+  const REPLY_SELECT = `select r.id, r.body, r.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
+    from post_replies r join users u on u.id = r.user_id`;
+  const toReply = (r: Row): PostReply => ({ id: r.id, body: r.body, createdAt: r.created_at, user: userOf(r) });
+
+  app.get('/posts/:id/replies', (c) =>
+    c.json(all(`${REPLY_SELECT} where r.post_id = ? order by r.created_at`, idParam(c)).map(toReply)),
+  );
+
+  app.post('/posts/:id/replies', async (c) => {
+    const id = idParam(c);
+    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    const text = str((await body(c)).body, 'Balasan', 1, 500);
+    const rid = run('insert into post_replies (post_id, user_id, body) values (?, ?, ?)', id, c.var.me.id, text).lastInsertRowid;
+    return c.json(toReply(one(`${REPLY_SELECT} where r.id = ?`, rid)!), 201);
+  });
+
+  app.delete('/replies/:id', (c) => {
+    const id = idParam(c);
+    const r = one('select r.user_id, p.user_id as owner from post_replies r join posts p on p.id = r.post_id where r.id = ?', id);
+    if (!r) fail(404, 'Balasan tidak ditemukan');
+    if (r.user_id !== c.var.me.id && r.owner !== c.var.me.id) fail(403, 'Tidak boleh menghapus balasan ini');
+    run('delete from post_replies where id = ?', id);
+    return c.json({ ok: true });
+  });
+
+  app.post('/posts/:id/report', async (c) => {
+    const id = idParam(c);
+    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    const reason = str((await body(c)).reason, 'Alasan', 1, 300);
+    run('insert into reports (reporter_id, post_id, reason) values (?, ?, ?)', c.var.me.id, id, reason);
+    return c.json({ ok: true }, 201);
+  });
+
+  // Diskusi segmen: semua postingan yang menandai segmen ini, kecuali dari orang yang diblokir.
+  app.get('/segments/:id/posts', (c) => {
+    const me = c.var.me.id;
+    const rows = all(
+      `${POST_SELECT} where p.segment_id = $id and p.created_at < $before
+         and p.user_id not in (select blocked_id from blocks where blocker_id = $me)
+       order by p.created_at desc limit 20`,
+      { id: idParam(c), me, before: c.req.query('before') ?? '9999' },
+    );
+    return c.json(rows.map(toPost));
+  });
+
+  // Feed baru: aktivitas + postingan dari diri sendiri dan yang diikuti. /feed lama tetap untuk APK lama.
+  app.get('/timeline', (c) => {
+    const me = c.var.me.id;
+    const params = { me, before: c.req.query('before') ?? '9999' };
+    const circle = 'in (select followee_id from follows where follower_id = $me)';
+    const acts = all(
+      `${ACTIVITY_SELECT} where (a.user_id = $me or a.user_id ${circle}) and a.started_at < $before order by a.started_at desc limit 20`,
+      params,
+    ).map((r): TimelineItem => ({ kind: 'activity', at: r.started_at, ...toSummary(r, me) }));
+    const posts = all(
+      `${POST_SELECT} where (p.user_id = $me or p.user_id ${circle}) and p.created_at < $before order by p.created_at desc limit 20`,
+      params,
+    ).map((r): TimelineItem => ({ kind: 'post', at: r.created_at, ...toPost(r) }));
+    return c.json([...acts, ...posts].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0)).slice(0, 20));
+  });
+
+  // --- Chat & blokir ---
+
+  const toMessage = (r: Row, me: number): ChatMessage => ({
+    id: r.id,
+    fromMe: r.from_id === me,
+    body: r.body,
+    createdAt: r.created_at,
+    readAt: r.read_at ?? null,
+  });
+
+  const partnerOf = (c: Context<Env>) => {
+    const id = idParam(c, 'userId');
+    if (id === c.var.me.id) fail(400, 'Tidak bisa mengobrol dengan diri sendiri');
+    if (!one('select 1 from users where id = ?', id)) fail(404, 'Pengguna tidak ditemukan');
+    return id;
+  };
+
+  app.get('/chats', (c) => {
+    const me = c.var.me.id;
+    const rows = all(
+      `select partner, max(id) as last_id, sum(case when to_id = $me and read_at is null then 1 else 0 end) as unread
+       from (select id, to_id, read_at, case when from_id = $me then to_id else from_id end as partner
+             from messages where from_id = $me or to_id = $me)
+       group by partner order by last_id desc limit 50`,
+      { me },
+    );
+    return c.json(
+      rows.map<ChatSummary>((r) => {
+        const u = one('select id as u_id, username as u_username, name as u_name, avatar as u_avatar from users where id = ?', r.partner)!;
+        return { user: userOf(u), last: toMessage(one('select * from messages where id = ?', r.last_id)!, me), unread: r.unread };
+      }),
+    );
+  });
+
+  app.get('/chats/unread', (c) =>
+    c.json({ count: one('select count(*) as n from messages where to_id = ? and read_at is null', c.var.me.id)!.n }),
+  );
+
+  // ?before=<id> untuk menggulir ke pesan lama; ?after=<id> untuk polling pesan baru.
+  app.get('/chats/:userId', (c) => {
+    const me = c.var.me.id;
+    const other = partnerOf(c);
+    const pair = '((from_id = $me and to_id = $other) or (from_id = $other and to_id = $me))';
+    const after = Number(c.req.query('after') ?? 0) || 0;
+    const before = Number(c.req.query('before') ?? 0) || Number.MAX_SAFE_INTEGER;
+    const rows = after
+      ? all(`select * from messages where ${pair} and id > $after order by id asc limit 100`, { me, other, after })
+      : all(`select * from messages where ${pair} and id < $before order by id desc limit 30`, { me, other, before }).reverse();
+    return c.json(rows.map((r) => toMessage(r, me)));
+  });
+
+  app.post('/chats/:userId', async (c) => {
+    const me = c.var.me.id;
+    const other = partnerOf(c);
+    const text = str((await body(c)).body, 'Pesan', 1, 1000);
+    if (blockedBy(me, other) || blockedBy(other, me)) fail(403, 'Tidak bisa mengirim pesan ke pengguna ini');
+    if (!(isFollowing(me, other) && isFollowing(other, me))) fail(403, 'Pesan hanya bisa dikirim ke teman yang saling mengikuti');
+    const id = run('insert into messages (from_id, to_id, body) values (?, ?, ?)', me, other, text).lastInsertRowid;
+    return c.json(toMessage(one('select * from messages where id = ?', id)!, me), 201);
+  });
+
+  app.post('/chats/:userId/read', (c) => {
+    const me = c.var.me.id;
+    const other = partnerOf(c);
+    run('update messages set read_at = ? where from_id = ? and to_id = ? and read_at is null', new Date().toISOString(), other, me);
+    return c.json({ ok: true });
+  });
+
+  // Blokir: putus saling mengikuti dan tolak pesan dari kedua arah.
+  app.post('/users/:id/block', (c) => {
+    const me = c.var.me.id;
+    const id = idParam(c);
+    if (id === me) fail(400, 'Tidak bisa memblokir diri sendiri');
+    if (!one('select 1 from users where id = ?', id)) fail(404, 'Pengguna tidak ditemukan');
+    tx(db, () => {
+      run('insert or ignore into blocks (blocker_id, blocked_id) values (?, ?)', me, id);
+      run('delete from follows where (follower_id = ? and followee_id = ?) or (follower_id = ? and followee_id = ?)', me, id, id, me);
+    });
+    return c.json(profile(id, me));
+  });
+
+  app.delete('/users/:id/block', (c) => {
+    const id = idParam(c);
+    run('delete from blocks where blocker_id = ? and blocked_id = ?', c.var.me.id, id);
+    return c.json(profile(id, c.var.me.id));
   });
 
   return app;

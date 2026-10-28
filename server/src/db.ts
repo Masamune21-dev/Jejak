@@ -123,6 +123,66 @@ create table if not exists segment_efforts (
   unique (segment_id, activity_id)
 );
 create index if not exists segment_efforts_board on segment_efforts(segment_id, elapsed_s);
+
+create table if not exists posts (
+  id integer primary key,
+  user_id integer not null references users(id) on delete cascade,
+  body text not null,
+  segment_id integer references segments(id) on delete set null,
+  activity_id integer references activities(id) on delete set null,
+  created_at text not null default ${NOW}
+);
+create index if not exists posts_user on posts(user_id, created_at desc);
+create index if not exists posts_segment on posts(segment_id, created_at desc);
+
+create table if not exists post_photos (
+  post_id integer not null references posts(id) on delete cascade,
+  position integer not null,
+  file text not null,
+  primary key (post_id, position)
+);
+
+create table if not exists post_likes (
+  post_id integer not null references posts(id) on delete cascade,
+  user_id integer not null references users(id) on delete cascade,
+  created_at text not null default ${NOW},
+  primary key (post_id, user_id)
+);
+
+create table if not exists post_replies (
+  id integer primary key,
+  post_id integer not null references posts(id) on delete cascade,
+  user_id integer not null references users(id) on delete cascade,
+  body text not null,
+  created_at text not null default ${NOW}
+);
+create index if not exists post_replies_post on post_replies(post_id, created_at);
+
+create table if not exists reports (
+  id integer primary key,
+  reporter_id integer not null references users(id) on delete cascade,
+  post_id integer not null references posts(id) on delete cascade,
+  reason text not null,
+  created_at text not null default ${NOW}
+);
+
+create table if not exists messages (
+  id integer primary key,
+  from_id integer not null references users(id) on delete cascade,
+  to_id integer not null references users(id) on delete cascade,
+  body text not null,
+  created_at text not null default ${NOW},
+  read_at text
+);
+create index if not exists messages_pair on messages(from_id, to_id, id);
+create index if not exists messages_unread on messages(to_id, read_at);
+
+create table if not exists blocks (
+  blocker_id integer not null references users(id) on delete cascade,
+  blocked_id integer not null references users(id) on delete cascade,
+  created_at text not null default ${NOW},
+  primary key (blocker_id, blocked_id)
+);
 `;
 
 export type DB = DatabaseSync;
@@ -133,6 +193,7 @@ export function openDb(path: string): DB {
   db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;');
   migrateSessions(db);
   db.exec(SCHEMA);
+  migrateUserPhotos(db);
   return db;
 }
 
@@ -140,6 +201,13 @@ export function openDb(path: string): DB {
  * Database lama menyimpan token mentah di kolom `sessions.token`. Ganti dengan hash-nya dalam satu transaksi,
  * jadi tidak ada pengguna yang ter-logout; `last_used_at` dihitung mulai saat migrasi.
  */
+/** Kolom foto profil dan sampul (nama berkas di data/uploads) ditambahkan ke database lama. */
+function migrateUserPhotos(db: DB) {
+  const cols = (db.prepare('pragma table_info(users)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('avatar')) db.exec('alter table users add column avatar text');
+  if (!cols.includes('cover')) db.exec('alter table users add column cover text');
+}
+
 function migrateSessions(db: DB) {
   const cols = db.prepare('pragma table_info(sessions)').all() as { name: string }[];
   if (!cols.some((c) => c.name === 'token')) return;

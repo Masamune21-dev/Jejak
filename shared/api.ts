@@ -11,6 +11,8 @@ export interface UserSummary {
   id: number;
   username: string;
   name: string;
+  /** Alamat foto profil relatif terhadap API (bertanda tangan, berlaku 1–2 minggu); null bila belum ada. */
+  avatarUrl?: string | null;
 }
 
 export interface Totals {
@@ -21,6 +23,11 @@ export interface Totals {
 
 export interface UserListItem extends UserSummary {
   isFollowing: boolean;
+}
+
+/** Baris daftar pengikut / mengikuti; `since` = waktu mulai mengikuti (kursor halaman). */
+export interface FollowItem extends UserListItem {
+  since: string;
 }
 
 export interface KudosState {
@@ -35,6 +42,13 @@ export interface Profile extends UserSummary {
   isFollowing: boolean;
   isMe: boolean;
   totals: Totals;
+  coverUrl: string | null;
+  /** Saling mengikuti dengan pengguna yang sedang login. */
+  isMutual: boolean;
+  /** Pengguna yang sedang login memblokir profil ini. */
+  blocked: boolean;
+  /** Boleh mengirim pesan: saling mengikuti dan tidak ada blokir dari kedua pihak. */
+  canMessage: boolean;
 }
 
 export interface AuthResult {
@@ -203,4 +217,51 @@ export interface Stats {
   allTime: Totals;
   records: Record[];
   longest: { distanceM: number; activityId: number; date: string } | null;
+}
+
+// --- Postingan ---
+
+export interface Post {
+  id: number;
+  user: UserSummary;
+  body: string;
+  /** Alamat foto (bertanda tangan), urut sesuai unggahan. */
+  photos: string[];
+  segment: { id: number; name: string } | null;
+  activity: { id: number; title: string; type: ActivityType } | null;
+  createdAt: string;
+  likes: number;
+  hasLiked: boolean;
+  replies: number;
+}
+
+export interface PostReply {
+  id: number;
+  user: UserSummary;
+  body: string;
+  createdAt: string;
+}
+
+export interface LikeState {
+  likes: number;
+  hasLiked: boolean;
+}
+
+/** Isi feed Beranda baru: aktivitas dan postingan, urut waktu (terbaru dulu). `at` = kursor halaman. */
+export type TimelineItem = ({ kind: 'activity'; at: string } & ActivitySummary) | ({ kind: 'post'; at: string } & Post);
+
+// --- Chat ---
+
+export interface ChatMessage {
+  id: number;
+  fromMe: boolean;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface ChatSummary {
+  user: UserSummary;
+  last: ChatMessage;
+  unread: number;
 }

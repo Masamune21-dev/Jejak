@@ -73,9 +73,12 @@ erDiagram
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
-| `token` | text PK | 32 byte acak, base64url. |
+| `token_hash` | text PK | SHA-256 (hex) dari token. Token mentah (32 byte acak, base64url) tidak disimpan. |
 | `user_id` | integer → `users.id` | `on delete cascade`. |
-| `created_at` | text | Tidak dipakai untuk kedaluwarsa; sesi berlaku sampai logout. |
+| `created_at` | text | Waktu sesi dibuat. |
+| `last_used_at` | text | Terakhir dipakai, diperbarui paling sering sekali sehari. Sesi yang 90 hari tidak dipakai ditolak dan dihapus. |
+
+Database dari sebelum kolom `token_hash` (kolom lama `token` berisi token mentah) dimigrasi otomatis oleh `openDb()`: tabel dibuat ulang dengan token yang di-hash dalam satu transaksi, tanpa mengeluarkan pengguna.
 
 ### `follows`
 
@@ -216,7 +219,7 @@ Status `is_pr` dan `pr_count` di baris lain tidak dihitung ulang setelah penghap
 | `comments_activity` | `comments(activity_id, created_at)` | Daftar komentar per aktivitas. |
 | `segment_efforts_board` | `segment_efforts(segment_id, elapsed_s)` | Leaderboard dan peringkat. |
 
-Ditambah indeks otomatis dari primary key dan unique: `users.username`, `sessions.token`, `follows(follower_id, followee_id)`, `kudos(activity_id, user_id)`, `best_efforts(activity_id, name)`, `segment_efforts(segment_id, activity_id)`.
+Ditambah indeks otomatis dari primary key dan unique: `users.username`, `sessions.token_hash`, `follows(follower_id, followee_id)`, `kudos(activity_id, user_id)`, `best_efforts(activity_id, name)`, `segment_efforts(segment_id, activity_id)`.
 
 Kolom kotak batas (`min_lat` … `max_lon`) tidak diindeks; pencarian segmen dan aktivitas di sekitar sebuah kotak memindai tabel. Untuk skala kecil ini cukup.
 

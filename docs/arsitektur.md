@@ -42,9 +42,9 @@ Dokumen ini menjelaskan bagaimana bagian-bagian Jejak saling terhubung: dari tit
 | --- | --- |
 | `src/index.ts` | Membaca `PORT`, `HOST`, `DB_PATH`, membuka database, menjalankan Hono lewat `@hono/node-server`. |
 | `src/app.ts` | `createApp(db)`: semua endpoint, validasi input, perhitungan saat aktivitas/segmen disimpan. |
-| `src/db.ts` | Skema SQLite, pragma, helper transaksi `tx()`. |
+| `src/db.ts` | Skema SQLite, pragma, migrasi tabel sesi lama, helper transaksi `tx()`. |
 | `src/routing.ts` | Permintaan ke OSRM FOSSGIS dan teks belok bahasa Indonesia. |
-| `src/auth.ts` | Hash kata sandi (scrypt) dan token acak. |
+| `src/auth.ts` | Hash kata sandi (scrypt), token acak, dan hash token untuk tabel sesi. |
 
 ### Kode bersama (`shared/`)
 
@@ -335,7 +335,7 @@ Perilaku `api()`:
 - `signOut()`: `POST /logout` (error diabaikan), lalu hapus token, pengguna, cache React Query, dan kunci penyimpanan.
 - `useMe()` mengembalikan pengguna aktif (atau pengguna kosong sesaat ketika keluar).
 
-Di server, token adalah 32 byte acak (base64url) yang disimpan di tabel `sessions` tanpa masa kedaluwarsa. Lihat [api.md](api.md#autentikasi).
+Di server, token adalah 32 byte acak (base64url). Tabel `sessions` hanya menyimpan hash SHA-256-nya, dan sesi kedaluwarsa bila 90 hari tidak dipakai. Lihat [api.md](api.md#autentikasi).
 
 ---
 

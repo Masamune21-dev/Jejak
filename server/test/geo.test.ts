@@ -133,3 +133,31 @@ test('preview membatasi jumlah titik', () => {
   const p = geo.preview(pts, 50);
   assert.ok(p.length <= 50 && p.length >= 3);
 });
+
+test('zona privasi: 300 m, paling banyak seperempat panjang', () => {
+  assert.equal(geo.privacyZoneM(5000), 300);
+  assert.equal(geo.privacyZoneM(800), 200);
+  assert.equal(geo.privacyZoneM(0), 0);
+});
+
+test('zona privasi: ujung garis jarang diinterpolasi tepat di batas', () => {
+  const line = [HOME, north(HOME, 1000)];
+  const out = geo.hideEnds(line, 300);
+  assert.equal(out.length, 2);
+  near(geo.haversine(HOME, out[0]), 300, 0.5);
+  near(geo.haversine(HOME, out[1]), 700, 0.5);
+  assert.deepEqual(geo.hideEnds(line, 600), []);
+  assert.deepEqual(geo.hideEnds(line, 0), line);
+});
+
+test('zona privasi: track dipotong per bagian, batas jeda tetap', () => {
+  const a = walkPath([HOME, north(HOME, 600)], 3);
+  const b = walkPath([north(HOME, 600), east(north(HOME, 600), 600)], 3, a[a.length - 1][2] + 60_000);
+  const { track, dropped } = geo.hideTrackEnds([a, b], 300);
+  assert.equal(track.length, 2);
+  assert.ok(dropped > 0);
+  assert.ok(geo.haversine(HOME, track[0][0]) >= 300);
+  assert.ok(geo.haversine(b[b.length - 1], track[1][track[1].length - 1]) >= 299);
+  // Titik pertama yang terlihat adalah titik ke-`dropped` dari track penuh.
+  assert.deepEqual(track[0][0], a[dropped]);
+});

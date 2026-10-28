@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 
 import type { Activity, ActivitySummary, AuthResult, PlannedRoute, Profile, Segment, Stats } from '../../shared/api.ts';
+import { haversine, type LatLon, type TrackPoint } from '../../shared/geo.ts';
 import { createApp } from '../src/app.ts';
+import { hashToken } from '../src/auth.ts';
 import { openDb } from '../src/db.ts';
 import { east, HOME, north, walkPath } from './helpers.ts';
 
-function setup() {
-  const app = createApp(openDb(':memory:'), {
+function setup(db = openDb(':memory:')) {
+  const app = createApp(db, {
     planRoute: async (_type, waypoints) => ({ geometry: waypoints, distanceM: 0, steps: [], snapped: false }),
   });
   const call = async <T>(method: string, path: string, token?: string, body?: unknown) => {
@@ -26,7 +32,7 @@ function setup() {
         password: 'rahasia1',
       })
     ).body;
-  return { call, register };
+  return { call, register, db };
 }
 
 const A = HOME;
@@ -203,4 +209,149 @@ test('validasi: track pendek dan segmen terlalu pendek ditolak', async () => {
   });
   const seg = await call('POST', '/segments', u.token, { activityId: act.body.id, startIndex: 0, endIndex: 10, name: 'pendek' });
   assert.equal(seg.status, 400);
+});
+
+test('privasi: orang lain tidak melihat 300 m awal & akhir jejak, pemilik melihat penuh', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  const own = await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'Dari rumah',
+    track: [walkPath([A, B, C], 3)],
+  });
+  assert.equal(own.status, 201, own.body.error);
+  const full = own.body.track.flat();
+  assert.deepEqual(full[0].slice(0, 2), A);
+
+  const seen = (await call<Activity>('GET', `/activities/${own.body.id}`, fajar.token)).body;
+  const visible = seen.track.flat();
+  const farFromEnds = (p: LatLon | TrackPoint) => haversine(p, A) >= 299 && haversine(p, C) >= 299;
+  assert.ok(visible.length > 0 && visible.length < full.length);
+  assert.ok(visible.every(farFromEnds));
+  assert.equal(seen.distanceM, own.body.distanceM);
+
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+  const [card] = (await call<ActivitySummary[]>('GET', '/feed', fajar.token)).body;
+  assert.ok(card.preview.length >= 2 && card.preview.every(farFromEnds));
+  const mine = (await call<ActivitySummary[]>('GET', '/feed', dicky.token)).body[0];
+  assert.deepEqual(mine.preview[0], A);
+
+  // Indeks effort di jejak yang terpotong menunjuk ke titik yang sama dengan jejak penuh.
+  const n = full.length;
+  await call('POST', '/segments', dicky.token, {
+    activityId: own.body.id,
+    startIndex: Math.floor(n * 0.3),
+    endIndex: Math.floor(n * 0.6),
+    name: 'Tengah',
+  });
+  const ownEffort = (await call<Activity>('GET', `/activities/${own.body.id}`, dicky.token)).body.efforts[0];
+  const seenEffort = (await call<Activity>('GET', `/activities/${own.body.id}`, fajar.token)).body.efforts[0];
+  assert.deepEqual(visible[seenEffort.startIndex], full[ownEffort.startIndex]);
+  assert.deepEqual(visible[seenEffort.endIndex], full[ownEffort.endIndex]);
+
+  // Rute rencana hanya untuk pembuatnya.
+  const route = await call<PlannedRoute>('POST', '/routes', dicky.token, {
+    name: 'Rumah',
+    type: 'run',
+    waypoints: [A, B],
+    geometry: [A, B],
+  });
+  assert.equal((await call('GET', `/routes/${route.body.id}`, dicky.token)).status, 200);
+  assert.equal((await call('GET', `/routes/${route.body.id}`, fajar.token)).status, 404);
+  const linked = await call<Activity>('POST', '/activities', fajar.token, {
+    type: 'run',
+    title: 'Pakai rute orang',
+    track: [walkPath([A, B], 3, Date.UTC(2026, 9, 22, 6))],
+    routeId: route.body.id,
+  });
+  assert.equal(linked.body.routeId, null);
+});
+
+test('sesi: token disimpan sebagai hash, kedaluwarsa setelah 90 hari tidak dipakai', async () => {
+  const { call, register, db } = setup();
+  const ika = await register('ika');
+  const rows = db.prepare('select token_hash, last_used_at from sessions').all() as {
+    token_hash: string;
+    last_used_at: string;
+  }[];
+  assert.equal(rows.length, 1);
+  assert.notEqual(rows[0].token_hash, ika.token);
+  assert.equal(rows[0].token_hash, hashToken(ika.token));
+
+  const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+  db.prepare('update sessions set last_used_at = ?').run(daysAgo(2));
+  assert.equal((await call('GET', '/me', ika.token)).status, 200);
+  const touched = db.prepare('select last_used_at from sessions').get() as { last_used_at: string };
+  assert.ok(Date.now() - Date.parse(touched.last_used_at) < 60_000);
+
+  db.prepare('update sessions set last_used_at = ?').run(daysAgo(91));
+  assert.equal((await call('GET', '/me', ika.token)).status, 401);
+  assert.equal((db.prepare('select count(*) as n from sessions').get() as { n: number }).n, 0);
+
+  const again = (await call<AuthResult>('POST', '/auth/login', undefined, { username: 'ika', password: 'rahasia1' })).body;
+  await call('POST', '/logout', again.token);
+  assert.equal((await call('GET', '/me', again.token)).status, 401);
+});
+
+test('migrasi: database lama dengan token mentah tetap bisa dipakai', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'jejak-'));
+  try {
+    const path = join(dir, 'lama.db');
+    const old = new DatabaseSync(path);
+    old.exec(`
+      create table users (id integer primary key, username text not null unique collate nocase, name text not null,
+        password_hash text not null, created_at text not null default 'x');
+      create table sessions (token text primary key, user_id integer not null references users(id) on delete cascade,
+        created_at text not null default 'x');
+      insert into users (id, username, name, password_hash) values (1, 'lama', 'Lama', 'scrypt$00$00');
+      insert into sessions (token, user_id) values ('token-lama', 1);
+    `);
+    old.close();
+
+    const { call, db } = setup(openDb(path));
+    const me = await call<Profile>('GET', '/me', 'token-lama');
+    assert.equal(me.status, 200);
+    assert.equal(me.body.username, 'lama');
+    const cols = (db.prepare('pragma table_info(sessions)').all() as { name: string }[]).map((c) => c.name);
+    assert.deepEqual(cols, ['token_hash', 'user_id', 'created_at', 'last_used_at']);
+    assert.equal(
+      (db.prepare('select token_hash from sessions').get() as { token_hash: string }).token_hash,
+      hashToken('token-lama'),
+    );
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('validasi: kecepatan dan tanggal mustahil ditolak', async () => {
+  const { call, register } = setup();
+  const u = await register('ika');
+  const post = (type: string, track: TrackPoint[]) =>
+    call<Activity>('POST', '/activities', u.token, { type, title: 'x', track: [track] });
+
+  const car = await post('run', walkPath([A, north(A, 10_000)], 160));
+  assert.equal(car.status, 400);
+  assert.match(car.body.error ?? '', /Kecepatan tidak masuk akal untuk lari \(1 km dalam 0:06\)/);
+  assert.equal((await post('ride', walkPath([A, B], 30))).status, 400);
+  // Lebih pendek dari 1 km: dinilai dari rata-ratanya.
+  const short = await post('walk', walkPath([A, north(A, 500)], 20));
+  assert.equal(short.status, 400);
+  assert.match(short.body.error ?? '', /rata-rata 72 km\/j/);
+  assert.equal((await post('run', walkPath([A, B], 3, Date.now() + 2 * 86_400_000))).status, 400);
+  assert.equal((await post('run', walkPath([A, B], 3, Date.UTC(2019, 0, 1)))).status, 400);
+  assert.equal(
+    (
+      await post('run', [
+        [A[0], A[1], Date.UTC(2026, 9, 1), null],
+        [B[0], B[1], Date.UTC(2026, 9, 1), null],
+      ])
+    ).status,
+    400,
+  );
+
+  // Cepat tapi masih manusiawi: diterima.
+  assert.equal((await post('run', walkPath([A, B], 6))).status, 201);
+  assert.equal((await post('ride', walkPath([A, B, C], 15, Date.UTC(2026, 9, 21, 6)))).status, 201);
 });

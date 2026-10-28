@@ -219,7 +219,7 @@ Saran:
 
 - Jadwalkan harian lewat `cron` dan simpan beberapa salinan terakhir.
 - Salin juga ke luar server, misalnya dari komputer lokal: `rsync -az root@103.189.249.115:/root/backup/ ./backup-jejak/`.
-- Database berisi akun (hash kata sandi), token sesi, dan jejak GPS pengguna. Simpan backup di tempat yang aman.
+- Database berisi akun (hash kata sandi), hash token sesi, dan jejak GPS lengkap pengguna (termasuk titik awal/akhir yang disembunyikan dari pengguna lain). Simpan backup di tempat yang aman.
 
 Memulihkan backup:
 

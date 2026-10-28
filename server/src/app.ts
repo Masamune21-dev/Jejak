@@ -27,7 +27,7 @@ import type {
 } from '../../shared/api.ts';
 import * as geo from '../../shared/geo.ts';
 import type { LatLon, TrackPoint } from '../../shared/geo.ts';
-import { hashPassword, newToken, verifyPassword } from './auth.ts';
+import { hashPassword, hashToken, newToken, verifyPassword } from './auth.ts';
 import { tx, type DB } from './db.ts';
 import { planRoute as defaultPlanRoute } from './routing.ts';
 
@@ -66,6 +66,25 @@ const familyOf = (segType: ActivityType): ActivityType[] => (segType === 'ride' 
 
 const MAX_TRACK_POINTS = 60_000;
 const BBOX_MARGIN_DEG = 0.001;
+const DAY_MS = 86_400_000;
+/** Sesi berakhir bila tidak dipakai selama ini. */
+const SESSION_IDLE_MS = 90 * DAY_MS;
+/** Track bertanggal sebelum ini (atau lebih dari sehari ke depan) pasti jam HP salah atau data palsu. */
+const MIN_TRACK_TIME_MS = Date.UTC(2020, 0, 1);
+
+/**
+ * Waktu tercepat yang masih masuk akal untuk jarak tertentu. Lebih cepat dari ini hampir pasti terbawa kendaraan
+ * atau dipalsukan, dan akan merusak rekor serta leaderboard segmen. Jalan kaki memakai batas lari.
+ */
+const SPEED_LIMITS: Record<ActivityType, { distanceM: number; minS: number }[]> = {
+  run: [{ distanceM: 1000, minS: 120 }],
+  walk: [{ distanceM: 1000, minS: 120 }],
+  ride: [
+    { distanceM: 1000, minS: 36 },
+    { distanceM: 10_000, minS: 600 },
+  ],
+};
+const TYPE_LABEL: Record<ActivityType, string> = { run: 'lari', walk: 'jalan kaki', ride: 'bersepeda' };
 
 function fail(status: ContentfulStatusCode, message: string): never {
   throw new HTTPException(status, { message });
@@ -108,6 +127,8 @@ function trackOf(v: unknown): TrackPoint[][] {
       const p = raw as unknown[];
       if (!isLatLon(p) || !isNum(p[2]) || !(p[3] == null || isNum(p[3]))) fail(400, 'Titik track tidak valid');
       const t = p[2] as number;
+      if (t < MIN_TRACK_TIME_MS || t > Date.now() + DAY_MS)
+        fail(400, 'Tanggal aktivitas tidak masuk akal. Periksa jam dan tanggal di HP.');
       if (clean.length && t < clean[clean.length - 1][2]) fail(400, 'Waktu titik track harus urut');
       clean.push([p[0], p[1], t, (p[3] as number | null | undefined) ?? null]);
     }
@@ -117,6 +138,30 @@ function trackOf(v: unknown): TrackPoint[][] {
   if (n < 2) fail(400, 'Aktivitas terlalu pendek untuk disimpan');
   if (n > MAX_TRACK_POINTS) fail(400, 'Track terlalu panjang');
   return parts;
+}
+
+const mmss = (s: number) => {
+  const t = Math.round(s);
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
+
+/** Tolak track yang kecepatannya mustahil untuk jenis aktivitasnya. */
+function checkPlausible(type: ActivityType, track: TrackPoint[][]) {
+  const cum = geo.cumulative(track);
+  const totalM = cum.dist[cum.dist.length - 1];
+  const activeS = cum.time[cum.time.length - 1];
+  if (activeS <= 0) fail(400, 'Waktu titik track tidak bertambah');
+  const tooFast = (what: string) =>
+    fail(400, `Kecepatan tidak masuk akal untuk ${TYPE_LABEL[type]} (${what}). Mungkin rekaman terbawa kendaraan.`);
+  for (const { distanceM, minS } of SPEED_LIMITS[type]) {
+    const best = geo.bestEffort(cum, distanceM);
+    if (best && best.elapsedS < minS) tooFast(`${distanceM / 1000} km dalam ${mmss(best.elapsedS)}`);
+  }
+  // Aktivitas yang lebih pendek dari jendela terkecil dinilai dari kecepatan rata-ratanya.
+  const { distanceM, minS } = SPEED_LIMITS[type][0];
+  if (totalM >= 200 && totalM < distanceM && totalM / activeS > distanceM / minS) {
+    tooFast(`rata-rata ${Math.round((totalM / activeS) * 3.6)} km/j`);
+  }
 }
 
 function stepsOf(v: unknown): RouteStep[] {
@@ -160,7 +205,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
            (select count(*) from comments c where c.activity_id = a.id) as comments
     from activities a join users u on u.id = a.user_id`;
 
-  const toSummary = (r: Row): ActivitySummary => ({
+  // Zona privasi: orang lain tidak melihat awal dan akhir jejak (sering rumah). Pemilik selalu melihat jejak penuh.
+  const toSummary = (r: Row, me: number): ActivitySummary => ({
     id: r.id,
     user: userOf(r),
     type: r.type,
@@ -170,7 +216,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     movingS: r.moving_s,
     distanceM: r.distance_m,
     elevGainM: r.elev_gain_m,
-    preview: JSON.parse(r.preview),
+    preview: r.u_id === me ? JSON.parse(r.preview) : geo.hideEnds(JSON.parse(r.preview), geo.privacyZoneM(r.distance_m)),
     kudos: r.kudos,
     hasKudo: !!r.has_kudo,
     comments: r.comments,
@@ -220,6 +266,12 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const r = one(`${ACTIVITY_SELECT} where a.id = $id`, { me, id });
     if (!r) fail(404, 'Aktivitas tidak ditemukan');
     const extra = one('select track, splits, max_speed_mps from activities where id = ?', id)!;
+    const full: TrackPoint[][] = JSON.parse(extra.track);
+    const { track, dropped } =
+      r.u_id === me ? { track: full, dropped: 0 } : geo.hideTrackEnds(full, geo.privacyZoneM(r.distance_m));
+    // Indeks effort menunjuk ke track penuh; geser ke track yang terlihat.
+    const lastIndex = Math.max(0, track.reduce((n, p) => n + p.length, 0) - 1);
+    const visibleIndex = (i: number) => Math.min(Math.max(i - dropped, 0), lastIndex);
     const bestEfforts: BestEffort[] = all(
       'select name, distance_m, elapsed_s, is_pr from best_efforts where activity_id = ? order by distance_m',
       id,
@@ -235,8 +287,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       segmentName: e.name,
       elapsedS: e.elapsed_s,
       distanceM: e.distance_m,
-      startIndex: e.start_index,
-      endIndex: e.end_index,
+      startIndex: visibleIndex(e.start_index),
+      endIndex: visibleIndex(e.end_index),
       rank: rankOn(e.segment_id, e.user_id, e.elapsed_s),
       isPr: !!e.is_pr,
     }));
@@ -246,8 +298,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       id,
     ).map(userOf);
     return {
-      ...toSummary(r),
-      track: JSON.parse(extra.track),
+      ...toSummary(r, me),
+      track,
       maxSpeedMps: extra.max_speed_mps,
       splits: JSON.parse(extra.splits),
       bestEfforts,
@@ -371,8 +423,9 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
   const ROUTE_SELECT = `select r.*, u.id as u_id, u.username as u_username, u.name as u_name
     from routes r join users u on u.id = r.user_id`;
 
-  function getRoute(id: number): PlannedRoute {
-    const r = one(`${ROUTE_SELECT} where r.id = ?`, id);
+  /** Rute rencana hanya untuk pembuatnya (sering dimulai dari rumah). */
+  function getRoute(id: number, me: number): PlannedRoute {
+    const r = one(`${ROUTE_SELECT} where r.id = ? and r.user_id = ?`, id, me);
     if (!r) fail(404, 'Rute tidak ditemukan');
     return {
       ...routeSummary(r),
@@ -458,9 +511,13 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
 
   const startSession = (user: UserSummary): AuthResult => {
     const token = newToken();
-    run('insert into sessions (token, user_id) values (?, ?)', token, user.id);
+    // Sekalian bersihkan sesi yang sudah kedaluwarsa.
+    run('delete from sessions where last_used_at < ?', new Date(Date.now() - SESSION_IDLE_MS).toISOString());
+    run('insert into sessions (token_hash, user_id) values (?, ?)', hashToken(token), user.id);
     return { token, user };
   };
+
+  const bearer = (c: Context) => c.req.header('Authorization')?.replace(/^Bearer\s+/i, '');
 
   app.post('/auth/register', async (c) => {
     const b = await body(c);
@@ -492,18 +549,25 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
 
   app.use('*', async (c, next) => {
     if (c.req.path === '/health' || c.req.path.startsWith('/auth/') || c.req.method === 'OPTIONS') return next();
-    const token = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '');
-    const u = token
-      ? one('select u.id, u.username, u.name from sessions s join users u on u.id = s.user_id where s.token = ?', token)
-      : undefined;
+    const hash = hashToken(bearer(c) ?? '');
+    const u = one(
+      'select u.id, u.username, u.name, s.last_used_at from sessions s join users u on u.id = s.user_id where s.token_hash = ?',
+      hash,
+    );
     if (!u) fail(401, 'Sesi berakhir, silakan masuk lagi');
+    const idleMs = Date.now() - Date.parse(u.last_used_at);
+    if (idleMs > SESSION_IDLE_MS) {
+      run('delete from sessions where token_hash = ?', hash);
+      fail(401, 'Sesi berakhir, silakan masuk lagi');
+    }
+    // Cukup dicatat sekali sehari supaya tiap permintaan tidak menulis ke database.
+    if (idleMs > DAY_MS) run('update sessions set last_used_at = ? where token_hash = ?', new Date().toISOString(), hash);
     c.set('me', { id: u.id, username: u.username, name: u.name });
     await next();
   });
 
   app.post('/logout', (c) => {
-    const token = c.req.header('Authorization')!.replace(/^Bearer\s+/i, '');
-    run('delete from sessions where token = ?', token);
+    run('delete from sessions where token_hash = ?', hashToken(bearer(c)!));
     return c.json({ ok: true });
   });
 
@@ -541,12 +605,13 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
   });
 
   app.get('/users/:id/activities', (c) => {
+    const me = c.var.me.id;
     const rows = all(`${ACTIVITY_SELECT} where a.user_id = $uid and a.started_at < $before order by a.started_at desc limit 20`, {
-      me: c.var.me.id,
+      me,
       uid: idParam(c),
       before: c.req.query('before') ?? '9999',
     });
-    return c.json(rows.map(toSummary));
+    return c.json(rows.map((r) => toSummary(r, me)));
   });
 
   app.get('/users/:id/stats', (c) => {
@@ -614,14 +679,15 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
   // --- Aktivitas, feed, kudos, komentar ---
 
   app.get('/feed', (c) => {
+    const me = c.var.me.id;
     const rows = all(
       `${ACTIVITY_SELECT}
        where (a.user_id = $me or a.user_id in (select followee_id from follows where follower_id = $me))
          and a.started_at < $before
        order by a.started_at desc limit 20`,
-      { me: c.var.me.id, before: c.req.query('before') ?? '9999' },
+      { me, before: c.req.query('before') ?? '9999' },
     );
-    return c.json(rows.map(toSummary));
+    return c.json(rows.map((r) => toSummary(r, me)));
   });
 
   app.post('/activities', async (c) => {
@@ -629,10 +695,11 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
     const type = actType(b.type);
     const title = str(b.title, 'Judul', 1, 100);
     const track = trackOf(b.track);
+    checkPlausible(type, track);
     let routeId: number | null = null;
     if (b.routeId != null) {
       routeId = Number(b.routeId);
-      if (!one('select 1 from routes where id = ?', routeId)) routeId = null;
+      if (!one('select 1 from routes where id = ? and user_id = ?', routeId, c.var.me.id)) routeId = null;
     }
     const id = saveActivity(c.var.me.id, type, title, track, routeId);
     return c.json(getActivity(id, c.var.me.id), 201);
@@ -737,10 +804,10 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute } 
       JSON.stringify(steps),
       JSON.stringify(geo.preview(geometry)),
     ).lastInsertRowid;
-    return c.json(getRoute(Number(id)), 201);
+    return c.json(getRoute(Number(id), c.var.me.id), 201);
   });
 
-  app.get('/routes/:id', (c) => c.json(getRoute(idParam(c))));
+  app.get('/routes/:id', (c) => c.json(getRoute(idParam(c), c.var.me.id)));
 
   app.delete('/routes/:id', (c) => {
     const id = idParam(c);

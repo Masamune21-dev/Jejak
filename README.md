@@ -1,10 +1,34 @@
-# Jejak
+<div align="center">
 
-Aplikasi olahraga untuk lari, gowes, dan jalan kaki: rekam dengan GPS, buat rute sendiri yang menempel ke jalan lalu ikuti saat merekam, adu waktu di segmen bersama teman, serta berbagi lewat postingan, pesan, dan stiker foto. Gratis, tanpa iklan. Versi app saat ini: **0.3.1**.
+<img src="docs/images/ikon.png" width="112" alt="Ikon Jejak">
 
-**[Buka versi web](https://jejak.masamune.my.id)** · **[Unduh APK Android](https://jejak.masamune.my.id/unduh/jejak.apk)** · **[Dokumentasi](docs/README.md)**
+<h1>Jejak</h1>
 
-![Halaman depan Jejak](docs/screenshots/landing.jpg)
+<p><b>Setiap jalan dekat rumah bisa jadi lintasanmu.</b></p>
+
+<p>Aplikasi olahraga gratis tanpa iklan untuk lari, gowes, dan jalan kaki.<br>
+Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen bersama teman.</p>
+
+<p>
+<a href="https://github.com/Masamune21-dev/Jejak/releases/latest"><img src="https://img.shields.io/github/v/release/Masamune21-dev/Jejak?label=versi&color=FFC72C&labelColor=1B1E22" alt="Versi terbaru"></a>
+<a href="https://jejak.masamune.my.id/unduh/jejak.apk"><img src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white&labelColor=1B1E22" alt="Android APK"></a>
+<img src="https://img.shields.io/badge/Expo-SDK%2058-F2F2F2?logo=expo&logoColor=white&labelColor=1B1E22" alt="Expo SDK 58">
+<img src="https://img.shields.io/badge/peta-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white&labelColor=1B1E22" alt="Peta OpenStreetMap">
+</p>
+
+<p>
+<a href="https://jejak.masamune.my.id"><b>🌐 Buka versi web</b></a>
+&nbsp;&nbsp;·&nbsp;&nbsp;
+<a href="https://jejak.masamune.my.id/unduh/jejak.apk"><b>📱 Unduh APK Android</b></a>
+&nbsp;&nbsp;·&nbsp;&nbsp;
+<a href="docs/README.md"><b>📖 Dokumentasi</b></a>
+</p>
+
+<br>
+
+<img src="docs/screenshots/landing.jpg" alt="Halaman depan Jejak">
+
+<br><br>
 
 | Beranda | Detail aktivitas | Segmen & leaderboard |
 | :---: | :---: | :---: |
@@ -13,6 +37,8 @@ Aplikasi olahraga untuk lari, gowes, dan jalan kaki: rekam dengan GPS, buat rute
 | <img src="docs/screenshots/profil.jpg" width="250" alt="Profil: total aktivitas dan grafik 12 minggu"> | <img src="docs/screenshots/bagikan.jpg" width="250" alt="Bagikan: stiker transparan dengan garis rute dan angka"> | <img src="docs/screenshots/rute.jpg" width="250" alt="Detail rute: jarak, perkiraan waktu, dan petunjuk belok"> |
 
 <sub>Tangkapan layar dari versi web di ukuran layar HP, dengan akun dan data contoh di sekitar Pati.</sub>
+
+</div>
 
 ## Fitur
 

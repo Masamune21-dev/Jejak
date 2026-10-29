@@ -14,6 +14,7 @@ Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen ber
 <a href="https://jejak.masamune.my.id/unduh/jejak.apk"><img src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white&labelColor=1B1E22" alt="Android APK"></a>
 <img src="https://img.shields.io/badge/Expo-SDK%2058-F2F2F2?logo=expo&logoColor=white&labelColor=1B1E22" alt="Expo SDK 58">
 <img src="https://img.shields.io/badge/peta-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white&labelColor=1B1E22" alt="Peta OpenStreetMap">
+<a href="LICENSE"><img src="https://img.shields.io/badge/lisensi-MIT-4C8DF6?labelColor=1B1E22" alt="Lisensi MIT"></a>
 </p>
 
 <p>
@@ -139,3 +140,9 @@ Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun,
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
 - Semua peta memakai ubin OpenStreetMap (tanpa kunci API, wajib atribusi), yang digelapkan di tema gelap dan tampil asli di tema terang. Peta © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 - Pertanyaan dan masukan: info@masamune.my.id.
+
+## Lisensi
+
+Kode Jejak berlisensi [MIT](LICENSE) © 2026 Masamune: boleh dipakai, diubah, dan dibagikan ulang, asal pemberitahuan hak cipta dan teks lisensinya tetap disertakan.
+
+Bagian pihak ketiga mengikuti lisensinya masing-masing: data peta © OpenStreetMap contributors ([ODbL](https://www.openstreetmap.org/copyright)), huruf Plus Jakarta Sans dan Big Shoulders Display ([SIL Open Font License](https://openfontlicense.org)), dan paket npm sesuai lisensi di `package.json`-nya.

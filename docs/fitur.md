@@ -62,9 +62,17 @@ Isi halaman, dari atas:
 | Fitur | Lima baris berselang-seling, masing-masing dengan potongan tampilan asli app: layar kunci dengan notifikasi rekaman, banner belok dan keluar rute, papan peringkat segmen, stiker transparan (komponen yang sama dengan layar Bagikan), dan gelembung chat. |
 | Cara pakai | Tiga langkah berurutan di atas patok KM 0, 1, 2: pasang dan daftar, rekam, bagikan dan adu waktu. |
 | Privasi | Papan rambu hijau: zona privasi 300 m, lokasi di foto dihapus, foto dan postingan hanya untuk yang masuk, pesan tidak terenkripsi ujung-ke-ujung. |
-| Unduh | Latar beton. Versi, nomor build, dan ukuran APK dibaca dari `/unduh/versi.json` (bila belum ada, tertulis *Versi terbaru*). Tombol **Unduh APK** mengunduh `/unduh/jejak.apk`, diikuti tiga langkah pemasangan. |
+| Unduh | Latar beton. Versi, nomor build, dan ukuran APK dibaca dari `/unduh/versi.json` (bila belum ada, tertulis *Versi terbaru*). Tombol **Unduh APK**, diikuti tiga langkah pemasangan. |
 | Sering ditanyakan | Lima pertanyaan yang bisa dibuka-tutup: gratis, kenapa tidak di Play Store, iPhone, izin lokasi "sepanjang waktu", dan garis yang melenceng dari jalan. |
 | Kaki halaman | Pembuat, atribusi peta dan rute, tautan **Masuk**, **Daftar** (membuka form daftar), dan **Unduh APK**. |
+
+Semua tombol unduh (hero, bagian Unduh, kaki halaman) membuka **modal donasi** (`components/landing/DonationModal.tsx`) dulu, bukan langsung mengunduh:
+
+- judul *Bantu Jejak terus berlari* dan ajakan donasi berapa saja untuk server dan pengembangan;
+- QR QRIS donasi di atas pelat putih (`app/public/donasi-qris.png`, tersaji di `/donasi-qris.png`: QR saja, hitam-putih, dipotong dari kartu QRIS pemilik), dengan keterangan bisa dipindai aplikasi bank atau dompet digital apa pun;
+- **Simpan gambar QR** (mengunduh `qris-donasi-jejak.png`) dan petunjuk untuk yang membuka dari HP: simpan gambarnya lalu pilih dari galeri di aplikasi pembayaran;
+- tombol unduh yang nonaktif dengan hitung mundur *Unduh APK dalam 10 detik* … *1 detik*, lalu menjadi **Unduh APK** (mengunduh `/unduh/jejak.apk?v=<versi>` dan menutup modal); di bawahnya *Donasi tidak wajib…*, lalu *Terima kasih sudah mencoba Jejak.*;
+- ditutup dengan tombol ✕, ketuk di luar kartu, atau Esc. Hitung mundur mulai dari awal setiap modal dibuka.
 
 Warna halaman depan tetap aspal + marka kuning, apa pun tema yang dipilih pengguna. Lebar 960 px ke atas memakai dua kolom; di bawahnya semua bertumpuk dan tombol di hero selebar layar.
 

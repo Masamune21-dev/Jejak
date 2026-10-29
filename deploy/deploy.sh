@@ -30,7 +30,7 @@ notif() {
       *) args+=("$a") ;;
     esac
   done
-  local cli="cd $ROOT/repo/server && runuser -u jejak -- env DB_PATH=$ROOT/data/jejak.db FCM_CREDENTIALS=/dev/stdin /opt/jejak/node src/cli/notif.ts $(printf '%q ' "${args[@]}")"
+  local cli="cd $ROOT/repo/server && runuser -u jejak -- env DB_PATH=$ROOT/data/jejak.db FCM_CREDENTIALS=- /opt/jejak/node src/cli/notif.ts $(printf '%q ' "${args[@]}")"
   ssh "$HOST" "$cli --uji < /dev/null"
   [[ $test == 1 ]] && return 0
   if [[ $yes == 0 ]]; then

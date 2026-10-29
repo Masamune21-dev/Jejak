@@ -5,7 +5,8 @@
  *   node src/cli/notif.ts --judul "…" --isi "…" [--ke username]… [--tautan /segmen/12] [--jenis info|pembaruan]
  *                         [--kecuali-versi 0.3.1] [--uji]
  *
- * --uji hanya menghitung penerima. Database dari DB_PATH, kunci dari FCM_CREDENTIALS (bawaan /etc/jejak/fcm.json).
+ * --uji hanya menghitung penerima. Database dari DB_PATH, kunci dari FCM_CREDENTIALS (bawaan /etc/jejak/fcm.json;
+ * `-` berarti stdin).
  */
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';

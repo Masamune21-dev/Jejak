@@ -29,6 +29,7 @@ import {
   StickerFragment,
   useDemoProgress,
 } from '@/components/landing/parts';
+import DonationModal from '@/components/landing/DonationModal';
 import StaticMap from '@/components/StaticMap';
 import { PATI } from '@/lib/demo-route';
 import { alpha, font, palette as c, ROAD } from '@/lib/theme';
@@ -54,6 +55,7 @@ export default function LandingScreen() {
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const anchors = useRef<Record<string, number>>({});
   const [apk, setApk] = useState<ApkInfo | null>(null);
+  const [donate, setDonate] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -67,10 +69,9 @@ export default function LandingScreen() {
   const mid = width >= 680;
   const gutter = mid ? 32 : 16;
   const goTo = (id: string) => scroll.current?.scrollTo({ y: Math.max(0, (anchors.current[id] ?? 0) - NAV_H), animated: true });
-  const download = () => {
-    // ?v= supaya cache Cloudflare tidak memberi APK lama tepat setelah rilis.
-    window.location.assign(apk ? `${APK_URL}?v=${encodeURIComponent(apk.versi)}` : APK_URL);
-  };
+  // Unduhan lewat modal donasi dulu. ?v= supaya cache Cloudflare tidak memberi APK lama tepat setelah rilis.
+  const apkUrl = apk ? `${APK_URL}?v=${encodeURIComponent(apk.versi)}` : APK_URL;
+  const download = () => setDonate(true);
   const h1 = wide ? 104 : mid ? 80 : 50;
   // Hero setinggi layar, navigasi transparan melayang di atasnya. Di HP isinya bisa lebih tinggi; peta latar
   // mengikuti tinggi sebenarnya.
@@ -379,6 +380,7 @@ export default function LandingScreen() {
           </View>
         </View>
       </View>
+      {donate ? <DonationModal apkUrl={apkUrl} onClose={() => setDonate(false)} /> : null}
     </>
   );
 }

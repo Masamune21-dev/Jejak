@@ -54,11 +54,15 @@ export function fcmMessage(token: string, msg: PushMessage) {
   return { message: { token, data, android: { priority: 'HIGH' } } };
 }
 
-/** Pengirim dari berkas kunci service account, atau null bila berkasnya belum dipasang. */
+/**
+ * Pengirim dari berkas kunci service account, atau null bila berkasnya belum dipasang. `-` berarti stdin
+ * (deploy.sh notif): dibaca langsung dari fd 0, karena membuka ulang /dev/stdin gagal (EACCES) bila pipanya
+ * milik root sedangkan proses berjalan sebagai user jejak.
+ */
 export function loadPusher(path: string, fetchFn: typeof fetch = fetch): Pusher | null {
   let sa: ServiceAccount;
   try {
-    sa = JSON.parse(readFileSync(path, 'utf8')) as ServiceAccount;
+    sa = JSON.parse(readFileSync(path === '-' ? 0 : path, 'utf8')) as ServiceAccount;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw new Error(`Kunci FCM di ${path} tidak terbaca: ${(e as Error).message}`);

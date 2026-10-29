@@ -37,7 +37,9 @@ notif() {
     read -r -p "Kirim sekarang? [y/N] " answer
     [[ "$answer" == y || "$answer" == Y ]] || { echo "Dibatalkan."; return 1; }
   fi
-  ssh "$HOST" "test -f /etc/jejak/fcm.json || { echo 'Kunci FCM belum dipasang di /etc/jejak/fcm.json (lihat docs/deploy.md).' >&2; exit 1; }; cat /etc/jejak/fcm.json | $cli"
+  # Diarahkan dengan <, bukan cat |: pipa hanya akan masuk ke `cd` di awal $cli. Berkasnya dibuka oleh root,
+  # lalu CLI (user jejak) membaca fd 0 yang sudah terbuka.
+  ssh "$HOST" "test -f /etc/jejak/fcm.json || { echo 'Kunci FCM belum dipasang di /etc/jejak/fcm.json (lihat docs/deploy.md).' >&2; exit 1; }; $cli < /etc/jejak/fcm.json"
 }
 
 if [[ "$WHAT" == notif ]]; then

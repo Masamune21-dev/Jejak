@@ -385,7 +385,7 @@ Alurnya:
 
 1. Lewat SSH, CLI dijalankan sekali dengan `--uji` sebagai user `jejak` (`runuser`), memakai database produksi: mencetak jumlah perangkat dan pengguna, serta username yang tidak dikenal atau belum menyalakan notifikasi.
 2. Di komputer lokal muncul *Kirim sekarang? [y/N]*.
-3. CLI dijalankan lagi dengan kunci dikirim lewat stdin (`cat /etc/jejak/fcm.json | runuser -u jejak -- … FCM_CREDENTIALS=-`; CLI membacanya langsung dari fd 0, karena membuka ulang `/dev/stdin` milik root sebagai user `jejak` ditolak). Hasilnya: terkirim, gagal, dan token tidak berlaku yang dihapus. Setiap kiriman dicatat di tabel `announcements`.
+3. CLI dijalankan lagi dengan kunci dikirim lewat stdin (`runuser -u jejak -- … FCM_CREDENTIALS=- … < /etc/jejak/fcm.json`: berkas dibuka oleh root, dan CLI membacanya langsung dari fd 0, karena membuka ulang `/dev/stdin` milik root sebagai user `jejak` ditolak). Hasilnya: terkirim, gagal, dan token tidak berlaku yang dihapus. Setiap kiriman dicatat di tabel `announcements`.
 
 CLI berjalan sebagai `jejak` supaya berkas database (`-wal`, `-shm`) tetap milik service. Keluar dengan kode 2 bila ada yang gagal terkirim (selain token mati).
 

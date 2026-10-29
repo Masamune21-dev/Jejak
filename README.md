@@ -10,7 +10,7 @@
 Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen bersama teman.</p>
 
 <p>
-<a href="https://github.com/Masamune21-dev/Jejak/releases/latest"><img src="https://img.shields.io/github/v/release/Masamune21-dev/Jejak?label=versi&color=FFC72C&labelColor=1B1E22" alt="Versi terbaru"></a>
+<a href="https://github.com/Masamune21-dev/Jejak/releases/latest"><img src="https://img.shields.io/github/v/release/Masamune21-dev/Jejak?label=versi&color=FFC72C&labelColor=1B1E22&cacheSeconds=3600" alt="Versi terbaru"></a>
 <a href="https://jejak.masamune.my.id/unduh/jejak.apk"><img src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white&labelColor=1B1E22" alt="Android APK"></a>
 <img src="https://img.shields.io/badge/Expo-SDK%2058-F2F2F2?logo=expo&logoColor=white&labelColor=1B1E22" alt="Expo SDK 58">
 <img src="https://img.shields.io/badge/peta-OpenStreetMap-7EBC6F?logo=openstreetmap&logoColor=white&labelColor=1B1E22" alt="Peta OpenStreetMap">

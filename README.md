@@ -92,7 +92,7 @@ Versi yang menambah modul native (0.2.0, 0.3.0) butuh APK baru; app tidak memaka
 
 ## Deploy server & web
 
-Server produksi menjalankan API sebagai service systemd `jejak` dengan user non-root, di belakang nginx dan Cloudflare. Database dan folder foto `uploads/` wajib ikut backup. Setelah commit:
+Server produksi menjalankan API sebagai service systemd `jejak` dengan user non-root, di belakang nginx dan Cloudflare. Database dan folder foto `uploads/` wajib ikut backup. Alamat SSH server tidak ada di repo; atur sekali dengan `git config jejak.deployHost user@alamat-server` (atau variabel `JEJAK_HOST`). Setelah commit:
 
 ```bash
 deploy/deploy.sh

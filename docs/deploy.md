@@ -19,7 +19,13 @@ Produksi berjalan di satu VPS di belakang Cloudflare: **https://jejak.masamune.m
 
 ## Tata letak server
 
-Host SSH bawaan di `deploy/deploy.sh` adalah `root@103.189.249.115`; bisa diganti lewat variabel `JEJAK_HOST`.
+Alamat SSH server tidak ditulis di repo. `deploy/deploy.sh` membacanya dari variabel `JEJAK_HOST`, atau dari config git lokal `jejak.deployHost` (tersimpan di `.git/config`, dipakai bersama semua worktree, tidak ikut ter-push). Atur sekali di komputer yang dipakai deploy:
+
+```bash
+git config jejak.deployHost root@<ip-server>
+```
+
+Perintah `ssh`/`rsync` di dokumen ini memakai `"$(git config jejak.deployHost)"` supaya alamatnya tidak perlu diketik.
 
 ```
 /var/www/jejak.masamune.my.id/
@@ -130,7 +136,7 @@ Lokasi:
 Permintaan langsung ke IP origin tanpa sertifikat klien Cloudflare ditolak nginx dengan **400** (*No required SSL certificate was sent*), termasuk:
 
 ```bash
-curl -k --resolve jejak.masamune.my.id:443:103.189.249.115 https://jejak.masamune.my.id/api/health   # → 400
+curl -k --resolve jejak.masamune.my.id:443:<ip-server> https://jejak.masamune.my.id/api/health   # → 400
 ```
 
 Ini normal. **Uji selalu lewat domain:**
@@ -272,7 +278,7 @@ Buat backup database dan folder foto pada waktu yang berdekatan. Foto yang diung
 Saran:
 
 - Jadwalkan harian lewat `cron` dan simpan beberapa salinan terakhir.
-- Salin juga ke luar server, misalnya dari komputer lokal: `rsync -az root@103.189.249.115:/root/backup/ ./backup-jejak/`.
+- Salin juga ke luar server, misalnya dari komputer lokal: `rsync -az "$(git config jejak.deployHost)":/root/backup/ ./backup-jejak/`.
 - Database berisi akun (hash kata sandi), hash token sesi, jejak GPS lengkap pengguna (termasuk titik awal/akhir yang disembunyikan dari pengguna lain), postingan, dan **pesan chat** (tidak terenkripsi). Folder foto berisi foto pengguna dan kunci alamat foto. Simpan backup di tempat yang aman.
 - Perkiraan ruang foto: 1.000 pengguna × (avatar ±60 KB + sampul ±300 KB) ≈ 360 MB, belum termasuk foto postingan (maksimal 4 per postingan). Pantau dengan `du -sh /var/www/jejak.masamune.my.id/data/uploads`.
 
@@ -360,7 +366,7 @@ Service account `jejak-fcm@absensi-f66e1.iam.gserviceaccount.com` di proyek Fire
 Kuncinya di server sebagai `/etc/jejak/fcm.json`, milik root dengan mode 600, tidak di repo. Memasang atau mengganti kunci dari komputer lokal:
 
 ```bash
-ssh root@103.189.249.115 'install -d -m 700 /etc/jejak && umask 077 && cat > /etc/jejak/fcm.json' < ~/Downloads/<berkas-kunci>.json
+ssh "$(git config jejak.deployHost)" 'install -d -m 700 /etc/jejak && umask 077 && cat > /etc/jejak/fcm.json' < ~/Downloads/<berkas-kunci>.json
 ```
 
 Kunci baru dibuat di Google Cloud Console → IAM & Admin → Service accounts → `jejak-fcm` → Keys → Add key → JSON. Hapus kunci lama di tempat yang sama setelah yang baru terpasang. Firebase Cloud Messaging API harus aktif di proyek itu.

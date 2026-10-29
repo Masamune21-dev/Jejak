@@ -12,10 +12,16 @@
 # butuh akses ke GitHub (repo boleh private). Commit dulu perubahan yang mau dipasang.
 set -euo pipefail
 
-HOST="${JEJAK_HOST:-root@103.189.249.115}"
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# Alamat server tidak ditulis di repo. Ambil dari JEJAK_HOST, atau dari config git lokal yang dipakai bersama
+# semua worktree dan tidak ikut ter-push: git config jejak.deployHost user@alamat-server
+HOST="${JEJAK_HOST:-$(git -C "$HERE" config --get jejak.deployHost || true)}"
+if [[ -z "$HOST" ]]; then
+  echo 'Host SSH server belum diatur. Jalankan sekali: git config jejak.deployHost user@alamat-server' >&2
+  exit 1
+fi
 ROOT=/var/www/jejak.masamune.my.id
 SITE_URL=https://jejak.masamune.my.id
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WHAT="${1:-all}"
 
 # Notifikasi push lewat CLI di server. CLI berjalan sebagai user jejak supaya berkas database tetap milik service;

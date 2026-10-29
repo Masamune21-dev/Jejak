@@ -35,6 +35,34 @@ function setup(db = openDb(':memory:')) {
   return { call, register, db };
 }
 
+test('akun: ganti nama dan kata sandi, sesi lain dikeluarkan', async () => {
+  const { call, register } = setup();
+  const ika = await register('ika');
+  const hp2 = (await call<AuthResult>('POST', '/auth/login', undefined, { username: 'ika', password: 'rahasia1' })).body;
+
+  assert.equal((await call('PATCH', '/me', ika.token, { name: '  ' })).status, 400);
+  const renamed = await call<Profile>('PATCH', '/me', ika.token, { name: '  Ika Lari ' });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.name, 'Ika Lari');
+  assert.equal(renamed.body.username, 'ika');
+
+  const change = (currentPassword: string, newPassword: string) =>
+    call('PUT', '/me/password', ika.token, { currentPassword, newPassword });
+  // Salah kata sandi lama: 400 (bukan 401, yang membuat app mengeluarkan pengguna).
+  const wrong = await change('salah', 'lari-sore-88');
+  assert.deepEqual([wrong.status, wrong.body.error], [400, 'Kata sandi sekarang salah']);
+  assert.equal((await change('rahasia1', '12345')).status, 400);
+  assert.equal((await change('rahasia1', 'password123')).status, 400);
+  assert.equal((await change('rahasia1', 'rahasia1')).status, 400);
+  assert.equal((await change('rahasia1', 'lari-sore-88')).status, 200);
+
+  // Sesi yang mengganti tetap masuk; sesi lain keluar; kata sandi lama tidak berlaku lagi.
+  assert.equal((await call('GET', '/me', ika.token)).status, 200);
+  assert.equal((await call('GET', '/me', hp2.token)).status, 401);
+  assert.equal((await call('POST', '/auth/login', undefined, { username: 'ika', password: 'rahasia1' })).status, 401);
+  assert.equal((await call('POST', '/auth/login', undefined, { username: 'ika', password: 'lari-sore-88' })).status, 200);
+});
+
 const A = HOME;
 const B = north(A, 1200);
 const C = east(B, 800);

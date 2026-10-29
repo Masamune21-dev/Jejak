@@ -7,6 +7,11 @@ satu perubahan per butir, sebelum menjalankan `deploy.sh apk`.
 Baris `Versi minimal: x.y.z` (opsional, di luar bagian versi) memaksa app yang lebih lama memperbarui diri. Isi
 hanya bila server berubah sehingga versi lama tidak bisa dipakai lagi.
 
+## 0.3.1
+
+- Ganti nama tampilan dan kata sandi di Pengaturan → Akun
+- Tombol mata untuk melihat kata sandi saat masuk dan daftar
+
 ## 0.3.0
 
 - Notifikasi info dan kabar versi baru, bisa dimatikan di Pengaturan

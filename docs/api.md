@@ -57,6 +57,8 @@ curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
 | GET | `/media/:name?exp=&sig=` | tidak | gambar JPEG |
 | POST | `/logout` | ya | `{ ok: true }` |
 | GET | `/me` | ya | `Profile` |
+| PATCH | `/me` | ya | `Profile` |
+| PUT | `/me/password` | ya | `{ ok: true }` |
 | PUT | `/me/device` | ya | `{ ok: true }` |
 | DELETE | `/me/device` | ya | `{ ok: true }` |
 | PUT | `/me/avatar` | ya | `Profile` |
@@ -203,6 +205,19 @@ Setiap `UserSummary` (`user` di aktivitas, komentar, rute, segmen, leaderboard, 
 ### `GET /me`
 
 Respons `Profile` milik pengguna yang login. Belum dipakai app (app memakai `GET /users/:id` dengan id sendiri).
+
+### `PATCH /me`
+
+Login. Ganti nama tampilan. Badan `{ "name": "Ika Lari" }`, 1–50 karakter setelah di-trim. Respons `Profile` terbaru. Username tidak bisa diganti. Error: **400** *Nama wajib diisi* / *Nama maksimal 50 karakter*.
+
+### `PUT /me/password`
+
+Login. Badan `{ "currentPassword": "…", "newPassword": "…" }`.
+
+- `currentPassword` dicek seperti saat masuk (juga versi tanpa spasi tepi untuk akun lama). Salah: **400** *Kata sandi sekarang salah*. Sengaja bukan 401, karena app mengeluarkan pengguna setiap menerima 401.
+- `newPassword` memakai aturan yang sama dengan daftar (6–200 karakter, tidak mudah ditebak, dipakai apa adanya), dan harus berbeda dari yang sekarang: **400** *Kata sandi baru harus berbeda dari yang sekarang*.
+- Berhasil: hash kata sandi diganti, lalu **semua sesi lain** milik pengguna itu dihapus (HP atau browser lain harus masuk lagi, dan token notifikasinya ikut terhapus). Sesi yang dipakai untuk mengganti tetap berlaku. Respons `{ "ok": true }`.
+- Terkena batas laju tulis nginx (30 per menit per IP), seperti semua permintaan selain GET.
 
 ### `GET /users?q=<teks>`
 

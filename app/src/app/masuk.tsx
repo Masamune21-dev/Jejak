@@ -140,6 +140,7 @@ export default function SignInScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              autoComplete={daftar ? 'new-password' : 'current-password'}
               placeholder={daftar ? 'minimal 6 karakter' : 'kata sandi'}
               onSubmitEditing={submit}
             />

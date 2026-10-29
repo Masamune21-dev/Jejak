@@ -13,6 +13,8 @@ interface AuthState {
   ready: boolean;
   signIn: (r: AuthResult) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Perbarui data pengguna yang tersimpan (mis. setelah ganti nama), tanpa mengganti token. */
+  updateUser: (patch: Partial<UserSummary>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -55,7 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clear();
   }, [clear]);
 
-  const value = useMemo(() => ({ user, ready, signIn, signOut }), [user, ready, signIn, signOut]);
+  const updateUser = useCallback(async (patch: Partial<UserSummary>) => {
+    const raw = await secure.get(KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as AuthResult;
+    const next = { ...saved, user: { ...saved.user, ...patch } };
+    setUser(next.user);
+    await secure.set(KEY, JSON.stringify(next));
+  }, []);
+
+  const value = useMemo(() => ({ user, ready, signIn, signOut, updateUser }), [user, ready, signIn, signOut, updateUser]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

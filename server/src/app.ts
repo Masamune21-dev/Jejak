@@ -136,6 +136,13 @@ function weakPassword(password: string, username: string): boolean {
   );
 }
 
+/** Aturan kata sandi baru, sama saat daftar dan saat mengganti. Dipakai apa adanya (tidak di-trim). */
+function checkNewPassword(password: string, username: string) {
+  if (password.length < 6) fail(400, 'Kata sandi minimal 6 karakter');
+  if (password.length > 200) fail(400, 'Kata sandi maksimal 200 karakter');
+  if (weakPassword(password, username)) fail(400, 'Kata sandi terlalu mudah ditebak. Pakai gabungan kata dan angka yang tidak umum.');
+}
+
 function actType(v: unknown): ActivityType {
   if (!TYPES.includes(v as ActivityType)) fail(400, 'Jenis aktivitas tidak dikenal');
   return v as ActivityType;
@@ -576,10 +583,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const name = str(b.name, 'Nama', 1, 50);
     // Kata sandi dipakai apa adanya (tidak di-trim), sama seperti saat masuk.
     const password = typeof b.password === 'string' ? b.password : '';
-    if (password.length < 6) fail(400, 'Kata sandi minimal 6 karakter');
-    if (password.length > 200) fail(400, 'Kata sandi maksimal 200 karakter');
-    if (weakPassword(password, username))
-      fail(400, 'Kata sandi terlalu mudah ditebak. Pakai gabungan kata dan angka yang tidak umum.');
+    checkNewPassword(password, username);
     if (one('select 1 from users where username = ?', username)) fail(409, 'Username sudah dipakai');
     const id = Number(
       run('insert into users (username, name, password_hash) values (?, ?, ?)', username, name, hashPassword(password))
@@ -665,6 +669,29 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
   // --- Pengguna & teman ---
 
   app.get('/me', (c) => c.json(profile(c.var.me.id, c.var.me.id)));
+
+  app.patch('/me', async (c) => {
+    const name = str((await body(c)).name, 'Nama', 1, 50);
+    run('update users set name = ? where id = ?', name, c.var.me.id);
+    return c.json(profile(c.var.me.id, c.var.me.id));
+  });
+
+  // Kata sandi lama salah dibalas 400, bukan 401: app mengeluarkan pengguna setiap menerima 401.
+  // Setelah diganti, sesi lain (HP atau browser lain) dikeluarkan; sesi yang mengganti tetap masuk.
+  app.put('/me/password', async (c) => {
+    const b = await body(c);
+    const current = typeof b.currentPassword === 'string' ? b.currentPassword : '';
+    const next = typeof b.newPassword === 'string' ? b.newPassword : '';
+    const u = one('select username, password_hash from users where id = ?', c.var.me.id)!;
+    // Akun lama didaftarkan dengan kata sandi yang di-trim, sama seperti saat masuk.
+    if (!verifyPassword(current, u.password_hash) && !verifyPassword(current.trim(), u.password_hash))
+      fail(400, 'Kata sandi sekarang salah');
+    checkNewPassword(next, u.username);
+    if (next === current) fail(400, 'Kata sandi baru harus berbeda dari yang sekarang');
+    run('update users set password_hash = ? where id = ?', hashPassword(next), c.var.me.id);
+    run('delete from sessions where user_id = ? and token_hash != ?', c.var.me.id, hashToken(bearer(c)!));
+    return c.json({ ok: true });
+  });
 
   app.get('/users', (c) => {
     const me = c.var.me.id;

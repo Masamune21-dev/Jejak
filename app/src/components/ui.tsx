@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HeaderHeightContext } from 'expo-router/react-navigation';
-import { useContext, type ComponentProps, type ReactNode } from 'react';
+import { useContext, useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -472,8 +472,10 @@ export function Segmented<K extends string>({
   );
 }
 
-export function Field({ label, icon, ...props }: TextInputProps & { label?: string; icon?: IconName }) {
+/** Kolom isian. Dengan `secureTextEntry`, ada tombol mata untuk menampilkan atau menyembunyikan kata sandi. */
+export function Field({ label, icon, secureTextEntry, ...props }: TextInputProps & { label?: string; icon?: IconName }) {
   const c = useColors();
+  const [shown, setShown] = useState(false);
   return (
     <View style={{ gap: 6 }}>
       {label ? <T v="label">{label}</T> : null}
@@ -482,8 +484,18 @@ export function Field({ label, icon, ...props }: TextInputProps & { label?: stri
         <TextInput
           placeholderTextColor={c.muted}
           {...props}
+          secureTextEntry={secureTextEntry && !shown}
           style={[{ flex: 1, color: c.text, fontFamily: font.medium, fontSize: 16, paddingVertical: 14 }, props.style]}
         />
+        {secureTextEntry ? (
+          <Pressable
+            onPress={() => setShown((s) => !s)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={shown ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}>
+            <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

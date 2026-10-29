@@ -96,6 +96,8 @@ Bila username sudah dipakai, muncul pesan *Username sudah dipakai*.
 
 Saat keyboard muncul, layar bergeser ke bawah sehingga kolom yang sedang diketik dan tombol **Masuk**/**Buat akun** tetap terlihat di atas keyboard.
 
+Kolom kata sandi punya tombol mata di kanan (*Tampilkan kata sandi* / *Sembunyikan kata sandi*), juga di layar [Akun](#pengaturan). Kolomnya memberi tahu pengelola kata sandi browser dan HP (`current-password` saat masuk, `new-password` saat daftar).
+
 Setelah berhasil, token sesi disimpan di HP (Keychain/Keystore) atau di `localStorage` pada versi web, sehingga kamu tetap masuk saat app dibuka lagi. Sesi berakhir saat kamu menekan **Keluar** di [Pengaturan](#pengaturan), atau bila app tidak dipakai selama 90 hari (lalu kamu diminta masuk lagi).
 
 Di bagian bawah layar masuk tertulis **Server: …**, alamat API yang dipakai app. Ini berguna untuk memastikan app terhubung ke server yang benar (produksi atau komputer sendiri).
@@ -583,6 +585,11 @@ Dari ikon **…** di profil orang lain. Blokir memutus saling mengikuti dari ked
 ## Pengaturan
 
 Layar `pengaturan.tsx` (judul **Pengaturan**), dibuka dari ikon roda gigi di kanan atas tab Profil.
+
+**Akun** (paling atas): kartu berisi nama dan @username dengan tulisan *Ganti nama atau kata sandi*, membuka layar `akun.tsx` (judul **Akun**, sejak 0.3.1):
+
+- **Nama tampilan**: kolom nama (1–50 karakter) dan tombol **Simpan nama** (aktif bila nama berubah). Berhasil: *Nama disimpan.*; nama baru langsung dipakai di Beranda dan data lain diambil ulang. Di bawah kolom: *Username @… tidak bisa diganti.*
+- **Kata sandi**: **Kata sandi sekarang**, **Kata sandi baru**, **Ulangi kata sandi baru**, dan tombol **Ganti kata sandi**. Aturan kata sandi baru sama dengan saat daftar, dan harus berbeda dari yang sekarang. Pesan bila gagal: *Kata sandi baru dan ulangannya tidak sama* (dicek app), *Kata sandi sekarang salah*, atau aturan kata sandi dari server. Berhasil: kolom dikosongkan dan tampil *Kata sandi diganti. HP dan browser lain yang masuk dengan akun ini sudah dikeluarkan.*; HP yang dipakai mengganti tetap masuk.
 
 **Tampilan**:
 

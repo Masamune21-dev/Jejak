@@ -126,6 +126,7 @@ function Root() {
           <Stack.Screen name="atlet/[id]" options={{ title: '' }} />
           <Stack.Screen name="cari" options={{ title: 'Cari teman' }} />
           <Stack.Screen name="pengaturan" options={{ title: 'Pengaturan' }} />
+          <Stack.Screen name="akun" options={{ title: 'Akun' }} />
           <Stack.Screen name="koneksi/[id]" options={{ title: '' }} />
           <Stack.Screen name="pesan/index" options={{ title: 'Pesan' }} />
           <Stack.Screen name="pesan/[id]" options={{ title: '' }} />

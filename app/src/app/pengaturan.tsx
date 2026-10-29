@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Application from 'expo-application';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Button, Card, Row, SectionTitle, Segmented, T, type IconName } from '@/components/ui';
 import { API_URL, errorText } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { contactInfo, CONTACTS, feedbackUrl } from '@/lib/contact';
 import { usePush } from '@/lib/push-state';
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const c = useColors();
   const prefs = useThemePrefs();
   const { signOut } = useAuth();
+  const me = useMe();
   const update = useUpdate();
   const feedback = feedbackUrl();
   // Nomor build Android (versionCode) hanya dari APK sendiri. Di Expo Go angka build milik Expo Go.
@@ -26,6 +28,20 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={styles.page}>
+      <SectionTitle>Akun</SectionTitle>
+      <Card onPress={() => router.push('/akun')}>
+        <Row>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T v="strong">{me.name}</T>
+            <T v="small">@{me.username}</T>
+          </View>
+          <T v="small" color={c.accentText}>
+            Ganti nama atau kata sandi
+          </T>
+          <Ionicons name="chevron-forward" size={18} color={c.muted} />
+        </Row>
+      </Card>
+
       <SectionTitle>Tampilan</SectionTitle>
       <Card style={{ gap: space.lg }}>
         <View style={{ gap: space.sm }}>

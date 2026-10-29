@@ -338,7 +338,7 @@ export default function LandingScreen() {
               <Text style={styles.wordmark}>
                 jejak<Text style={{ color: c.accent }}>.</Text>
               </Text>
-              <Text style={styles.footText}>Dibuat oleh Masamune di Pati.</Text>
+              <Text style={styles.footText}>© {new Date().getFullYear()} Jejak. Gratis dan tanpa iklan.</Text>
               <Text style={styles.footText}>Peta © OpenStreetMap contributors. Rute dari OSRM (FOSSGIS).</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>

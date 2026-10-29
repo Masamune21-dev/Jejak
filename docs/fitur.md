@@ -64,7 +64,7 @@ Isi halaman, dari atas:
 | Privasi | Papan rambu hijau: zona privasi 300 m, lokasi di foto dihapus, foto dan postingan hanya untuk yang masuk, pesan tidak terenkripsi ujung-ke-ujung. |
 | Unduh | Latar beton. Versi, nomor build, dan ukuran APK dibaca dari `/unduh/versi.json` (bila belum ada, tertulis *Versi terbaru*). Tombol **Unduh APK**, diikuti tiga langkah pemasangan. |
 | Sering ditanyakan | Lima pertanyaan yang bisa dibuka-tutup: gratis, kenapa tidak di Play Store, iPhone, izin lokasi "sepanjang waktu", dan garis yang melenceng dari jalan. |
-| Kaki halaman | Pembuat, atribusi peta dan rute, tautan **Masuk**, **Daftar** (membuka form daftar), dan **Unduh APK**. |
+| Kaki halaman | Hak cipta (tahun berjalan) dan "Gratis dan tanpa iklan", atribusi peta dan rute, tautan **Masuk**, **Daftar** (membuka form daftar), dan **Unduh APK**. |
 
 Semua tombol unduh (hero, bagian Unduh, kaki halaman) membuka **modal donasi** (`components/landing/DonationModal.tsx`) dulu, bukan langsung mengunduh:
 

@@ -2,7 +2,7 @@
   "name": "jejak",
   "version": "0.1.0",
   "private": true,
-  "description": "Aplikasi olahraga ala Strava: rekam lari/sepeda, buat rute sendiri, segmen & leaderboard.",
+  "description": "Aplikasi olahraga: rekam lari, gowes, dan jalan kaki dengan GPS, buat rute sendiri, segmen & leaderboard.",
   "scripts": {
     "setup": "npm install --prefix server && npm install --prefix app",
     "server": "npm start --prefix server",

@@ -1,6 +1,6 @@
 # Dokumentasi Jejak
 
-Jejak adalah aplikasi olahraga ala Strava: rekam lari, bersepeda, dan jalan kaki dengan GPS, buat rute sendiri yang mengikuti jalan lalu ikuti saat merekam (petunjuk belok + peringatan keluar rute), lihat feed teman, beri kudos dan komentar, pantau statistik dan rekor pribadi, adu waktu di segmen lewat leaderboard, serta bagikan hasil aktivitas sebagai stiker transparan, gambar, atau berkas GPX. Sejak app 0.2.0 ada juga foto profil dan sampul, daftar pengikut, postingan dengan Diskusi segmen, pesan antarteman, serta tema terang/gelap dengan lima warna aksen.
+Jejak adalah aplikasi olahraga: rekam lari, bersepeda, dan jalan kaki dengan GPS, buat rute sendiri yang mengikuti jalan lalu ikuti saat merekam (petunjuk belok + peringatan keluar rute), lihat feed teman, beri kudos dan komentar, pantau statistik dan rekor pribadi, adu waktu di segmen lewat leaderboard, serta bagikan hasil aktivitas sebagai stiker transparan, gambar, atau berkas GPX. Sejak app 0.2.0 ada juga foto profil dan sampul, daftar pengikut, postingan dengan Diskusi segmen, pesan antarteman, serta tema terang/gelap dengan lima warna aksen.
 
 Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://jejak.masamune.my.id/api`.
 

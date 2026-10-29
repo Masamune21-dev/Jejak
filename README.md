@@ -1,22 +1,37 @@
 # Jejak
 
-Aplikasi olahraga ala Strava: rekam lari, sepeda, dan jalan kaki dengan GPS, buat rute sendiri di peta lalu ikuti saat merekam, adu waktu di segmen bersama teman, serta berbagi lewat postingan dan pesan. Versi app saat ini: **0.2.0**.
+Aplikasi olahraga untuk lari, gowes, dan jalan kaki: rekam dengan GPS, buat rute sendiri yang menempel ke jalan lalu ikuti saat merekam, adu waktu di segmen bersama teman, serta berbagi lewat postingan, pesan, dan stiker foto. Gratis, tanpa iklan. Versi app saat ini: **0.3.1**.
 
-Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur, API, data, algoritma, pengembangan, deploy, build APK, desain, dan ide fitur.
+**[Buka versi web](https://jejak.masamune.my.id)** · **[Unduh APK Android](https://jejak.masamune.my.id/unduh/jejak.apk)** · **[Dokumentasi](docs/README.md)**
+
+![Halaman depan Jejak](docs/screenshots/landing.jpg)
+
+| Beranda | Detail aktivitas | Segmen & leaderboard |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/beranda.jpg" width="250" alt="Beranda: total minggu ini, aksi cepat, dan feed teman"> | <img src="docs/screenshots/aktivitas.jpg" width="250" alt="Detail aktivitas: peta jejak, jarak, pace, dan kudos"> | <img src="docs/screenshots/segmen.jpg" width="250" alt="Segmen: waktu terbaik, peringkat, dan leaderboard"> |
+| **Profil & statistik** | **Bagikan ke foto** | **Rute & petunjuk arah** |
+| <img src="docs/screenshots/profil.jpg" width="250" alt="Profil: total aktivitas dan grafik 12 minggu"> | <img src="docs/screenshots/bagikan.jpg" width="250" alt="Bagikan: stiker transparan dengan garis rute dan angka"> | <img src="docs/screenshots/rute.jpg" width="250" alt="Detail rute: jarak, perkiraan waktu, dan petunjuk belok"> |
+
+<sub>Tangkapan layar dari versi web di ukuran layar HP, dengan akun dan data contoh di sekitar Pati.</sub>
 
 ## Fitur
 
-- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup.
+- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup atau layar mati.
 - **Buat rute sendiri**: ketuk titik-titik di peta, rute otomatis mengikuti jalan (OpenStreetMap/OSRM), lengkap dengan petunjuk belok berbahasa Indonesia. Ada tombol batal, pulang-pergi, dan kembali ke titik awal.
 - **Ikuti rute**: saat merekam muncul banner belokan berikutnya ("Belok kiri ke Jalan Pemuda · dalam 120 m"), sisa jarak, dan peringatan *keluar dari rute*. HP bergetar saat mendekati belokan atau keluar jalur.
 - **Riwayat & statistik**: split per km, waktu terbaik (400 m, 1 km, 5 km, 10 km, setengah maraton, maraton; sepeda 5–100 km), PR, grafik 12 minggu, total tahun ini dan sepanjang masa.
-- **Akun & teman**: daftar/masuk, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, kudos, komentar.
-- **Foto profil & sampul**: foto dari galeri atau kamera, dipotong dan diperkecil di HP. Data lokasi GPS di foto dibuang sebelum disimpan, dan foto hanya bisa dilihat pengguna yang sudah masuk.
-- **Bagikan ke foto & ekspor GPX**: 5 stiker transparan ala Strava (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu). Galeri geser, simpan, salin ke papan klip, atau bagikan. Bisa juga ekspor GPX ke aplikasi lain.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
-- **Postingan & Diskusi segmen**: tulis postingan pendek ala X (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen untuk semua pengguna.
-- **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir. Pesan baru tidak dikirim sebagai notifikasi; diambil tiap beberapa detik selama layar terbuka.
-- **Tema & pengaturan**: tema gelap, terang, atau ikuti HP, dengan 5 warna aksen (kuning marka, mint, biru, oranye, pink). Info versi dan pembuat di Pengaturan.
+- **Akun & teman**: daftar/masuk, ganti nama dan kata sandi, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, kudos, komentar.
+- **Postingan & Diskusi segmen**: tulis postingan pendek (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen.
+- **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir.
+- **Bagikan ke foto**: 5 stiker transparan (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di atas foto Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu).
+- **Ekspor GPX**: aktivitas dan rute bisa diekspor ke aplikasi lain atau jam GPS.
+- **Foto profil & sampul**: dari galeri atau kamera, dipotong dan diperkecil di HP. Data lokasi GPS di foto dibuang sebelum disimpan.
+- **Privasi**: awal dan akhir jejak disembunyikan dari orang lain, supaya alamat rumah tidak terlihat.
+- **Notifikasi & pembaruan** (APK): pengumuman dan info versi baru lewat notifikasi push, kartu pembaruan di Beranda.
+- **Tema**: gelap, terang, atau ikuti HP, dengan 5 warna aksen.
+
+Rincian per layar ada di [docs/fitur.md](docs/fitur.md).
 
 ## Struktur
 
@@ -24,11 +39,13 @@ Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur,
 jejak/
 ├── app/      Aplikasi HP (Expo SDK 58 + Expo Router, React Native). Juga jalan di browser.
 ├── server/   API (Node 24 + Hono + SQLite bawaan Node). Tanpa langkah build.
-└── shared/   Kode bersama app & server: hitungan geo (jarak, split, rekor,
-              pencocokan segmen, progres di rute) dan tipe data API.
+├── shared/   Kode bersama app & server: hitungan geo (jarak, split, rekor,
+│             pencocokan segmen, progres di rute) dan tipe data API.
+├── deploy/   Skrip deploy, config nginx, dan service systemd.
+└── docs/     Dokumentasi.
 ```
 
-Versi produksi: **https://jejak.masamune.my.id** (web; pengunjung yang belum masuk melihat halaman depan dengan tombol unduh APK) dengan API di `https://jejak.masamune.my.id/api`. APK terbaru: `https://jejak.masamune.my.id/unduh/jejak.apk`.
+Versi produksi: **https://jejak.masamune.my.id** (web; pengunjung yang belum masuk melihat halaman depan dengan tombol unduh APK) dengan API di `https://jejak.masamune.my.id/api`.
 
 ## Menjalankan untuk pengembangan
 
@@ -71,17 +88,17 @@ npx eas-cli@latest build --platform android --profile preview
 
 Saat pertama kali, pilih *Generate a new Android Keystore*. Setelah selesai, EAS memberi tautan/QR untuk mengunduh APK ke HP. Profil `production` membuat AAB untuk Google Play (`--profile production`).
 
-App 0.2.0 memakai modul native baru (`expo-clipboard`, `expo-image-manipulator`, `expo-blur`, `expo-application`), jadi APK 0.1.x harus diganti APK baru. Detailnya di [docs/build-apk.md](docs/build-apk.md).
+Versi yang menambah modul native (0.2.0, 0.3.0) butuh APK baru; app tidak memakai pembaruan OTA. Detailnya di [docs/build-apk.md](docs/build-apk.md).
 
 ## Deploy server & web
 
-Server produksi ada di `103.189.249.115` (service systemd `jejak` dengan user non-root `jejak`, port 3014, nginx + sertifikat Cloudflare, data di `/var/www/jejak.masamune.my.id/data`: database dan folder foto `uploads/`, keduanya wajib ikut backup). Setelah commit:
+Server produksi menjalankan API sebagai service systemd `jejak` dengan user non-root, di belakang nginx dan Cloudflare. Database dan folder foto `uploads/` wajib ikut backup. Setelah commit:
 
 ```bash
 deploy/deploy.sh
 ```
 
-Skrip ini mengirim commit `HEAD` ke server lewat SSH (`git archive`), menjalankan `npm ci`, memasang config nginx dan service systemd, lalu menjalankan ulang API; setelah itu membangun versi web dan mengunggahnya. Detailnya di [docs/deploy.md](docs/deploy.md). Pakai `deploy/deploy.sh server` atau `deploy/deploy.sh web` untuk salah satunya saja.
+Skrip ini mengirim commit `HEAD` ke server lewat SSH (`git archive`), menjalankan `npm ci`, memasang config nginx dan service systemd, lalu menjalankan ulang API; setelah itu membangun versi web dan mengunggahnya. Pakai `deploy/deploy.sh server` atau `deploy/deploy.sh web` untuk salah satunya saja. Detailnya di [docs/deploy.md](docs/deploy.md).
 
 ## Cek kode
 
@@ -89,9 +106,10 @@ Skrip ini mengirim commit `HEAD` ke server lewat SSH (`git archive`), menjalanka
 npm run check
 ```
 
-Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun, feed, kudos, rute, segmen, leaderboard, foto, pengikut, postingan, chat), typecheck app, dan ESLint.
+Perintah ini menjalankan typecheck server, tes server (`node --test`: geo, akun, feed, kudos, rute, segmen, leaderboard, foto, pengikut, postingan, chat, notifikasi), typecheck app, dan ESLint.
 
 ## Catatan
 
 - Rute mengikuti jalan memakai server OSRM publik dari FOSSGIS (`routing.openstreetmap.de`, profil jalan kaki dan sepeda). Pakailah sewajarnya. Bila layanan gagal, rute otomatis jadi garis lurus. Server sendiri bisa dipakai lewat variabel `ROUTING_URL`.
-- Semua peta memakai ubin OpenStreetMap (tanpa kunci API, wajib atribusi), yang digelapkan di tema gelap dan tampil asli di tema terang. Peta di APK Android memakai MapLibre dengan ubin yang sama; di iOS dan Expo Go memakai react-native-maps (Apple Maps / Google Maps).
+- Semua peta memakai ubin OpenStreetMap (tanpa kunci API, wajib atribusi), yang digelapkan di tema gelap dan tampil asli di tema terang. Peta © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+- Pertanyaan dan masukan: info@masamune.my.id.

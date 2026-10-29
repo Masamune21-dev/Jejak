@@ -1,9 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ComponentProps, ReactNode } from 'react';
+import { HeaderHeightContext } from 'expo-router/react-navigation';
+import { useContext, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -157,12 +159,25 @@ export function Screen({
   const c = useColors();
   if (!scroll) return <View style={[{ flex: 1, backgroundColor: c.bg }, style]}>{children}</View>;
   return (
-    <ScrollView
-      style={{ backgroundColor: c.bg }}
-      contentContainerStyle={[padded && styles.screen, { paddingBottom: 48 }, style]}
-      keyboardShouldPersistTaps="handled">
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
+      <ScrollView contentContainerStyle={[padded && styles.screen, { paddingBottom: 48 }, style]} keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
+    </KeyboardAvoid>
+  );
+}
+
+/**
+ * Isi yang memendek setinggi keyboard, supaya kolom tulisan di bagian bawah tidak tertutup. Android menggulir
+ * ScrollView di dalamnya ke kolom yang sedang diketik. Tinggi header ikut dihitung: KeyboardAvoidingView mengukur
+ * posisinya dari bawah header, jadi tanpa itu kolomnya tetap tertutup setinggi header.
+ */
+export function KeyboardAvoid({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  return (
+    <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={headerHeight} style={[{ flex: 1 }, style]}>
       {children}
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

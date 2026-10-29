@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
 
 import type { Activity, Segment } from '@shared/api';
 import { cumulative, haversine, toLatLon, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import type { MapLine, MapPin } from '@/components/map-types';
-import { Button, ErrorBox, Field, Loading, Row, Segmented, Sheet, Stat, T, ToolButton } from '@/components/ui';
+import { Button, ErrorBox, Field, KeyboardAvoid, Loading, Row, Segmented, Sheet, Stat, T, ToolButton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { distanceParts, duration } from '@/lib/format';
 import { space, useColors } from '@/lib/theme';
@@ -90,7 +89,7 @@ export default function CreateSegmentScreen() {
   const len = distanceParts(lengthM);
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} fit={fit} onPress={onPress} />
       <Sheet>
         <Segmented
@@ -140,6 +139,6 @@ export default function CreateSegmentScreen() {
           onPress={() => create.mutate()}
         />
       </Sheet>
-    </View>
+    </KeyboardAvoid>
   );
 }

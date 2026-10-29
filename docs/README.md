@@ -20,6 +20,7 @@ Versi produksi: **https://jejak.masamune.my.id** (web) dengan API di `https://je
 | [desain.md](desain.md) | Riset UI/UX dan sistem desain: kosakata visual dari jalan (aspal, marka, patok, rambu), palet gelap/terang dan lima warna aksen, huruf, stiker dan template bagikan. |
 | [ide-fitur.md](ide-fitur.md) | Daftar fitur yang sudah ada dan ide fitur berikutnya, dengan perkiraan usaha dan perlu-tidaknya build baru. |
 | [rencana-update.md](rencana-update.md) | Rencana tujuh permintaan pemilik (template bagikan ala Strava, foto profil & sampul, daftar pengikut, postingan, chat, tema terang/gelap & warna, info aplikasi), semuanya sudah dikerjakan di 0.2.0, dengan catatan bagian yang berbeda dari rencana; perubahan data, keamanan, tahapan rilis, keputusan pemilik. |
+| [rencana-0.3.md](rencana-0.3.md) | Rencana 0.3.0 (dikerjakan, belum dirilis): notifikasi push lewat FCM, kirim notifikasi manual dari server, info pembaruan aplikasi, kontak di Tentang aplikasi; langkah Firebase untuk pemilik dan pertanyaan yang perlu dijawab. |
 
 Dokumentasi di atas ditulis berdasarkan kode pada commit `098e29a` (app 0.2.0). Bila perilaku app atau server berubah, perbarui dokumen yang bersangkutan.
 

@@ -12,7 +12,19 @@ import JejakMap from '@/components/Map';
 import { DEFAULT_CENTER, endPins, type MapLine, type MapPin } from '@/components/map-types';
 import GuideBanner from '@/components/GuideBanner';
 import StaticMap from '@/components/StaticMap';
-import { Button, ErrorBox, Field, IconButton, Row, Sheet, Stat, T, TypePicker, type IconName } from '@/components/ui';
+import {
+  Button,
+  ErrorBox,
+  Field,
+  IconButton,
+  KeyboardAvoid,
+  Row,
+  Sheet,
+  Stat,
+  T,
+  type IconName,
+  TypePicker,
+} from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_LABEL } from '@/lib/format';
@@ -119,10 +131,7 @@ export default function RecordScreen() {
   const active = s.status === 'recording' || s.status === 'paused';
   // Titik pertama ditahan sampai GPS cukup akurat (recorder.ts); beri tahu supaya jarak 0 tidak dikira macet.
   const waitingGps =
-    s.status === 'recording' &&
-    s.parts.every((p) => p.length === 0) &&
-    s.accuracy != null &&
-    s.accuracy > FIRST_FIX_ACCURACY_M;
+    s.status === 'recording' && s.parts.every((p) => p.length === 0) && s.accuracy != null && s.accuracy > FIRST_FIX_ACCURACY_M;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -395,28 +404,30 @@ function SaveView(p: {
   const t = tempoParts(p.type, p.distanceM, p.elapsedS);
   const d = distanceParts(p.distanceM);
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.xl, gap: space.lg }}
-      keyboardShouldPersistTaps="handled">
-      <View>
-        <T v="label">Selesai</T>
-        <T v="h1">Simpan aktivitas</T>
-      </View>
-      <StaticMap points={p.track} height={220} />
-      <Row gap={space.lg}>
-        <Stat label="Jarak" value={d.value} unit={d.unit} size={32} />
-        <Stat label="Waktu" value={duration(p.elapsedS)} size={32} />
-        <Stat label={t.label} value={t.value} unit={t.unit} size={32} />
-      </Row>
-      <Field label="Judul" value={p.title} onChangeText={p.setTitle} placeholder={p.titleGuess} maxLength={100} />
-      {p.error ? <ErrorBox error={new Error(p.error)} /> : null}
-      <Button title="Simpan aktivitas" icon="checkmark" loading={p.busy} onPress={p.onSave} />
-      <Row>
-        <Button style={{ flex: 1 }} kind="soft" icon="play" title="Lanjutkan" onPress={p.onResume} />
-        <Button style={{ flex: 1 }} kind="ghost" icon="trash-outline" title="Buang" onPress={p.onDiscard} />
-      </Row>
-    </ScrollView>
+    <KeyboardAvoid>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.xl, gap: space.lg }}
+        keyboardShouldPersistTaps="handled">
+        <View>
+          <T v="label">Selesai</T>
+          <T v="h1">Simpan aktivitas</T>
+        </View>
+        <StaticMap points={p.track} height={220} />
+        <Row gap={space.lg}>
+          <Stat label="Jarak" value={d.value} unit={d.unit} size={32} />
+          <Stat label="Waktu" value={duration(p.elapsedS)} size={32} />
+          <Stat label={t.label} value={t.value} unit={t.unit} size={32} />
+        </Row>
+        <Field label="Judul" value={p.title} onChangeText={p.setTitle} placeholder={p.titleGuess} maxLength={100} />
+        {p.error ? <ErrorBox error={new Error(p.error)} /> : null}
+        <Button title="Simpan aktivitas" icon="checkmark" loading={p.busy} onPress={p.onSave} />
+        <Row>
+          <Button style={{ flex: 1 }} kind="soft" icon="play" title="Lanjutkan" onPress={p.onResume} />
+          <Button style={{ flex: 1 }} kind="ghost" icon="trash-outline" title="Buang" onPress={p.onDiscard} />
+        </Row>
+      </ScrollView>
+    </KeyboardAvoid>
   );
 }
 

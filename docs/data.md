@@ -304,13 +304,43 @@ Pesan chat 1-lawan-1. Disimpan sebagai teks biasa (tidak terenkripsi ujung-ke-uj
 
 Primary key `(blocker_id, blocked_id)`. Saat baris dibuat, baris `follows` kedua arah antara keduanya dihapus dalam transaksi yang sama.
 
+### `push_devices`
+
+Token FCM HP yang menyalakan notifikasi, satu per sesi (0.3.0).
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `token` | text PK | Token FCM dari `getDevicePushTokenAsync()`. |
+| `user_id` | integer → `users.id` | Cascade. |
+| `session_hash` | text unik → `sessions.token_hash` | Cascade: keluar atau sesi kedaluwarsa menghapus perangkatnya. |
+| `platform` | text | `android` (atau `ios`). |
+| `app_version` | text, boleh kosong | Versi app saat token didaftarkan; pengumuman pembaruan melewati HP yang sudah memakai versi itu. |
+| `created_at`, `last_seen_at` | text | |
+
+Token yang dibalas FCM `UNREGISTERED` (app dicopot, data app dihapus) dihapus saat pengiriman berikutnya.
+
+### `announcements`
+
+Catatan setiap notifikasi yang dikirim lewat `deploy/deploy.sh notif` atau `deploy.sh apk --umumkan`. Tidak dibaca app.
+
+| Kolom | Tipe | Keterangan |
+| --- | --- | --- |
+| `id` | integer PK | |
+| `kind` | text | Kanal: `info` atau `pembaruan`. |
+| `title`, `body` | text | Judul (maks. 60) dan isi (maks. 200). |
+| `url` | text, boleh kosong | Path app atau alamat https yang dibuka saat diketuk. |
+| `target` | text | `semua`, atau username penerima dipisah koma. |
+| `sent`, `failed` | integer | Jumlah terkirim; `failed` termasuk token yang dibuang. |
+| `created_at` | text | |
+
 ### Akibat penghapusan
 
 | Yang dihapus | Ikut terhapus / berubah |
 | --- | --- |
-| Pengguna | Semua sesi, follow, rute, aktivitas, segmen, kudos, komentar, waktu terbaik, waktu segmen, postingan (beserta foto, suka, balasan, laporannya), suka, balasan, laporan, pesan, dan blokirnya (tidak ada endpoint untuk ini). Berkas fotonya di folder unggahan **tidak** ikut terhapus. |
+| Pengguna | Semua sesi (beserta `push_devices`), follow, rute, aktivitas, segmen, kudos, komentar, waktu terbaik, waktu segmen, postingan (beserta foto, suka, balasan, laporannya), suka, balasan, laporan, pesan, dan blokirnya (tidak ada endpoint untuk ini). Berkas fotonya di folder unggahan **tidak** ikut terhapus. |
 | Aktivitas | `best_efforts`, `kudos`, `comments`, `segment_efforts` aktivitas itu. `posts.activity_id` yang menautkannya menjadi `NULL`. |
 | Rute | `activities.route_id` menjadi `NULL`. |
+| Sesi (keluar, kedaluwarsa) | Baris `push_devices` sesi itu. |
 | Segmen | Semua `segment_efforts` segmen itu. `posts.segment_id` yang menandainya menjadi `NULL` (postingan tetap ada, keluar dari Diskusi). |
 | Postingan | `post_photos`, `post_likes`, `post_replies`, `reports` postingan itu. API juga menghapus berkas fotonya. |
 | Foto profil/sampul | Lewat `DELETE /me/avatar` atau `/me/cover`, atau saat diganti: berkas lama dihapus, kolom diisi nama baru atau `NULL`. |

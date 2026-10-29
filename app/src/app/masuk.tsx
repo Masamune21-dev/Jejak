@@ -2,14 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AuthResult } from '@shared/api';
 import { pathDistance } from '@shared/geo';
 
 import StaticMap from '@/components/StaticMap';
-import { Button, Card, ErrorBox, Field, Segmented } from '@/components/ui';
+import { Button, Card, ErrorBox, Field, KeyboardAvoid, Segmented } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { PATI } from '@/lib/demo-route';
@@ -65,7 +65,7 @@ export default function SignInScreen() {
   return (
     // Android selalu edge-to-edge (Expo SDK 54+), jadi jendela tidak mengecil sendiri saat keyboard muncul;
     // "padding" juga perlu di Android supaya form tidak tertutup.
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <ScrollView
         ref={scroll}
         onLayout={(e) => onScrollLayout(e.nativeEvent.layout.height)}
@@ -166,7 +166,7 @@ export default function SignInScreen() {
           ) : null}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   );
 }
 

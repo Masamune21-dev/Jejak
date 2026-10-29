@@ -2,13 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Post, PostReply } from '@shared/api';
 
 import PostCard from '@/components/PostCard';
-import { Avatar, ErrorBox, Loading, Row, SectionTitle, T } from '@/components/ui';
+import { Avatar, ErrorBox, KeyboardAvoid, Loading, Row, SectionTitle, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { when } from '@/lib/format';
@@ -44,7 +44,7 @@ export default function PostScreen() {
   const p = post.data;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: space.lg, gap: space.md }}
@@ -106,7 +106,7 @@ export default function PostScreen() {
           <Ionicons name={send.isPending ? 'hourglass-outline' : 'send'} size={18} color={text.trim() ? c.accentInk : c.muted} />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   );
 }
 

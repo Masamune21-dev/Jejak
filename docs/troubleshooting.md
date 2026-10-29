@@ -244,7 +244,17 @@ Pesan hanya bisa dikirim ke teman yang **saling mengikuti**, dan tidak ada bloki
 
 ### Pesan baru tidak muncul atau tidak ada pemberitahuan
 
-Jejak tidak memakai notifikasi push. Pesan baru diambil tiap 3 detik selama percakapan terbuka, daftar pesan tiap 15 detik, dan angka belum dibaca di Beranda tiap 30 detik selama app terbuka. Saat app tertutup tidak ada yang diambil.
+Pesan chat tidak dikirim sebagai notifikasi push (notifikasi hanya untuk info dan pembaruan). Pesan baru diambil tiap 3 detik selama percakapan terbuka, daftar pesan tiap 15 detik, dan angka belum dibaca di Beranda tiap 30 detik selama app terbuka. Saat app tertutup tidak ada yang diambil.
+
+---
+
+### Notifikasi tidak masuk
+
+- **Bagian Notifikasi tidak ada di Pengaturan:** sedang memakai web atau Expo Go. Notifikasi hanya ada di APK 0.3.0 ke atas.
+- **Sakelar menyala tetapi ada keterangan merah:** izin notifikasi Jejak dimatikan di pengaturan HP. Ketuk **Buka pengaturan HP** dan izinkan.
+- **`deploy.sh notif` menulis "Penerima: 0 perangkat":** pengguna belum menyalakan notifikasi, sudah keluar, atau belum membuka app setelah masuk lagi. Buka app sekali; token didaftarkan ulang saat app dibuka.
+- **HP Xiaomi/HyperOS dan sejenisnya:** notifikasi bisa tertahan setelah app ditutup dari daftar aplikasi terbaru. Izinkan **Mulai otomatis** (Autostart) untuk Jejak dan set penghemat baterai ke **Tanpa batasan**.
+- **"Kunci FCM belum dipasang":** pasang `/etc/jejak/fcm.json` (lihat [deploy.md](deploy.md#notifikasi-push)). **"Google menolak kunci FCM"**: kunci sudah dihapus di Google Cloud atau bukan kunci service account; buat kunci baru.
 
 ---
 

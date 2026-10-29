@@ -23,6 +23,7 @@ Panduan pemakaian Jejak per layar, sesuai perilaku kode saat ini. Nama berkas la
 17. [Postingan](#postingan)
 18. [Pesan (chat)](#pesan-chat)
 19. [Pengaturan](#pengaturan)
+20. [Notifikasi dan pembaruan](#notifikasi-dan-pembaruan)
 
 Bawaannya app gelap (aspal) dengan aksen marka kuning. Sejak 0.2.0 tema (Ikuti HP / Gelap / Terang) dan warna aksen (kuning, mint, biru, oranye, pink) bisa diganti di [Pengaturan](#pengaturan) (lihat [desain.md](desain.md)). Arti warna tetap sama: **warna aksen** untuk aksi utama, jalur rekaman, dan petunjuk arah, **biru** untuk rute rencana (**toska** bila aksennya biru), **ungu** untuk segmen, dan **merah** untuk rekaman yang sedang berjalan atau peringatan. Di bawah, "warna aksen" berarti warna yang kamu pilih.
 
@@ -212,6 +213,7 @@ Perkiraan dihitung dari jarak dibagi kecepatan rata-rata: lari 2,8 m/s, sepeda 5
 - peta rute (garis biru) dengan pin hijau **A** (awal) dan pin merah **B** (akhir), atau satu pin **A/B** bila ujung-ujungnya berjarak kurang dari 30 m (rute putaran);
 - nama, pembuat, **Jarak**, **Perkiraan**, dan **Belokan** (jumlah petunjuk, termasuk *Sampai di tujuan*);
 - tombol **Ikuti rute ini**: memasang rute ke perekam lalu membuka tab Rekam. Nonaktif bila ada rekaman berjalan (*Selesaikan rekaman yang sedang berjalan dulu.*);
+- tombol **Ekspor GPX** (sejak 0.3.0, untuk semua rute yang bisa dibuka): berkas GPX rute untuk diikuti di jam GPS, dengan keterangan *Buka berkas GPX di aplikasi jam GPS, misalnya Garmin Connect atau COROS* (lihat [Ekspor GPX](#ekspor-gpx));
 - **Petunjuk arah**: daftar belokan dengan jaraknya dari awal rute;
 - **Hapus rute** (hanya untuk pembuatnya, dengan konfirmasi). Aktivitas yang pernah mengikuti rute itu tidak ikut terhapus.
 
@@ -388,6 +390,13 @@ Nama berkas: `jejak-<tanggal>-<judul>.gpx`, misalnya `jejak-2026-10-28-lari-pagi
 
 Bila gagal, pesan error tampil di bawah tombol.
 
+**Rute** (sejak 0.3.0): tombol **Ekspor GPX** di detail rute membuat berkas untuk jam GPS. Jam dan aplikasinya (Garmin Connect, COROS, Suunto, Zepp) mengimpor track sebagai rute atau *course*, lalu rutenya bisa diikuti dari jam.
+
+- Satu `<trk>` dengan satu `<trkseg>` berisi titik garis rute (lintang/bujur 7 desimal), tanpa waktu.
+- Belum ada ketinggian (`<ele>`): garis rute dari OSRM tidak membawa data ketinggian. Aplikasi jam biasanya menghitung profil tanjakan sendiri.
+- Nama dan jenis seperti GPX aktivitas; waktu di `<metadata>` = waktu rute dibuat.
+- Nama berkas: `jejak-rute-<nama>.gpx`, misalnya `jejak-rute-keliling-waduk.gpx` (id rute bila nama jadi kosong). Di HP lembar berbaginya berjudul *Ekspor rute*.
+
 ---
 
 ## Membuat segmen
@@ -537,7 +546,7 @@ Layar `postingan/[id].tsx` (judul **Postingan**): kartu postingan lengkap, lalu 
 
 ## Pesan (chat)
 
-Pesan 1-lawan-1 dengan teman yang **saling mengikuti**. Tidak ada notifikasi push: pesan baru terlihat lewat angka di ikon Pesan Beranda saat app dibuka.
+Pesan 1-lawan-1 dengan teman yang **saling mengikuti**. Pesan baru tidak dikirim sebagai notifikasi push: terlihat lewat angka di ikon Pesan Beranda saat app dibuka.
 
 ### Daftar pesan
 
@@ -582,11 +591,26 @@ Di bawahnya ada pratinjau kecil: tombol *Mulai lari* dan pil *6,12 km* dengan wa
 | --- | --- |
 | Logo | *jejak.* dengan keterangan *Rekam lari dan gowes, buat rute, adu waktu dengan teman.* |
 | **Versi** | Versi dari `app.json` dan nomor build Android dari APK yang terpasang, mis. *0.2.0 (build 7)*. Di web dan Expo Go hanya versinya, tanpa nomor build. |
+| **Pembaruan** | Hanya di APK, setelah `versi.json` terbaca: *Sudah versi terbaru* atau *Jejak x.y.z tersedia* dengan tombol **Unduh Jejak x.y.z**. |
 | **Pembuat** | *Dibuat oleh Masamune* |
+| **Email** | *info@masamune.my.id*, diketuk membuka aplikasi email. |
+| **GitHub** | *github.com/Masamune21-dev*, diketuk membuka browser. |
 | **Server** | Alamat API yang dipakai, mis. *jejak.masamune.my.id/api*. |
 | **Peta** | *© OpenStreetMap contributors* |
 | **Rute** | *OSRM, routing.openstreetmap.de (FOSSGIS)* |
 
-Ditambah catatan privasi: pesan chat tersimpan di server Jejak dan tidak terenkripsi ujung-ke-ujung, dan foto yang diunggah dibersihkan dari data lokasi sebelum disimpan.
+Ditambah catatan privasi: pesan chat tersimpan di server Jejak dan tidak terenkripsi ujung-ke-ujung, foto yang diunggah dibersihkan dari data lokasi sebelum disimpan, dan bila notifikasi dinyalakan, token notifikasi HP disimpan di server Jejak dan dikirim lewat Firebase Cloud Messaging (Google). Tombol **Kirim masukan** membuka email ke info@masamune.my.id dengan subjek *Masukan Jejak <versi>* dan teks awal berisi versi app, model HP, dan versi Android. Kontak diatur di `lib/contact.ts`.
+
+**Notifikasi** (hanya APK; disembunyikan di web dan Expo Go), di atas Tentang aplikasi: sakelar **Info dan pembaruan**. Menyalakannya meminta izin notifikasi (Android 13+) lalu mendaftarkan HP ke server; mematikannya menghapus HP dari server. Bila izin ditolak di pengaturan HP, muncul keterangan merah dan tombol **Buka pengaturan HP**.
 
 **Keluar**: tombol paling bawah, dengan konfirmasi *Keluar dari akun ini?*. Sesi di HP itu dihapus dan app kembali ke layar masuk. Rekaman yang belum disimpan tetap di HP.
+
+## Notifikasi dan pembaruan
+
+Mulai 0.3.0, hanya di APK.
+
+- **Kartu Nyalakan notifikasi** di Beranda (di bawah salam) selama pengguna belum memilih: **Nyalakan** (minta izin, daftarkan HP) atau **Nanti** (dianggap mati; bisa dinyalakan di Pengaturan).
+- **Notifikasi** datang dari server (`deploy/deploy.sh notif`) di kanal *Info dan pengumuman* atau *Pembaruan aplikasi*, juga saat app tertutup. Saat app terbuka tampil sebagai banner. Mengetuknya membuka layar app yang dituju atau alamat https (misalnya unduhan APK). Pesan chat, kudos, dan pengikut baru **tidak** dikirim sebagai notifikasi.
+- **Pendaftaran:** token FCM terikat ke sesi. Setelah keluar, HP itu tidak menerima notifikasi akun tersebut; setelah masuk lagi, token didaftarkan ulang otomatis bila notifikasi masih dinyalakan.
+- **Kartu pembaruan** di Beranda saat `/unduh/versi.json` memuat versi yang lebih baru dari versi app: *Jejak x.y.z tersedia*, versi yang sedang dipakai, ukuran unduhan, sampai empat butir catatan rilis, tombol **Unduh** (membuka unduhan APK di browser) dan **Nanti** (disembunyikan untuk versi itu). Dicek saat app dibuka dan saat kembali ke depan, paling sering sekali per 6 jam.
+- **Wajib perbarui:** bila `versi.json` memuat `minimal` di atas versi app, seluruh app diganti layar *Perbarui Jejak dulu* dengan tombol unduh.

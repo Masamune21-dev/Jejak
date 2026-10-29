@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Profile, Stats, TimelineItem } from '@shared/api';
 
 import ActivityCard from '@/components/ActivityCard';
+import { PushCard, UpdateCard } from '@/components/NoticeCards';
 import PostCard from '@/components/PostCard';
 import { ActionTile, Avatar, Button, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, T } from '@/components/ui';
 import WeekCard from '@/components/WeekCard';
@@ -79,6 +80,8 @@ export default function FeedScreen() {
             </View>
             <IconButton icon="person-add-outline" label="Cari teman" onPress={() => router.push('/cari')} />
           </Row>
+          <UpdateCard />
+          <PushCard />
           {week.data ? <WeekCard weeks={week.data.weeks} /> : null}
           <View style={{ gap: space.md }}>
             <SectionTitle>Aksi cepat</SectionTitle>

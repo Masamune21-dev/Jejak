@@ -23,10 +23,13 @@ import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 import CrashReportView from '@/components/CrashReport';
+import { UpdateRequired } from '@/components/NoticeCards';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { takeLastCrash, toReport, type CrashReport } from '@/lib/crash';
+import { useNotificationTaps, usePushSync } from '@/lib/push';
 import { recorder } from '@/lib/recorder';
 import { font, loadTheme, useColors, useIsDark } from '@/lib/theme';
+import { useUpdate, useUpdateCheckOnResume } from '@/lib/update';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -67,6 +70,10 @@ function Root() {
   const loaded = ready && themeReady && (fontsLoaded || !!fontError);
 
   const [lastCrash, setLastCrash] = useState<CrashReport | null>(null);
+  const update = useUpdate();
+  useUpdateCheckOnResume();
+  usePushSync(user?.id ?? null);
+  useNotificationTaps(loaded);
 
   useEffect(() => {
     void loadTheme().finally(() => setThemeReady(true));
@@ -82,6 +89,7 @@ function Root() {
   if (lastCrash) {
     return <CrashReportView title="Jejak sempat berhenti" report={lastCrash} onClose={() => setLastCrash(null)} />;
   }
+  if (update.required && update.latest) return <UpdateRequired info={update.latest} />;
 
   const base = dark ? DarkTheme : DefaultTheme;
   const theme = {

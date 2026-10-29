@@ -12,7 +12,8 @@ Produksi berjalan di satu VPS di belakang Cloudflare: **https://jejak.masamune.m
 6. [Melihat log](#melihat-log)
 7. [Backup database](#backup-database)
 8. [Rollback](#rollback)
-9. [Catatan yang diketahui](#catatan-yang-diketahui)
+9. [Notifikasi push](#notifikasi-push)
+10. [Catatan yang diketahui](#catatan-yang-diketahui)
 
 ---
 
@@ -166,8 +167,9 @@ deploy/deploy.sh apk      # APK Android terbaru dari EAS ke /unduh/jejak.apk
 Tidak ikut `deploy.sh` tanpa argumen; jalankan sendiri setelah build APK `preview` selesai di EAS.
 
 1. Di komputer lokal: `eas build:list --platform android --build-profile preview --status finished --limit 1 --json` mencari build terbaru yang sudah selesai (butuh `eas login`). Bila belum ada, berhenti dengan *Belum ada build APK preview yang selesai.*
-2. APK diunduh ke folder sementara, lalu `versi.json` ditulis: `{ versi, build, commit, ukuranMB, tanggal }`. Halaman depan membacanya untuk menampilkan versi dan ukuran.
+2. APK diunduh ke folder sementara, lalu `versi.json` ditulis: `{ versi, build, commit, ukuranMB, tanggal, catatan, minimal }`. Halaman depan membacanya untuk menampilkan versi dan ukuran; app (0.3.0 ke atas) membacanya untuk kartu pembaruan. `catatan` diambil dari butir di bawah `## <versi>` di `app/CATATAN-RILIS.md` (ada peringatan bila kosong), `minimal` dari baris `Versi minimal: x.y.z` di berkas yang sama (biasanya tidak ada).
 3. Keduanya dikirim dengan rsync sebagai `*.baru`, lalu diganti nama di server. Pengunjung tidak pernah mengunduh APK yang belum selesai terkirim.
+4. Dengan `deploy.sh apk --umumkan`: notifikasi kanal `pembaruan` (*Jejak x.y.z tersedia*, isinya butir catatan pertama) dikirim ke semua HP yang belum memakai versi itu, lewat alur [Notifikasi push](#notifikasi-push) termasuk konfirmasinya. Diketuk membuka `https://jejak.masamune.my.id/unduh/jejak.apk?v=x.y.z`.
 
 Folder `unduh/` tidak perlu ikut backup: isinya selalu bisa dibuat ulang dari EAS.
 
@@ -344,6 +346,56 @@ Rollback kode jarang membutuhkan rollback database, karena skema umumnya hanya b
 Rollback ke kode sebelum 0.2.0 (sebelum commit `140be21`) aman untuk database: tabel postingan/chat dan kolom `users.avatar`/`users.cover` dibiarkan saja oleh kode lama. Tetapi APK 0.2.0 yang sudah terpasang akan gagal di layar yang memanggil endpoint baru (`/timeline`, `/chats`, `/posts`, foto).
 
 Pengecualian: commit `cf2ef66` memigrasi tabel `sessions` (kolom `token` menjadi `token_hash` + `last_used_at`). Kode dari sebelum commit itu tidak bisa membaca tabel baru dan setiap permintaan yang butuh login akan error 500. Rollback ke sebelum `cf2ef66` harus disertai database dari backup sebelum migrasi (`/root/backup/jejak-2026-10-28-125216-sebelum-keamanan.db`), atau tabel `sessions` dikosongkan lalu dibuat ulang dengan skema lama (semua pengguna harus masuk lagi).
+
+---
+
+## Notifikasi push
+
+Dikirim lewat FCM HTTP v1 dari CLI `server/src/cli/notif.ts`; service API sendiri tidak mengirim apa pun dan tidak bisa membaca kuncinya.
+
+### Kunci service account
+
+Service account `jejak-fcm@absensi-f66e1.iam.gserviceaccount.com` di proyek Firebase `absensi-f66e1` (dipakai bersama aplikasi GeoAttend), hanya dengan peran **Firebase Cloud Messaging API Admin**. Jangan pakai kunci `firebase-adminsdk`: aksesnya admin penuh ke Firebase GeoAttend.
+
+Kuncinya di server sebagai `/etc/jejak/fcm.json`, milik root dengan mode 600, tidak di repo. Memasang atau mengganti kunci dari komputer lokal:
+
+```bash
+ssh root@103.189.249.115 'install -d -m 700 /etc/jejak && umask 077 && cat > /etc/jejak/fcm.json' < ~/Downloads/<berkas-kunci>.json
+```
+
+Kunci baru dibuat di Google Cloud Console → IAM & Admin → Service accounts → `jejak-fcm` → Keys → Add key → JSON. Hapus kunci lama di tempat yang sama setelah yang baru terpasang. Firebase Cloud Messaging API harus aktif di proyek itu.
+
+### Mengirim
+
+```bash
+deploy/deploy.sh notif --judul "CFD libur" --isi "Minggu ini CFD Alun-alun Pati ditiadakan." [--ke username]… [--tautan /segmen/12] [--uji] [--ya]
+```
+
+| Opsi | Arti |
+| --- | --- |
+| `--judul`, `--isi` | Wajib; paling banyak 60 dan 200 karakter. |
+| `--ke <username>` | Hanya pengguna ini; boleh diulang. Tanpa opsi: semua HP yang menyalakan notifikasi. |
+| `--tautan` | Path app (`/segmen/12`) atau alamat `https://` yang dibuka saat notifikasi diketuk. |
+| `--jenis pembaruan` | Kanal *Pembaruan aplikasi* (bawaan `info`, kanal *Info dan pengumuman*). |
+| `--kecuali-versi x.y.z` | Lewati HP yang sudah memakai versi ini. |
+| `--uji` | Hanya menghitung penerima. |
+| `--ya` | Tanpa pertanyaan konfirmasi. |
+
+Alurnya:
+
+1. Lewat SSH, CLI dijalankan sekali dengan `--uji` sebagai user `jejak` (`runuser`), memakai database produksi: mencetak jumlah perangkat dan pengguna, serta username yang tidak dikenal atau belum menyalakan notifikasi.
+2. Di komputer lokal muncul *Kirim sekarang? [y/N]*.
+3. CLI dijalankan lagi dengan kunci dikirim lewat stdin (`cat /etc/jejak/fcm.json | runuser -u jejak -- … FCM_CREDENTIALS=/dev/stdin`). Hasilnya: terkirim, gagal, dan token tidak berlaku yang dihapus. Setiap kiriman dicatat di tabel `announcements`.
+
+CLI berjalan sebagai `jejak` supaya berkas database (`-wal`, `-shm`) tetap milik service. Keluar dengan kode 2 bila ada yang gagal terkirim (selain token mati).
+
+### Uji ke HP sendiri
+
+Nyalakan notifikasi di app (APK, bukan Expo Go), lalu:
+
+```bash
+deploy/deploy.sh notif --judul "Uji notifikasi" --isi "Halo dari server Jejak." --ke <username-sendiri>
+```
 
 ---
 

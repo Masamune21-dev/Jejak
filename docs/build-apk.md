@@ -6,18 +6,19 @@ APK Android dibangun di cloud **EAS Build** memakai akun Expo, tanpa Android Stu
 
 1. [Konfigurasi yang sudah ada](#konfigurasi-yang-sudah-ada)
 2. [Modul native baru di 0.2.0](#modul-native-baru-di-020)
-3. [Membuat APK](#membuat-apk)
-4. [Memasang APK di HP](#memasang-apk-di-hp)
-5. [Ukuran APK: hanya arm64-v8a](#ukuran-apk-hanya-arm64-v8a)
-6. [Profil build](#profil-build)
-7. [Server yang dipakai APK](#server-yang-dipakai-apk)
-8. [Keystore (kunci tanda tangan)](#keystore-kunci-tanda-tangan)
-9. [Peta di APK Android: MapLibre](#peta-di-apk-android-maplibre)
-10. [Lokasi latar](#lokasi-latar)
-11. [Izin foto dan kamera](#izin-foto-dan-kamera)
-12. [Bila APK tertutup sendiri (crash)](#bila-apk-tertutup-sendiri-crash)
-13. [Menaikkan versi](#menaikkan-versi)
-14. [Uji cepat setelah memasang APK](#uji-cepat-setelah-memasang-apk)
+3. [Notifikasi push di 0.3.0](#notifikasi-push-di-030)
+4. [Membuat APK](#membuat-apk)
+5. [Memasang APK di HP](#memasang-apk-di-hp)
+6. [Ukuran APK: hanya arm64-v8a](#ukuran-apk-hanya-arm64-v8a)
+7. [Profil build](#profil-build)
+8. [Server yang dipakai APK](#server-yang-dipakai-apk)
+9. [Keystore (kunci tanda tangan)](#keystore-kunci-tanda-tangan)
+10. [Peta di APK Android: MapLibre](#peta-di-apk-android-maplibre)
+11. [Lokasi latar](#lokasi-latar)
+12. [Izin foto dan kamera](#izin-foto-dan-kamera)
+13. [Bila APK tertutup sendiri (crash)](#bila-apk-tertutup-sendiri-crash)
+14. [Menaikkan versi](#menaikkan-versi)
+15. [Uji cepat setelah memasang APK](#uji-cepat-setelah-memasang-apk)
 
 ---
 
@@ -69,6 +70,16 @@ Keempatnya ada di Expo Go, jadi pengembangan tetap bisa lewat Expo Go. Dipasang 
 Akibatnya **APK 0.1.x harus diganti APK 0.2.0**. App tidak memakai pembaruan OTA (`expo-updates` tidak terpasang), jadi APK lama tetap menjalankan JavaScript lamanya: tidak ada tema, foto, postingan, maupun chat, tetapi tetap bisa dipakai karena server masih melayani endpoint lama (`/feed`). Versi web langsung mendapat semua fitur setelah `deploy/deploy.sh web`.
 
 Urutan rilis 0.2.0: deploy server dulu (`deploy/deploy.sh server`), lalu build APK `preview`, uji, lalu bagikan.
+
+---
+
+## Notifikasi push di 0.3.0
+
+- **Modul:** `expo-notifications` (~58.1), dengan plugin di `app.json`: ikon notifikasi `assets/images/notification-icon.png` (96×96, putih transparan, dipotong dari `android-icon-monochrome.png`), warna `#FFC629`, kanal bawaan `info`.
+- **Firebase:** `android.googleServicesFile: "./google-services.json"`. Berkas ini dari proyek Firebase `absensi-f66e1` (aplikasi Android `id.my.masamune.jejak`), berisi pengenal publik, dan masuk repo. Tanpa berkas ini token FCM tidak bisa diambil.
+- **Expo Go:** push jarak jauh tidak didukung sejak SDK 53, jadi bagian notifikasi disembunyikan di Expo Go dan web. Uji notifikasi selalu dengan APK `preview`.
+- **Kanal:** `info` (*Info dan pengumuman*, penting) dan `pembaruan` (*Pembaruan aplikasi*, biasa), dibuat app sebelum meminta izin. Setelah dibuat, Android hanya mengizinkan mengganti nama dan deskripsi kanal.
+- **APK 0.2.x** tidak punya notifikasi maupun kartu pembaruan, jadi 0.3.0 harus dibagikan manual sekali lagi. Pembaruan sesudahnya diumumkan lewat `deploy/deploy.sh apk --umumkan` dan kartu di Beranda.
 
 ---
 

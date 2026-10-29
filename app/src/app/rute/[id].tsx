@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { PlannedRoute } from '@shared/api';
@@ -8,11 +9,13 @@ import type { PlannedRoute } from '@shared/api';
 import JejakMap from '@/components/Map';
 import { endPins } from '@/components/map-types';
 import { Button, Card, ErrorBox, Loading, Row, Screen, SectionTitle, Stat, T } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, errorText } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { confirm } from '@/lib/confirm';
 import { distance, distanceParts, durationShort, TYPE_ICON, TYPE_LABEL, TYPE_SPEED } from '@/lib/format';
+import { buildRouteGpx, routeGpxFileName } from '@/lib/gpx';
 import { recorder, useRecorder } from '@/lib/recorder';
+import { shareTextFile } from '@/lib/share-file';
 import { radius, space, useColors } from '@/lib/theme';
 
 function stepIcon(text: string): keyof typeof Ionicons.glyphMap {
@@ -29,6 +32,8 @@ export default function RouteDetailScreen() {
   const qc = useQueryClient();
   const rec = useRecorder();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const q = useQuery({ queryKey: ['route', id], queryFn: () => api<PlannedRoute>(`/routes/${id}`) });
   const del = useMutation({
     mutationFn: () => api(`/routes/${id}`, { method: 'DELETE' }),
@@ -80,6 +85,29 @@ export default function RouteDetailScreen() {
             Selesaikan rekaman yang sedang berjalan dulu.
           </T>
         ) : null}
+        <View style={{ gap: space.sm }}>
+          <Button
+            kind="soft"
+            title="Ekspor GPX"
+            icon="download-outline"
+            loading={exporting}
+            onPress={async () => {
+              setExporting(true);
+              setExportError(null);
+              try {
+                await shareTextFile(routeGpxFileName(r), 'application/gpx+xml', buildRouteGpx(r), 'Ekspor rute');
+              } catch (e) {
+                setExportError(errorText(e));
+              } finally {
+                setExporting(false);
+              }
+            }}
+          />
+          <T v="small" center>
+            Buka berkas GPX di aplikasi jam GPS, misalnya Garmin Connect atau COROS, untuk mengikuti rute ini dari jam.
+          </T>
+          {exportError ? <ErrorBox error={new Error(exportError)} /> : null}
+        </View>
 
         {r.steps.length > 0 ? (
           <>

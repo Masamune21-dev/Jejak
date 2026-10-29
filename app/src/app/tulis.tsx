@@ -3,12 +3,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { Post, Profile } from '@shared/api';
 
 import { useRefreshPosts } from '@/components/PostCard';
-import { Avatar, Button, Card, ErrorBox, Row, T } from '@/components/ui';
+import { Avatar, Button, Card, ErrorBox, KeyboardAvoid, Row, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { appendPhoto, pickPhoto } from '@/lib/photo';
@@ -59,7 +59,7 @@ export default function ComposeScreen() {
   const canSend = (text.trim().length > 0 || photos.length > 0) && text.length <= MAX_CHARS && !send.isPending;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <Row>
           <Avatar name={me.name} uri={profile.data?.avatarUrl ?? null} size={40} />
@@ -130,7 +130,7 @@ export default function ComposeScreen() {
         </Card>
         <Button title="Kirim" icon="send" loading={send.isPending} disabled={!canSend} onPress={() => send.mutate()} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   );
 }
 

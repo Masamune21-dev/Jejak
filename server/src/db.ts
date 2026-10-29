@@ -183,6 +183,31 @@ create table if not exists blocks (
   created_at text not null default ${NOW},
   primary key (blocker_id, blocked_id)
 );
+
+-- Token FCM satu HP per sesi: keluar atau sesi kedaluwarsa ikut menghapusnya.
+create table if not exists push_devices (
+  token text primary key,
+  user_id integer not null references users(id) on delete cascade,
+  session_hash text not null unique references sessions(token_hash) on delete cascade,
+  platform text not null,
+  app_version text,
+  created_at text not null default ${NOW},
+  last_seen_at text not null default ${NOW}
+);
+create index if not exists push_devices_user on push_devices(user_id);
+
+-- Catatan setiap notifikasi yang dikirim dari server (deploy/deploy.sh notif).
+create table if not exists announcements (
+  id integer primary key,
+  kind text not null,
+  title text not null,
+  body text not null,
+  url text,
+  target text not null,
+  sent integer not null default 0,
+  failed integer not null default 0,
+  created_at text not null default ${NOW}
+);
 `;
 
 export type DB = DatabaseSync;

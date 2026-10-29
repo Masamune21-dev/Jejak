@@ -2,12 +2,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ChatMessage, Profile } from '@shared/api';
 
-import { Avatar, ErrorBox, Loading, T } from '@/components/ui';
+import { Avatar, ErrorBox, KeyboardAvoid, Loading, T } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { font, radius, space, useColors } from '@/lib/theme';
@@ -126,7 +126,7 @@ export default function ChatScreen() {
   const canSend = p?.canMessage ?? false;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <Stack.Screen
         options={{
           headerTitle: () =>
@@ -213,7 +213,7 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   );
 }
 

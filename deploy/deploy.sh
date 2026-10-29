@@ -4,14 +4,47 @@
 #   deploy/deploy.sh server   hanya server
 #   deploy/deploy.sh web      hanya versi web
 #   deploy/deploy.sh apk      APK Android terbaru dari EAS ke /unduh/jejak.apk (tombol Unduh di landing page)
+#   deploy/deploy.sh apk --umumkan
+#                             sama, lalu kirim notifikasi pembaruan ke semua HP yang belum memakai versi itu
+#   deploy/deploy.sh notif --judul "…" --isi "…" [--ke username]… [--tautan /segmen/12] [--uji] [--ya]
+#                             kirim notifikasi push manual (lihat server/src/cli/notif.ts)
 # Kode server dikirim lewat SSH dari commit HEAD (git archive), jadi server tidak
 # butuh akses ke GitHub (repo boleh private). Commit dulu perubahan yang mau dipasang.
 set -euo pipefail
 
 HOST="${JEJAK_HOST:-root@103.189.249.115}"
 ROOT=/var/www/jejak.masamune.my.id
+SITE_URL=https://jejak.masamune.my.id
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WHAT="${1:-all}"
+
+# Notifikasi push lewat CLI di server. CLI berjalan sebagai user jejak supaya berkas database tetap milik service;
+# kunci FCM (/etc/jejak/fcm.json, hanya root) dikirim lewat stdin, jadi service sendiri tidak bisa membacanya.
+# Penerima dihitung dulu, lalu dikirim setelah dikonfirmasi (lewati dengan --ya).
+notif() {
+  local yes=0 test=0 args=()
+  for a in "$@"; do
+    case "$a" in
+      --ya) yes=1 ;;
+      --uji) test=1 ;;
+      *) args+=("$a") ;;
+    esac
+  done
+  local cli="cd $ROOT/repo/server && runuser -u jejak -- env DB_PATH=$ROOT/data/jejak.db FCM_CREDENTIALS=/dev/stdin /opt/jejak/node src/cli/notif.ts $(printf '%q ' "${args[@]}")"
+  ssh "$HOST" "$cli --uji < /dev/null"
+  [[ $test == 1 ]] && return 0
+  if [[ $yes == 0 ]]; then
+    read -r -p "Kirim sekarang? [y/N] " answer
+    [[ "$answer" == y || "$answer" == Y ]] || { echo "Dibatalkan."; return 1; }
+  fi
+  ssh "$HOST" "test -f /etc/jejak/fcm.json || { echo 'Kunci FCM belum dipasang di /etc/jejak/fcm.json (lihat docs/deploy.md).' >&2; exit 1; }; cat /etc/jejak/fcm.json | $cli"
+}
+
+if [[ "$WHAT" == notif ]]; then
+  shift
+  notif "$@"
+  exit
+fi
 
 if [[ "$WHAT" == all || "$WHAT" == server ]]; then
   if [[ -n "$(git -C "$HERE" status --porcelain -- server shared deploy)" ]]; then
@@ -88,15 +121,27 @@ if [[ "$WHAT" == apk ]]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL "$url" -o "$tmp/jejak.apk"
+  # Catatan rilis versi ini dan versi minimal (bila ada) dari app/CATATAN-RILIS.md; dibaca kartu pembaruan di app.
   node -e '
-    const [versi, build, commit, bytes] = process.argv.slice(1);
-    const info = { versi, build: build === "-" ? undefined : Number(build), commit, ukuranMB: Math.round((Number(bytes) / 1048576) * 10) / 10, tanggal: new Date().toISOString().slice(0, 10) };
-    require("node:fs").writeFileSync(process.argv[5], JSON.stringify(info));
-  ' "$versi" "$build" "$commit" "$(wc -c < "$tmp/jejak.apk" | tr -d " ")" "$tmp/versi.json"
+    const fs = require("node:fs");
+    const [versi, build, commit, bytes, notes, out] = process.argv.slice(1);
+    const md = fs.existsSync(notes) ? fs.readFileSync(notes, "utf8") : "";
+    const section = md.split(/^## /m).find((s) => s.split("\n")[0].trim() === versi) ?? "";
+    const catatan = section.split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2).trim());
+    const minimal = md.match(/^Versi minimal:\s*(\d+\.\d+\.\d+)\s*$/m)?.[1];
+    const info = { versi, build: build === "-" ? undefined : Number(build), commit, ukuranMB: Math.round((Number(bytes) / 1048576) * 10) / 10, tanggal: new Date().toISOString().slice(0, 10), catatan, minimal };
+    fs.writeFileSync(out, JSON.stringify(info));
+    if (!catatan.length) console.error(`Peringatan: belum ada catatan rilis ${versi} di app/CATATAN-RILIS.md.`);
+  ' "$versi" "$build" "$commit" "$(wc -c < "$tmp/jejak.apk" | tr -d " ")" "$HERE/app/CATATAN-RILIS.md" "$tmp/versi.json"
   ssh "$HOST" "mkdir -p $ROOT/unduh"
   # Kirim sebagai berkas sementara lalu ganti nama, supaya pengunjung tidak mengunduh APK yang setengah jadi.
   rsync -az --no-owner --no-group "$tmp/jejak.apk" "$HOST:$ROOT/unduh/jejak.apk.baru"
   rsync -az --no-owner --no-group "$tmp/versi.json" "$HOST:$ROOT/unduh/versi.json.baru"
   ssh "$HOST" "cd $ROOT/unduh && chmod 644 jejak.apk.baru versi.json.baru && mv jejak.apk.baru jejak.apk && mv versi.json.baru versi.json"
   echo "  ← APK $versi (build $build, $commit) terpasang di /unduh/jejak.apk"
+  if [[ "${2:-}" == --umumkan ]]; then
+    isi="$(node -e 'const c = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).catatan; console.log(`${c[0] ?? "Versi baru siap dipasang"}. Ketuk untuk mengunduh.`.slice(0, 200))' "$tmp/versi.json")"
+    # ?v= supaya cache Cloudflare tidak memberi APK lama tepat setelah rilis.
+    notif --jenis pembaruan --judul "Jejak $versi tersedia" --isi "$isi" --tautan "$SITE_URL/unduh/jejak.apk?v=$versi" --kecuali-versi "$versi"
+  fi
 fi

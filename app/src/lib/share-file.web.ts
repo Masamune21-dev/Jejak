@@ -9,7 +9,7 @@ function download(href: string, name: string) {
   a.remove();
 }
 
-export async function shareTextFile(name: string, mimeType: string, content: string): Promise<void> {
+export async function shareTextFile(name: string, mimeType: string, content: string, _dialogTitle?: string): Promise<void> {
   const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
   download(url, name);
   setTimeout(() => URL.revokeObjectURL(url), 10_000);

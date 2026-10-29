@@ -9,7 +9,7 @@ import { pathDistance, type LatLon } from '@shared/geo';
 
 import JejakMap from '@/components/Map';
 import type { MapLine, MapPin } from '@/components/map-types';
-import { Button, ErrorBox, Field, Row, Sheet, Stat, T, ToolButton, TypePicker } from '@/components/ui';
+import { Button, ErrorBox, Field, KeyboardAvoid, Row, Sheet, Stat, T, ToolButton, TypePicker } from '@/components/ui';
 import { api } from '@/lib/api';
 import { distanceParts, durationShort, TYPE_SPEED } from '@/lib/format';
 import { currentPosition } from '@/lib/gps';
@@ -85,7 +85,7 @@ export default function RouteBuilderScreen() {
   const dist = distanceParts(d);
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <KeyboardAvoid style={{ backgroundColor: c.bg }}>
       <JejakMap lines={lines} pins={pins} me={here} initialCenter={here ?? undefined} fit={fitHere} onPress={add} />
       <View style={[styles.hint, { backgroundColor: c.surface, borderColor: c.line }]} pointerEvents="none">
         <Ionicons name={planning ? 'sync' : 'hand-left-outline'} size={14} color={c.accentText} />
@@ -154,7 +154,7 @@ export default function RouteBuilderScreen() {
           onPress={() => saveRoute.mutate()}
         />
       </Sheet>
-    </View>
+    </KeyboardAvoid>
   );
 }
 

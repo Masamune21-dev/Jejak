@@ -68,7 +68,8 @@ export default function LandingScreen() {
   const gutter = mid ? 32 : 16;
   const goTo = (id: string) => scroll.current?.scrollTo({ y: Math.max(0, (anchors.current[id] ?? 0) - NAV_H), animated: true });
   const download = () => {
-    window.location.assign(APK_URL);
+    // ?v= supaya cache Cloudflare tidak memberi APK lama tepat setelah rilis.
+    window.location.assign(apk ? `${APK_URL}?v=${encodeURIComponent(apk.versi)}` : APK_URL);
   };
   const h1 = wide ? 104 : mid ? 80 : 50;
   // Hero setinggi layar, navigasi transparan melayang di atasnya. Di HP isinya bisa lebih tinggi; peta latar

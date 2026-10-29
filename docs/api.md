@@ -9,14 +9,15 @@ Semua endpoint ada di `server/src/app.ts`. Tipe respons merujuk ke `shared/api.t
 3. [Autentikasi](#autentikasi)
 4. [Pengguna dan teman](#pengguna-dan-teman)
 5. [Foto profil dan sampul](#foto-profil-dan-sampul)
-6. [Statistik](#statistik)
-7. [Feed dan aktivitas](#feed-dan-aktivitas)
-8. [Kudos dan komentar](#kudos-dan-komentar)
-9. [Routing dan rute](#routing-dan-rute)
-10. [Segmen dan leaderboard](#segmen-dan-leaderboard)
-11. [Postingan](#postingan)
-12. [Chat dan blokir](#chat-dan-blokir)
-13. [Error umum](#error-umum)
+6. [Notifikasi push](#notifikasi-push)
+7. [Statistik](#statistik)
+8. [Feed dan aktivitas](#feed-dan-aktivitas)
+9. [Kudos dan komentar](#kudos-dan-komentar)
+10. [Routing dan rute](#routing-dan-rute)
+11. [Segmen dan leaderboard](#segmen-dan-leaderboard)
+12. [Postingan](#postingan)
+13. [Chat dan blokir](#chat-dan-blokir)
+14. [Error umum](#error-umum)
 
 ---
 
@@ -56,6 +57,8 @@ curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
 | GET | `/media/:name?exp=&sig=` | tidak | gambar JPEG |
 | POST | `/logout` | ya | `{ ok: true }` |
 | GET | `/me` | ya | `Profile` |
+| PUT | `/me/device` | ya | `{ ok: true }` |
+| DELETE | `/me/device` | ya | `{ ok: true }` |
 | PUT | `/me/avatar` | ya | `Profile` |
 | DELETE | `/me/avatar` | ya | `Profile` |
 | PUT | `/me/cover` | ya | `Profile` |
@@ -329,6 +332,26 @@ Respons **200** dengan badan JPEG dan header:
 | --- | --- |
 | 403 | `Alamat foto tidak berlaku` (nama tidak sah, `exp`/`sig` tidak ada, tanda tangan salah, atau sudah kedaluwarsa) |
 | 404 | `Foto tidak ditemukan` (tanda tangan benar tetapi berkasnya sudah dihapus) |
+
+---
+
+## Notifikasi push
+
+Token FCM HP didaftarkan per **sesi**: satu baris `push_devices` untuk setiap sesi yang menyalakan notifikasi. Keluar (`POST /logout`) atau sesi kedaluwarsa menghapus barisnya juga, jadi HP yang sudah keluar tidak menerima notifikasi akun itu. Notifikasi sendiri dikirim dari server lewat CLI, bukan lewat API (lihat [deploy.md](deploy.md#notifikasi-push)).
+
+### `PUT /me/device`
+
+Login. Badan: `{ "token": "<token FCM>", "platform": "android", "appVersion": "0.3.0" }`.
+
+- `token` wajib, 20–4096 karakter (setelah di-trim); `platform` selain `ios` dianggap `android`; `appVersion` opsional, dipotong 20 karakter.
+- Baris lama milik sesi ini dan baris lain dengan token yang sama (HP yang sama, akun berganti) dihapus dulu, lalu baris baru dibuat untuk sesi ini.
+- App memanggilnya setiap app dibuka dan setiap token diganti FCM, selama notifikasi dinyalakan.
+
+Respons `{ "ok": true }`. Token di luar batas panjang: **400** *Token wajib diisi* / *Token minimal 20 karakter* / *Token maksimal 4096 karakter*.
+
+### `DELETE /me/device`
+
+Login. Menghapus token sesi ini (sakelar notifikasi dimatikan). Respons `{ "ok": true }`, juga bila tidak ada yang terdaftar.
 
 ---
 
@@ -799,7 +822,7 @@ Melaporkan postingan. Body JSON `{ "reason": "spam" }` (1–300 karakter). Lapor
 
 ## Chat dan blokir
 
-Percakapan 1-lawan-1. Pesan tersimpan di database server sebagai teks biasa, **tidak terenkripsi ujung-ke-ujung**, dan ikut backup. Tidak ada notifikasi push (keputusan pemilik); app mengambil pesan baru dengan polling (lihat [arsitektur.md](arsitektur.md#polling-chat)).
+Percakapan 1-lawan-1. Pesan tersimpan di database server sebagai teks biasa, **tidak terenkripsi ujung-ke-ujung**, dan ikut backup. Pesan baru tidak dikirim sebagai notifikasi push (notifikasi 0.3.0 hanya untuk info dan pembaruan); app mengambil pesan baru dengan polling (lihat [arsitektur.md](arsitektur.md#polling-chat)).
 
 **Siapa boleh mengirim:** hanya sesama yang **saling mengikuti**, dan tidak ada blokir dari kedua pihak (`Profile.canMessage`). Riwayat percakapan tetap bisa dibaca kedua peserta walau syarat itu tidak lagi terpenuhi (berhenti mengikuti atau diblokir). Hanya dua peserta yang bisa membaca percakapan mereka. Pengirim bisa menghapus pesannya sendiri lewat `DELETE /chats/messages/:id`.
 

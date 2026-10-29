@@ -4,12 +4,12 @@ import * as Sharing from 'expo-sharing';
 
 // Versi HP: file ditulis ke cache lalu dibuka lewat lembar berbagi sistem. Versi web ada di share-file.web.ts.
 
-export async function shareTextFile(name: string, mimeType: string, content: string): Promise<void> {
+export async function shareTextFile(name: string, mimeType: string, content: string, dialogTitle = 'Ekspor aktivitas'): Promise<void> {
   const file = new File(Paths.cache, name);
   if (file.exists) file.delete();
   file.create();
   await file.write(content);
-  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: 'Ekspor aktivitas' });
+  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle });
 }
 
 /** `uri` dari captureRef (file sementara). */

@@ -15,7 +15,7 @@ Dokumentasi lengkap ada di [docs/](docs/README.md): fitur per layar, arsitektur,
 - **Bagikan ke foto & ekspor GPX**: 5 stiker transparan ala Strava (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu). Galeri geser, simpan, salin ke papan klip, atau bagikan. Bisa juga ekspor GPX ke aplikasi lain.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
 - **Postingan & Diskusi segmen**: tulis postingan pendek ala X (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen untuk semua pengguna.
-- **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir. Tanpa notifikasi push; pesan baru diambil tiap beberapa detik selama layar terbuka.
+- **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir. Pesan baru tidak dikirim sebagai notifikasi; diambil tiap beberapa detik selama layar terbuka.
 - **Tema & pengaturan**: tema gelap, terang, atau ikuti HP, dengan 5 warna aksen (kuning marka, mint, biru, oranye, pink). Info versi dan pembuat di Pengaturan.
 
 ## Struktur

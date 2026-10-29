@@ -637,6 +637,31 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     return c.json({ ok: true });
   });
 
+  // --- Notifikasi push ---
+
+  // Satu token per sesi. Token yang sama dari sesi lain (HP yang sama, akun berganti) dipindah ke sesi ini.
+  app.put('/me/device', async (c) => {
+    const b = await body(c);
+    const token = str(b.token, 'Token', 20, 4096);
+    const appVersion = typeof b.appVersion === 'string' ? b.appVersion.trim().slice(0, 20) || null : null;
+    const hash = hashToken(bearer(c)!);
+    run('delete from push_devices where token = ? or session_hash = ?', token, hash);
+    run(
+      'insert into push_devices (token, user_id, session_hash, platform, app_version) values (?, ?, ?, ?, ?)',
+      token,
+      c.var.me.id,
+      hash,
+      b.platform === 'ios' ? 'ios' : 'android',
+      appVersion,
+    );
+    return c.json({ ok: true });
+  });
+
+  app.delete('/me/device', (c) => {
+    run('delete from push_devices where session_hash = ?', hashToken(bearer(c)!));
+    return c.json({ ok: true });
+  });
+
   // --- Pengguna & teman ---
 
   app.get('/me', (c) => c.json(profile(c.var.me.id, c.var.me.id)));

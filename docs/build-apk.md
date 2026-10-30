@@ -76,7 +76,11 @@ Urutan rilis 0.2.0: deploy server dulu (`deploy/deploy.sh server`), lalu build A
 ## Notifikasi push di 0.3.0
 
 - **Modul:** `expo-notifications` (~58.1), dengan plugin di `app.json`: ikon notifikasi `assets/images/notification-icon.png` (96×96, putih transparan, dipotong dari `android-icon-monochrome.png`), warna `#FFC629`, kanal bawaan `info`.
-- **Firebase:** `android.googleServicesFile: "./google-services.json"`. Berkas ini dari proyek Firebase `absensi-f66e1` (aplikasi Android `id.my.masamune.jejak`), berisi pengenal publik, dan masuk repo. Tanpa berkas ini token FCM tidak bisa diambil.
+- **Firebase:** `android.googleServicesFile: "./google-services.json"`. Berkas ini dari proyek Firebase `absensi-f66e1` (aplikasi Android `id.my.masamune.jejak`). Tanpa berkas ini token FCM tidak bisa diambil. Berkas ini **tidak masuk repo** (ada di `app/.gitignore`): `app.config.ts` memakai variabel file EAS `GOOGLE_SERVICES_JSON` saat build, dan `app/google-services.json` di komputer sendiri bila variabel itu kosong. Unggah sekali dari folder `app/`, dan ulangi dengan `--force` bila berkasnya diganti:
+
+  ```bash
+  npx eas-cli@latest env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --environment preview --environment production
+  ```
 - **Expo Go:** push jarak jauh tidak didukung sejak SDK 53, jadi bagian notifikasi disembunyikan di Expo Go dan web. Uji notifikasi selalu dengan APK `preview`.
 - **Kanal:** `info` (*Info dan pengumuman*, penting) dan `pembaruan` (*Pembaruan aplikasi*, biasa), dibuat app sebelum meminta izin. Setelah dibuat, Android hanya mengizinkan mengganti nama dan deskripsi kanal.
 - **APK 0.2.x** tidak punya notifikasi maupun kartu pembaruan, jadi 0.3.0 harus dibagikan manual sekali lagi. Pembaruan sesudahnya diumumkan lewat `deploy/deploy.sh apk --umumkan` dan kartu di Beranda.

@@ -65,7 +65,7 @@ Disarankan **FCM langsung**: sesuai permintaan, app hanya Android, dan server ti
 - **Paket:** `npx expo install expo-notifications`.
 - **`app.json`:**
   - plugin `expo-notifications` dengan `icon` (PNG 96×96 putih transparan, dibuat dari `android-icon-monochrome.png`), `color: "#FFC629"`, dan `defaultChannel: "info"`;
-  - `android.googleServicesFile: "./google-services.json"`. Berkas ini berisi pengenal publik dan boleh masuk repo.
+  - `android.googleServicesFile: "./google-services.json"`. Sekarang berkas ini tidak masuk repo; build EAS memakai variabel file `GOOGLE_SERVICES_JSON` (lihat [build-apk.md](build-apk.md)).
 - **`lib/push.ts`:**
   - Membuat kanal `info` (Info dan pengumuman) dan `pembaruan` (Pembaruan aplikasi) **sebelum** meminta token; Android tidak menampilkan dialog izin sebelum ada kanal.
   - Meminta izin, mengambil `getDevicePushTokenAsync()`, lalu mengirimnya ke `PUT /me/device`.

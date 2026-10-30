@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase: build EAS memakai variabel file GOOGLE_SERVICES_JSON (docs/build-apk.md)
+google-services.json
+
 # typescript
 *.tsbuildinfo
 

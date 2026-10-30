@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import Head from 'expo-router/head';
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import {
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -42,6 +43,7 @@ interface ApkInfo {
 }
 
 const APK_URL = '/unduh/jejak.apk';
+const REPO_URL = 'https://github.com/Masamune21-dev/Jejak';
 const NAV_H = 68;
 /** Pergantian latar navigasi (transparan ↔ padat) memudar, bukan meloncat. Gaya khusus web. */
 const FADE = { transitionProperty: 'opacity', transitionDuration: '220ms' } as ViewStyle;
@@ -345,6 +347,7 @@ export default function LandingScreen() {
               <FootLink label="Masuk" onPress={() => router.push('/masuk')} />
               <FootLink label="Daftar" onPress={() => router.push({ pathname: '/masuk', params: { mode: 'daftar' } })} />
               <FootLink label="Unduh APK" onPress={download} />
+              <FootLink label="GitHub" icon="logo-github" onPress={() => void Linking.openURL(REPO_URL)} />
             </View>
           </View>
         </ScrollView>
@@ -434,9 +437,13 @@ function CtaButton({
   );
 }
 
-function FootLink({ label, onPress }: { label: string; onPress: () => void }) {
+function FootLink({ label, icon, onPress }: { label: string; icon?: 'logo-github'; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="link" style={focusable({ paddingVertical: 6 })}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      style={focusable({ paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 7 })}>
+      {icon ? <Ionicons name={icon} size={17} color={c.text} /> : null}
       <Text style={{ color: c.text, fontFamily: font.semibold, fontSize: 15 }}>{label}</Text>
     </Pressable>
   );

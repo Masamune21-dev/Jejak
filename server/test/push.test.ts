@@ -89,8 +89,16 @@ test('FCM: pesan untuk expo-notifications, JWT sah, access token disimpan, token
   assert.deepEqual(fcmMessage('t', { title: 'Jejak 0.3.1 tersedia', body: 'Ketuk', url: '/', channel: 'pembaruan', tag: 'pembaruan' }), {
     message: {
       token: 't',
-      data: { title: 'Jejak 0.3.1 tersedia', message: 'Ketuk', channelId: 'pembaruan', body: '{"url":"/"}', tag: 'pembaruan' },
-      android: { priority: 'HIGH' },
+      notification: { title: 'Jejak 0.3.1 tersedia', body: 'Ketuk' },
+      data: {
+        title: 'Jejak 0.3.1 tersedia',
+        message: 'Ketuk',
+        channelId: 'pembaruan',
+        body: '{"url":"/"}',
+        url: '/',
+        tag: 'pembaruan',
+      },
+      android: { priority: 'HIGH', notification: { channel_id: 'pembaruan', tag: 'pembaruan' } },
     },
   });
 

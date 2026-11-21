@@ -41,7 +41,10 @@ const DEAD_TOKEN = new Set(['UNREGISTERED', 'SENDER_ID_MISMATCH']);
 
 const b64url = (s: string | Buffer) => Buffer.from(s).toString('base64url');
 
-/** Isi `data` dalam format yang dibaca expo-notifications di Android (judul, teks, kanal, dan `body` JSON). */
+/**
+ * Pesan dengan blok `notification`: Android sendiri yang menampilkan notifikasi, jadi tetap
+ * muncul walau app ditutup atau dibatasi OEM. `data.url` dipakai app saat notifikasi diketuk.
+ */
 export function fcmMessage(token: string, msg: PushMessage) {
   const data: Record<string, string> = {
     title: msg.title,
@@ -49,9 +52,22 @@ export function fcmMessage(token: string, msg: PushMessage) {
     channelId: msg.channel,
     body: JSON.stringify(msg.url ? { url: msg.url } : {}),
   };
+  if (msg.url) data.url = msg.url;
   if (msg.tag) data.tag = msg.tag;
-  // Pesan data saja dengan prioritas tinggi: expo-notifications yang menampilkannya, juga saat app tertutup.
-  return { message: { token, data, android: { priority: 'HIGH' } } };
+  return {
+    message: {
+      token,
+      notification: { title: msg.title, body: msg.body },
+      data,
+      android: {
+        priority: 'HIGH',
+        notification: {
+          channel_id: msg.channel,
+          ...(msg.tag ? { tag: msg.tag } : {}),
+        },
+      },
+    },
+  };
 }
 
 /**

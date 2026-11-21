@@ -156,9 +156,9 @@ deploy/deploy.sh notif --judul "Tes Jejak" --isi "Notifikasi berfungsi." --ke ma
 
 ## 8. Fitur notifikasi dan sumbernya
 
-Semua notifikasi memakai pesan data + `url`. Ketukan membuka path app
-(`/pesan/2`, `/aktivitas/17`, `/postingan/9`) atau alamat `https://` untuk
-unduhan APK.
+Semua notifikasi memakai blok `notification` (ditampilkan Android sendiri) plus
+`data.url`. Ketukan membuka path app (`/pesan/2`, `/aktivitas/17`,
+`/postingan/9`) atau alamat `https://` untuk unduhan APK.
 
 | Fitur | Kapan dikirim | Penerima | Kanal | URL |
 | --- | --- | --- | --- | --- |

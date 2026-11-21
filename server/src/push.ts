@@ -14,7 +14,7 @@ export interface PushMessage {
   /** Path app (`/segmen/12`) atau alamat https yang dibuka saat notifikasi diketuk. */
   url?: string;
   /** Kanal Android yang dibuat app (app/src/lib/push.ts). */
-  channel: 'info' | 'pembaruan';
+  channel: 'info' | 'pembaruan' | 'sosial' | 'aktivitas';
   /** Notifikasi dengan tag sama menggantikan yang lama di HP. */
   tag?: string;
 }
@@ -132,6 +132,24 @@ export interface NotifyOptions extends PushMessage {
   to: string[];
   /** Lewati perangkat yang sudah memakai versi app ini (pengumuman pembaruan). */
   skipVersion?: string;
+  /** Hanya kirim ke app versi ini atau lebih baru (mis. kanal notifikasi baru). */
+  minVersion?: string;
+}
+
+/** Versi app minimum yang sudah punya kanal `sosial` dan `aktivitas`. */
+export const SOCIAL_PUSH_MIN_VERSION = '0.4.1';
+
+/** Bandingkan versi `x.y.z` secara numerik. `null` (app lama) dianggap lebih rendah. */
+export function versionAtLeast(version: string | null, min: string): boolean {
+  if (!version) return false;
+  const a = version.split('.').map((x) => Number(x) || 0);
+  const b = min.split('.').map((x) => Number(x) || 0);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x !== y) return x > y;
+  }
+  return true;
 }
 
 export interface Recipients {
@@ -141,7 +159,7 @@ export interface Recipients {
   missing: string[];
 }
 
-export function recipients(db: DB, opts: Pick<NotifyOptions, 'to' | 'skipVersion'>): Recipients {
+export function recipients(db: DB, opts: Pick<NotifyOptions, 'to' | 'skipVersion' | 'minVersion'>): Recipients {
   const to = opts.to.map((u) => u.toLowerCase());
   const rows = db
     .prepare(
@@ -149,7 +167,11 @@ export function recipients(db: DB, opts: Pick<NotifyOptions, 'to' | 'skipVersion
        ${to.length ? `where u.username in (${to.map(() => '?').join(', ')})` : ''}`,
     )
     .all(...to) as { token: string; username: string; app_version: string | null }[];
-  const picked = rows.filter((r) => !opts.skipVersion || r.app_version !== opts.skipVersion);
+  const picked = rows.filter(
+    (r) =>
+      (!opts.skipVersion || r.app_version !== opts.skipVersion) &&
+      (!opts.minVersion || versionAtLeast(r.app_version, opts.minVersion)),
+  );
   const found = new Set(rows.map((r) => r.username.toLowerCase()));
   return {
     tokens: picked.map((r) => r.token),
@@ -158,25 +180,48 @@ export function recipients(db: DB, opts: Pick<NotifyOptions, 'to' | 'skipVersion
   };
 }
 
-/** Kirim ke semua penerima (beberapa sekaligus), buang token mati, dan catat di `announcements`. */
-export async function notify(db: DB, pusher: Pusher, opts: NotifyOptions, concurrency = 8) {
-  const { tokens, users, missing } = recipients(db, opts);
+/** Kirim ke daftar token, buang token mati. Tidak mencatat ke `announcements`. */
+async function deliver(db: DB, pusher: Pusher, tokens: string[], msg: PushMessage, concurrency = 8) {
   const results: PushResult[] = [];
   for (let i = 0; i < tokens.length; i += concurrency) {
-    results.push(...(await Promise.all(tokens.slice(i, i + concurrency).map((t) => pusher.send(t, opts)))));
+    results.push(...(await Promise.all(tokens.slice(i, i + concurrency).map((t) => pusher.send(t, msg)))));
   }
   const dead = tokens.filter((_, i) => results[i] === 'invalid');
   const del = db.prepare('delete from push_devices where token = ?');
   for (const t of dead) del.run(t);
   const sent = results.filter((r) => r === 'ok').length;
+  return { sent, removed: dead.length, failed: tokens.length - sent - dead.length };
+}
+
+/**
+ * Notifikasi sosial (chat, like, komentar, postingan teman): kirim ke username tertentu
+ * tanpa menambah baris di `announcements`. Aman dipanggil tanpa `pusher` (push belum dipasang).
+ */
+export async function pushTo(
+  db: DB,
+  pusher: Pusher | null | undefined,
+  to: string[],
+  msg: PushMessage,
+  minVersion?: string,
+) {
+  if (!pusher || to.length === 0) return { devices: 0, sent: 0, removed: 0, failed: 0 };
+  const { tokens } = recipients(db, { to, minVersion });
+  const r = await deliver(db, pusher, tokens, msg);
+  return { devices: tokens.length, ...r };
+}
+
+/** Kirim ke semua penerima (beberapa sekaligus), buang token mati, dan catat di `announcements`. */
+export async function notify(db: DB, pusher: Pusher, opts: NotifyOptions, concurrency = 8) {
+  const { tokens, users, missing } = recipients(db, opts);
+  const r = await deliver(db, pusher, tokens, opts, concurrency);
   db.prepare('insert into announcements (kind, title, body, url, target, sent, failed) values (?, ?, ?, ?, ?, ?, ?)').run(
     opts.channel,
     opts.title,
     opts.body,
     opts.url ?? null,
     opts.to.length ? opts.to.join(',') : 'semua',
-    sent,
-    tokens.length - sent,
+    r.sent,
+    tokens.length - r.sent,
   );
-  return { devices: tokens.length, users, sent, removed: dead.length, failed: tokens.length - sent - dead.length, missing };
+  return { devices: tokens.length, users, sent: r.sent, removed: r.removed, failed: r.failed, missing };
 }

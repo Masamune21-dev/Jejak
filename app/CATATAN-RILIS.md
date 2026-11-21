@@ -7,6 +7,12 @@ satu perubahan per butir, sebelum menjalankan `deploy.sh apk`.
 Baris `Versi minimal: x.y.z` (opsional, di luar bagian versi) memaksa app yang lebih lama memperbarui diri. Isi
 hanya bila server berubah sehingga versi lama tidak bisa dipakai lagi.
 
+## 0.4.1
+
+- Notifikasi chat, like, komentar, dan postingan baru dari teman
+- Kanal notifikasi sosial dan aktivitas bisa diatur sendiri di pengaturan Android
+- Panduan Firebase dan service account untuk mengaktifkan notifikasi sosial
+
 ## 0.4.0
 
 - Impor aktivitas dari berkas GPX atau FIT jam GPS (Garmin, COROS, Huawei, Amazfit)

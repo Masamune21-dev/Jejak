@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import type { AuthResult } from '../../shared/api.ts';
 import { createApp } from '../src/app.ts';
 import { openDb } from '../src/db.ts';
-import { createPusher, fcmMessage, notify, recipients, type Pusher, type PushResult } from '../src/push.ts';
+import { createPusher, fcmMessage, notify, recipients, versionAtLeast, type Pusher, type PushResult } from '../src/push.ts';
 
 function setup() {
   const db = openDb(':memory:');
@@ -146,4 +146,13 @@ test('FCM: pesan untuk expo-notifications, JWT sah, access token disimpan, token
   } finally {
     console.error = log;
   }
+});
+
+test('versi minimum: notifikasi sosial tidak dikirim ke APK lama', () => {
+  assert.equal(versionAtLeast('0.4.1', '0.4.1'), true);
+  assert.equal(versionAtLeast('0.4.2', '0.4.1'), true);
+  assert.equal(versionAtLeast('0.10.0', '0.4.1'), true);
+  assert.equal(versionAtLeast('0.4.0', '0.4.1'), false);
+  assert.equal(versionAtLeast('0.3.9', '0.4.1'), false);
+  assert.equal(versionAtLeast(null, '0.4.1'), false);
 });

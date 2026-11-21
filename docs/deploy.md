@@ -357,16 +357,25 @@ Pengecualian: commit `cf2ef66` memigrasi tabel `sessions` (kolom `token` menjadi
 
 ## Notifikasi push
 
-Dikirim lewat FCM HTTP v1 dari CLI `server/src/cli/notif.ts`; service API sendiri tidak mengirim apa pun dan tidak bisa membaca kuncinya.
+Dikirim lewat FCM HTTP v1. Sejak 0.4.1, **API ikut mengirim notifikasi sosial** (chat, postingan teman, like, komentar), jadi service `jejak` perlu membaca kunci FCM. Pengumuman massal dan notifikasi pembaruan APK tetap lewat CLI `server/src/cli/notif.ts`.
+
+Panduan lengkap membuat proyek Firebase, service account, dan menguji keenam jenis notifikasi ada di [firebase-push.md](firebase-push.md).
 
 ### Kunci service account
 
 Service account `jejak-fcm@absensi-f66e1.iam.gserviceaccount.com` di proyek Firebase `absensi-f66e1` (dipakai bersama aplikasi GeoAttend), hanya dengan peran **Firebase Cloud Messaging API Admin**. Jangan pakai kunci `firebase-adminsdk`: aksesnya admin penuh ke Firebase GeoAttend.
 
-Kuncinya di server sebagai `/etc/jejak/fcm.json`, milik root dengan mode 600, tidak di repo. Memasang atau mengganti kunci dari komputer lokal:
+Kuncinya di server sebagai `/etc/jejak/fcm.json`, milik `root:jejak` dengan mode **640**: hanya root dan service `jejak` yang bisa membacanya. Berkas ini tidak di repo. Memasang atau mengganti kunci dari komputer lokal:
 
 ```bash
-ssh "$(git config jejak.deployHost)" 'install -d -m 700 /etc/jejak && umask 077 && cat > /etc/jejak/fcm.json' < ~/Downloads/<berkas-kunci>.json
+ssh "$(git config jejak.deployHost)" '
+  install -d -m 750 -o root -g jejak /etc/jejak
+  umask 027
+  cat > /etc/jejak/fcm.json
+  chown root:jejak /etc/jejak/fcm.json
+  chmod 640 /etc/jejak/fcm.json
+  systemctl restart jejak
+' < ~/Downloads/<berkas-kunci>.json
 ```
 
 Kunci baru dibuat di Google Cloud Console → IAM & Admin → Service accounts → `jejak-fcm` → Keys → Add key → JSON. Hapus kunci lama di tempat yang sama setelah yang baru terpasang. Firebase Cloud Messaging API harus aktif di proyek itu.

@@ -42,6 +42,7 @@ import type { LatLon, TrackPoint } from '../../shared/geo.ts';
 import { hashPassword, hashToken, newToken, verifyPassword } from './auth.ts';
 import { tx, type DB } from './db.ts';
 import { cleanJpeg, MAX_PHOTO_BYTES, mediaPath, openMedia, readMedia, removeMedia, saveJpeg, verifyMedia, type MediaStore } from './media.ts';
+import { pushTo, SOCIAL_PUSH_MIN_VERSION, type Pusher, type PushMessage } from './push.ts';
 import { planRoute as defaultPlanRoute } from './routing.ts';
 
 type Row = Record<string, any>;
@@ -252,10 +253,14 @@ async function body(c: Context): Promise<Row> {
 
 // --- Aplikasi ---
 
-export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; media?: MediaStore } = {}) {
+export function createApp(
+  db: DB,
+  opts: { planRoute?: typeof defaultPlanRoute; media?: MediaStore; pusher?: Pusher | null } = {},
+) {
   const planRoute = opts.planRoute ?? defaultPlanRoute;
   // Tes memakai folder sementara; server sungguhan memberi data/uploads (lihat index.ts).
   const media = opts.media ?? openMedia(mkdtempSync(join(tmpdir(), 'jejak-media-')));
+  const pusher = opts.pusher ?? null;
   const photoUrl = (file: string | null | undefined) => (file ? mediaPath(media, file) : null);
   const one = <T = Row>(sql: string, ...p: any[]) => db.prepare(sql).get(...p) as T | undefined;
   const all = <T = Row>(sql: string, ...p: any[]) => db.prepare(sql).all(...p) as T[];
@@ -268,6 +273,18 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     verified: !!r.u_verified,
     avatarUrl: photoUrl(r.u_avatar),
   });
+
+  /** Kirim push sosial tanpa menahan respons HTTP; kegagalan hanya dicatat di log. */
+  const push = (to: string[], msg: PushMessage) => {
+    if (!pusher || to.length === 0) return;
+    // APK lama belum punya kanal sosial/aktivitas, jadi jangan dikirimi.
+    void pushTo(db, pusher, to, msg, SOCIAL_PUSH_MIN_VERSION).catch((e) =>
+      console.error('Push sosial gagal:', (e as Error).message),
+    );
+  };
+  const usernameOf = (id: number) => one<{ username: string }>('select username from users where id = ?', id)?.username ?? null;
+  /** Jangan kirim notifikasi ke orang yang memblokir atau diblokir pelaku. */
+  const notBlocked = (owner: number, me: number) => !blockedBy(owner, me) && !blockedBy(me, owner);
 
   const ACTIVITY_SELECT = `
     select a.id, a.type, a.title, a.started_at, a.elapsed_s, a.moving_s, a.distance_m, a.elev_gain_m,
@@ -1126,14 +1143,28 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   /** Baris aktivitas bila `me` boleh melihatnya; 404 supaya keberadaan aktivitas pribadi tidak bocor. */
   const visibleActivity = (id: number, me: number) =>
-    one(`select a.id, a.user_id from activities a where a.id = $id and ${VISIBLE_SQL}`, { id, me }) ??
-    fail(404, 'Aktivitas tidak ditemukan');
+    one<{ id: number; user_id: number; title: string }>(
+      `select a.id, a.user_id, a.title from activities a where a.id = $id and ${VISIBLE_SQL}`,
+      { id, me },
+    ) ?? fail(404, 'Aktivitas tidak ditemukan');
 
   app.post('/activities/:id/kudos', (c) => {
     const id = idParam(c);
     const r = visibleActivity(id, c.var.me.id);
     if (r.user_id === c.var.me.id) fail(400, 'Tidak bisa memberi like ke aktivitas sendiri');
-    run('insert or ignore into kudos (activity_id, user_id) values (?, ?)', id, c.var.me.id);
+    const ins = run('insert or ignore into kudos (activity_id, user_id) values (?, ?)', id, c.var.me.id);
+    if (ins.changes > 0 && notBlocked(r.user_id, c.var.me.id)) {
+      const owner = usernameOf(r.user_id);
+      if (owner) {
+        push([owner], {
+          title: `${c.var.me.name} menyukai aktivitasmu`,
+          body: r.title,
+          url: `/aktivitas/${id}`,
+          channel: 'sosial',
+          tag: `like-activity-${id}`,
+        });
+      }
+    }
     return c.json(kudosState(id, c.var.me.id));
   });
 
@@ -1156,9 +1187,21 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/activities/:id/comments', async (c) => {
     const id = idParam(c);
-    visibleActivity(id, c.var.me.id);
+    const act = visibleActivity(id, c.var.me.id);
     const text = str((await body(c)).body, 'Komentar', 1, 500);
     const cid = run('insert into comments (activity_id, user_id, body) values (?, ?, ?)', id, c.var.me.id, text).lastInsertRowid;
+    if (act.user_id !== c.var.me.id && notBlocked(act.user_id, c.var.me.id)) {
+      const owner = usernameOf(act.user_id);
+      if (owner) {
+        push([owner], {
+          title: `${c.var.me.name} mengomentari aktivitasmu`,
+          body: text.slice(0, 120),
+          url: `/aktivitas/${id}`,
+          channel: 'sosial',
+          tag: `comment-activity-${id}`,
+        });
+      }
+    }
     return c.json(toComment(one(`${COMMENT_SELECT} where c.id = ?`, cid)!), 201);
   });
 
@@ -1429,8 +1472,10 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   /** Baris postingan bila `me` boleh melihatnya; 404 supaya postingan pribadi tidak bocor. */
   const visiblePost = (id: number, me: number) =>
-    one(`select p.id, p.user_id from posts p where p.id = $id and ${POST_VISIBLE_SQL}`, { id, me }) ??
-    fail(404, 'Postingan tidak ditemukan');
+    one<{ id: number; user_id: number; body: string }>(
+      `select p.id, p.user_id, p.body from posts p where p.id = $id and ${POST_VISIBLE_SQL}`,
+      { id, me },
+    ) ?? fail(404, 'Postingan tidak ditemukan');
 
   app.post('/posts', async (c) => {
     const me = c.var.me.id;
@@ -1468,7 +1513,27 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       photos.forEach((data, i) => run('insert into post_photos (post_id, position, file) values (?, ?, ?)', id, i, saveJpeg(media, data)));
       return id;
     });
-    return c.json(getPost(id, me), 201);
+    const created = getPost(id, me);
+    if (visibility !== 'private') {
+      const followers = all<{ username: string }>(
+        `select u.username from follows f join users u on u.id = f.follower_id
+         where f.followee_id = $me
+           and not exists (
+             select 1 from blocks b
+             where (b.blocker_id = $me and b.blocked_id = f.follower_id)
+                or (b.blocker_id = f.follower_id and b.blocked_id = $me)
+           )`,
+        { me },
+      ).map((r) => r.username);
+      push(followers, {
+        title: `${c.var.me.name} membagikan postingan`,
+        body: (text || 'Lihat postingan baru di Jejak.').slice(0, 120),
+        url: `/postingan/${id}`,
+        channel: 'aktivitas',
+        tag: `post-${id}`,
+      });
+    }
+    return c.json(created, 201);
   });
 
   app.get('/posts/:id', (c) => c.json(getPost(idParam(c), c.var.me.id)));
@@ -1502,8 +1567,20 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/posts/:id/like', (c) => {
     const id = idParam(c);
-    visiblePost(id, c.var.me.id);
-    run('insert or ignore into post_likes (post_id, user_id) values (?, ?)', id, c.var.me.id);
+    const p = visiblePost(id, c.var.me.id);
+    const ins = run('insert or ignore into post_likes (post_id, user_id) values (?, ?)', id, c.var.me.id);
+    if (ins.changes > 0 && p.user_id !== c.var.me.id && notBlocked(p.user_id, c.var.me.id)) {
+      const owner = usernameOf(p.user_id);
+      if (owner) {
+        push([owner], {
+          title: `${c.var.me.name} menyukai postinganmu`,
+          body: (p.body || 'Lihat postinganmu di Jejak.').slice(0, 120),
+          url: `/postingan/${id}`,
+          channel: 'sosial',
+          tag: `like-post-${id}`,
+        });
+      }
+    }
     return c.json(likeState(id, c.var.me.id));
   });
 
@@ -1526,9 +1603,21 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/posts/:id/replies', async (c) => {
     const id = idParam(c);
-    visiblePost(id, c.var.me.id);
+    const p = visiblePost(id, c.var.me.id);
     const text = str((await body(c)).body, 'Balasan', 1, 500);
     const rid = run('insert into post_replies (post_id, user_id, body) values (?, ?, ?)', id, c.var.me.id, text).lastInsertRowid;
+    if (p.user_id !== c.var.me.id && notBlocked(p.user_id, c.var.me.id)) {
+      const owner = usernameOf(p.user_id);
+      if (owner) {
+        push([owner], {
+          title: `${c.var.me.name} membalas postinganmu`,
+          body: text.slice(0, 120),
+          url: `/postingan/${id}`,
+          channel: 'sosial',
+          tag: `reply-post-${id}`,
+        });
+      }
+    }
     return c.json(toReply(one(`${REPLY_SELECT} where r.id = ?`, rid)!), 201);
   });
 
@@ -1636,6 +1725,17 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     if (blockedBy(me, other) || blockedBy(other, me)) fail(403, 'Tidak bisa mengirim pesan ke pengguna ini');
     if (!(isFollowing(me, other) && isFollowing(other, me))) fail(403, 'Pesan hanya bisa dikirim ke teman yang saling mengikuti');
     const id = run('insert into messages (from_id, to_id, body) values (?, ?, ?)', me, other, text).lastInsertRowid;
+    const peer = usernameOf(other);
+    if (peer && notBlocked(other, me)) {
+      push([peer], {
+        title: `${c.var.me.name} mengirim pesan`,
+        body: text.slice(0, 120),
+        url: `/pesan/${me}`,
+        channel: 'sosial',
+        // Pesan baru dari orang yang sama menggantikan notifikasi lamanya di HP.
+        tag: `chat-${me}`,
+      });
+    }
     return c.json(toMessage(one('select * from messages where id = ?', id)!, me), 201);
   });
 

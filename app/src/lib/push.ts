@@ -37,6 +37,14 @@ async function ensureChannels() {
     name: 'Pembaruan aplikasi',
     importance: AndroidImportance.DEFAULT,
   });
+  await Notifications.setNotificationChannelAsync('sosial', {
+    name: 'Chat, like, dan komentar',
+    importance: AndroidImportance.HIGH,
+  });
+  await Notifications.setNotificationChannelAsync('aktivitas', {
+    name: 'Postingan teman',
+    importance: AndroidImportance.DEFAULT,
+  });
 }
 
 /** Token FCM HP ini ke server, terikat ke sesi yang sedang masuk. */

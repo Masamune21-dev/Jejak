@@ -8,14 +8,16 @@ import type { Activity, AuthResult, ChatMessage, ChatSummary, FollowItem, LikeSt
 import { createApp } from '../src/app.ts';
 import { openDb } from '../src/db.ts';
 import { cleanJpeg, mediaPath, openMedia, verifyMedia } from '../src/media.ts';
+import type { Pusher } from '../src/push.ts';
 import { HOME, north, walkPath } from './helpers.ts';
 
-function setup() {
+function setup(pusher?: Pusher) {
   const dir = mkdtempSync(join(tmpdir(), 'jejak-uji-'));
   const media = openMedia(dir, 'kunci-uji');
   const app = createApp(openDb(':memory:'), {
     planRoute: async (_type, waypoints) => ({ geometry: waypoints, distanceM: 0, steps: [], snapped: false }),
     media,
+    pusher,
   });
   const call = async <T>(method: string, path: string, token?: string, body?: unknown) => {
     const form = body instanceof FormData;
@@ -265,4 +267,84 @@ test('postingan: publik, pengikut, dan pribadi', async () => {
   assert.equal((await call('PATCH', `/posts/${pub.id}`, fajar.token, { visibility: 'private' })).status, 403);
   assert.equal((await call('PATCH', `/posts/${pub.id}`, dicky.token, { visibility: 'teman' })).status, 400);
   assert.equal((await call('POST', '/posts', dicky.token, new FormData())).status, 400);
+});
+
+test('notifikasi sosial: chat, postingan teman, like, dan komentar', async () => {
+  const sent: { token: string; title: string; url?: string; channel: string }[] = [];
+  const pusher: Pusher = {
+    projectId: 'uji',
+    send: async (token, msg) => {
+      sent.push({ token, title: msg.title, url: msg.url, channel: msg.channel });
+      return 'ok';
+    },
+  };
+  const { call, register } = setup(pusher);
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+  await call('POST', `/users/${fajar.user.id}/follow`, dicky.token);
+  const TOKEN_D = 'token-dicky-0123456789';
+  const TOKEN_F = 'token-fajar-0123456789';
+  await call('PUT', '/me/device', dicky.token, { token: TOKEN_D, appVersion: '0.4.1' });
+  await call('PUT', '/me/device', fajar.token, { token: TOKEN_F, appVersion: '0.4.1' });
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const titles = () => sent.map((s) => s.title);
+  const clear = () => {
+    sent.length = 0;
+  };
+
+  // Dicky membuat aktivitas, Fajar memberi like dan komentar.
+  const act = (await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'Lari pagi',
+    track: [walkPath([HOME, north(HOME, 1000)], 3)],
+  })).body;
+  clear();
+  await call('POST', `/activities/${act.id}/kudos`, fajar.token);
+  await tick();
+  assert.deepEqual(titles(), ['FAJAR menyukai aktivitasmu']);
+  assert.equal(sent[0].token, TOKEN_D);
+  assert.equal(sent[0].url, `/aktivitas/${act.id}`);
+  assert.equal(sent[0].channel, 'sosial');
+
+  clear();
+  await call('POST', `/activities/${act.id}/comments`, fajar.token, { body: 'Mantap!' });
+  await tick();
+  assert.deepEqual(titles(), ['FAJAR mengomentari aktivitasmu']);
+
+  // Fajar membuat postingan publik: Dicky sebagai pengikut mendapat notifikasi.
+  clear();
+  const form = new FormData();
+  form.append('body', 'Jalur baru di utara kota');
+  form.append('visibility', 'public');
+  const post = (await call<Post>('POST', '/posts', fajar.token, form)).body;
+  await tick();
+  assert.deepEqual(titles(), ['FAJAR membagikan postingan']);
+  assert.equal(sent[0].url, `/postingan/${post.id}`);
+  assert.equal(sent[0].channel, 'aktivitas');
+
+  // Like dan balasan di postingan Fajar.
+  clear();
+  await call('POST', `/posts/${post.id}/like`, dicky.token);
+  await tick();
+  assert.deepEqual(titles(), ['DICKY menyukai postinganmu']);
+
+  clear();
+  await call('POST', `/posts/${post.id}/replies`, dicky.token, { body: 'Nice!' });
+  await tick();
+  assert.deepEqual(titles(), ['DICKY membalas postinganmu']);
+
+  // Chat ke Dicky.
+  clear();
+  await call('POST', `/chats/${dicky.user.id}`, fajar.token, { body: 'Halo, besok lari?' });
+  await tick();
+  assert.deepEqual(titles(), ['FAJAR mengirim pesan']);
+  assert.equal(sent[0].url, `/pesan/${fajar.user.id}`);
+
+  // Aksi ke diri sendiri tidak mengirim notifikasi.
+  clear();
+  await call('POST', `/posts/${post.id}/like`, fajar.token);
+  await call('POST', `/activities/${act.id}/comments`, dicky.token, { body: 'Catatan sendiri' });
+  await tick();
+  assert.deepEqual(titles(), []);
 });

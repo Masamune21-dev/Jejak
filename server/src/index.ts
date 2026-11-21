@@ -7,6 +7,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app.ts';
 import { openDb } from './db.ts';
 import { openMedia } from './media.ts';
+import { loadPusher } from './push.ts';
 
 const port = Number(process.env.PORT ?? 4000);
 // Di server produksi cukup 127.0.0.1 (di belakang nginx); saat dev 0.0.0.0 supaya HP di WiFi bisa masuk.
@@ -15,7 +16,15 @@ const dbPath = process.env.DB_PATH ?? fileURLToPath(new URL('../data/jejak.db', 
 
 // Foto unggahan di sebelah database: satu-satunya folder yang boleh ditulis service (lihat deploy/jejak.service).
 const uploads = process.env.UPLOAD_DIR ?? join(dirname(dbPath), 'uploads');
-const app = createApp(openDb(dbPath), { media: openMedia(uploads) });
+// Notifikasi sosial butuh kunci FCM saat API berjalan. Bila berkasnya belum ada atau tidak
+// bisa dibaca, API tetap jalan dan fitur push sosial dilewati (pengumuman lewat CLI tetap bisa).
+let pusher = null;
+try {
+  pusher = loadPusher(process.env.FCM_CREDENTIALS ?? '/etc/jejak/fcm.json');
+} catch (e) {
+  console.warn(`  push: nonaktif (${(e as Error).message})`);
+}
+const app = createApp(openDb(dbPath), { media: openMedia(uploads), pusher });
 
 serve({ fetch: app.fetch, port, hostname }, () => {
   const lan = (hostname === '0.0.0.0' ? Object.values(networkInterfaces()) : [])

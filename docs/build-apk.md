@@ -76,7 +76,7 @@ Urutan rilis 0.2.0: deploy server dulu (`deploy/deploy.sh server`), lalu build A
 ## Notifikasi push di 0.3.0
 
 - **Modul:** `expo-notifications` (~58.1), dengan plugin di `app.json`: ikon notifikasi `assets/images/notification-icon.png` (96×96, putih transparan, dipotong dari `android-icon-monochrome.png`), warna `#FFC629`, kanal bawaan `info`.
-- **Firebase:** `android.googleServicesFile: "./google-services.json"`. Berkas ini dari proyek Firebase `absensi-f66e1` (aplikasi Android `id.my.masamune.jejak`). Tanpa berkas ini token FCM tidak bisa diambil. Berkas ini **tidak masuk repo** (ada di `app/.gitignore`): `app.config.ts` memakai variabel file EAS `GOOGLE_SERVICES_JSON` saat build, dan `app/google-services.json` di komputer sendiri bila variabel itu kosong. Unggah sekali dari folder `app/` (di akar repo EAS akan membuat `app.json` baru), dan jalankan lagi bila berkasnya diganti:
+- **Firebase:** `android.googleServicesFile: "./google-services.json"`. Panduan lengkap proyek Firebase, service account, dan keenam jenis notifikasi ada di [firebase-push.md](firebase-push.md). Berkas ini dari proyek Firebase `absensi-f66e1` (aplikasi Android `id.my.masamune.jejak`). Tanpa berkas ini token FCM tidak bisa diambil. Berkas ini **tidak masuk repo** (ada di `app/.gitignore`): `app.config.ts` memakai variabel file EAS `GOOGLE_SERVICES_JSON` saat build, dan `app/google-services.json` di komputer sendiri bila variabel itu kosong. Unggah sekali dari folder `app/` (di akar repo EAS akan membuat `app.json` baru), dan jalankan lagi bila berkasnya diganti:
 
   ```bash
   npx eas-cli@latest env:set --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --environment preview --environment production
@@ -335,7 +335,7 @@ Tanpa `-d`, `adb logcat -b crash` terus menampilkan crash baru secara langsung s
 
 | Nomor | Sumber | Cara menaikkan |
 | --- | --- | --- |
-| Versi tampilan (`versionName`, sekarang `0.2.0`) | `expo.version` di `app/app.json` | Ubah manual, commit. Tampil di Pengaturan → Tentang aplikasi → **Versi**. |
+| Versi tampilan (`versionName`, sekarang `0.4.1`) | `expo.version` di `app/app.json` | Ubah manual, commit. Tampil di Pengaturan → Tentang aplikasi → **Versi**. |
 | Kode versi Android (`versionCode`) | Disimpan di server EAS (`cli.appVersionSource: "remote"` di `eas.json`), bukan di `app.json` | Profil `production` menaikkannya otomatis setiap build (`autoIncrement: true`). Profil `preview` tidak. Tampil sebagai *(build N)* di samping versi di Pengaturan. |
 
 Perintah untuk melihat dan mengatur kode versi di EAS:

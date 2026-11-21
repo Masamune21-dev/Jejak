@@ -328,6 +328,11 @@ export function Button({
   );
 }
 
+/** Centang biru untuk akun terverifikasi. */
+export function Verified({ size = 15 }: { size?: number }) {
+  return <Ionicons name="checkmark-circle" size={size} color="#1D9BF0" accessibilityLabel="Terverifikasi" />;
+}
+
 /** Tombol ikon bulat. */
 export function IconButton({
   icon,

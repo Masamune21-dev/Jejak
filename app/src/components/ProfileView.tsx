@@ -19,7 +19,7 @@ import { alpha, font, IMAGE_FADE, radius, space, useColors, useIsDark } from '@/
 
 import ActivityCard from './ActivityCard';
 import Sheet, { type SheetOption } from './Sheet';
-import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker } from './ui';
+import { Avatar, Button, Card, Empty, ErrorBox, IconButton, Loading, Row, SectionTitle, Stat, T, TypePicker, Verified } from './ui';
 import WeeklyChart from './WeeklyChart';
 
 const PAGE = 20;
@@ -123,7 +123,8 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
               <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={IMAGE_FADE} />
             </BlurTargetView>
             <LinearGradient
-              colors={[alpha(c.bg, 0.3), alpha(c.bg, 0.62), alpha(c.bg, 0.85)]}
+              // Foto tetap terlihat di bagian atas; lapisan baru menebal di bawah tempat teks dan angka.
+              colors={[alpha(c.bg, 0.05), alpha(c.bg, 0.42), alpha(c.bg, 0.8)]}
               locations={[0, 0.45, 1]}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
@@ -159,7 +160,10 @@ export default function ProfileView({ userId, inTab }: { userId: number; inTab?:
             ) : null}
           </Pressable>
           <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text style={[styles.name, { color: c.text }, onPhoto]}>{p.name}</Text>
+            <Row gap={5} style={{ justifyContent: 'center' }}>
+              <Text style={[styles.name, { color: c.text }, onPhoto]}>{p.name}</Text>
+              {p.verified ? <Verified size={19} /> : null}
+            </Row>
             <Text style={[styles.handle, { color: c.text, opacity: cover ? 0.85 : 1 }, !cover && { color: c.muted }, onPhoto]}>@{p.username}</Text>
           </View>
           <Row gap={space.xl}>

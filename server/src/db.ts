@@ -21,6 +21,7 @@ create table if not exists users (
   username text not null unique collate nocase,
   name text not null,
   password_hash text not null,
+  verified integer not null default 0,
   created_at text not null default ${NOW}
 );
 
@@ -65,6 +66,8 @@ create table if not exists activities (
   pr_count integer not null default 0,
   route_id integer references routes(id) on delete set null,
   client_id text,
+  visibility text not null default 'public',
+  hide_map integer not null default 0,
   created_at text not null default ${NOW}
 );
 create index if not exists activities_user on activities(user_id, started_at desc);
@@ -131,6 +134,7 @@ create table if not exists posts (
   body text not null,
   segment_id integer references segments(id) on delete set null,
   activity_id integer references activities(id) on delete set null,
+  visibility text not null default 'public',
   created_at text not null default ${NOW}
 );
 create index if not exists posts_user on posts(user_id, created_at desc);
@@ -221,7 +225,39 @@ export function openDb(path: string): DB {
   db.exec(SCHEMA);
   migrateUserPhotos(db);
   migrateActivityClientId(db);
+  migrateActivityPrivacy(db);
+  migrateVerified(db);
+  migratePostVisibility(db);
   return db;
+}
+
+/** Visibilitas postingan ditambahkan ke database lama; postingan lama tetap publik. */
+function migratePostVisibility(db: DB) {
+  const cols = (db.prepare('pragma table_info(posts)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('visibility')) db.exec("alter table posts add column visibility text not null default 'public'");
+}
+
+/**
+ * Akun terverifikasi (centang biru). Hanya username di `VERIFIED_USERNAMES`
+ * (dipisah koma, bawaan `masamune`) yang ditandai; pengguna tidak bisa
+ * menyalakannya sendiri. Dijalankan tiap start supaya akun lama ikut tercentang.
+ */
+function migrateVerified(db: DB) {
+  const cols = (db.prepare('pragma table_info(users)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('verified')) db.exec('alter table users add column verified integer not null default 0');
+  const names = (process.env.VERIFIED_USERNAMES ?? 'masamune')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (names.length === 0) return;
+  db.prepare(`update users set verified = 1 where lower(username) in (${names.map(() => '?').join(',')})`).run(...names);
+}
+
+/** Visibilitas per aktivitas dan sembunyikan peta ditambahkan ke database lama. */
+function migrateActivityPrivacy(db: DB) {
+  const cols = (db.prepare('pragma table_info(activities)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('visibility')) db.exec("alter table activities add column visibility text not null default 'public'");
+  if (!cols.includes('hide_map')) db.exec('alter table activities add column hide_map integer not null default 0');
 }
 
 /**

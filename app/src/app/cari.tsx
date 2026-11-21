@@ -5,7 +5,7 @@ import { FlatList, Pressable, View } from 'react-native';
 
 import type { UserListItem } from '@shared/api';
 
-import { Avatar, Button, Card, Empty, ErrorBox, Field, Row, T } from '@/components/ui';
+import { Avatar, Button, Card, Empty, ErrorBox, Field, Row, T, Verified } from '@/components/ui';
 import { api } from '@/lib/api';
 import { space, useColors } from '@/lib/theme';
 
@@ -63,7 +63,10 @@ export default function SearchScreen() {
               <Row>
                 <Avatar name={item.name} uri={item.avatarUrl} size={44} />
                 <View style={{ flex: 1 }}>
-                  <T v="strong">{item.name}</T>
+                  <Row gap={4}>
+                    <T v="strong">{item.name}</T>
+                    {item.verified ? <Verified size={14} /> : null}
+                  </Row>
                   <T v="small">@{item.username}</T>
                 </View>
               </Row>

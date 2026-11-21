@@ -61,6 +61,8 @@ curl -s "$API/feed" -H "Authorization: Bearer TOKEN"
 | PUT | `/me/password` | ya | `{ ok: true }` |
 | PUT | `/me/device` | ya | `{ ok: true }` |
 | DELETE | `/me/device` | ya | `{ ok: true }` |
+| GET | `/me/export` | ya | arsip JSON semua data pengguna |
+| DELETE | `/me` | ya | `{ ok: true }` |
 | PUT | `/me/avatar` | ya | `Profile` |
 | DELETE | `/me/avatar` | ya | `Profile` |
 | PUT | `/me/cover` | ya | `Profile` |
@@ -200,7 +202,9 @@ Polling chat memakai `GET` (tiap 3 detik di layar percakapan, tiap 15 detik di d
 
 ## Pengguna dan teman
 
-Setiap `UserSummary` (`user` di aktivitas, komentar, rute, segmen, leaderboard, postingan, balasan, chat, serta baris `UserListItem`/`FollowItem`) berisi `id`, `username`, `name`, dan `avatarUrl`: alamat foto profil bertanda tangan, atau `null` bila belum ada foto. Satu-satunya yang tanpa `avatarUrl` adalah `user` di respons `POST /auth/register`.
+Setiap `UserSummary` (`user` di aktivitas, komentar, rute, segmen, leaderboard, postingan, balasan, chat, serta baris `UserListItem`/`FollowItem`) berisi `id`, `username`, `name`, `verified`, dan `avatarUrl`: alamat foto profil bertanda tangan, atau `null` bila belum ada foto. Satu-satunya yang tanpa `avatarUrl` adalah `user` di respons `POST /auth/register`.
+
+`verified` bernilai `true` untuk akun bercantang biru. Daftar username diatur server lewat env `VERIFIED_USERNAMES` (dipisah koma, bawaan `masamune`); pengguna tidak bisa menyalakannya sendiri. Akun lama ditandai saat server mulai.
 
 ### `GET /me`
 
@@ -218,6 +222,33 @@ Login. Badan `{ "currentPassword": "…", "newPassword": "…" }`.
 - `newPassword` memakai aturan yang sama dengan daftar (6–200 karakter, tidak mudah ditebak, dipakai apa adanya), dan harus berbeda dari yang sekarang: **400** *Kata sandi baru harus berbeda dari yang sekarang*.
 - Berhasil: hash kata sandi diganti, lalu **semua sesi lain** milik pengguna itu dihapus (HP atau browser lain harus masuk lagi, dan token notifikasinya ikut terhapus). Sesi yang dipakai untuk mengganti tetap berlaku. Respons `{ "ok": true }`.
 - Terkena batas laju tulis nginx (30 per menit per IP), seperti semua permintaan selain GET.
+
+### `GET /me/export`
+
+Login. Mengembalikan satu berkas JSON berisi data pengguna:
+
+| Kunci | Isi |
+| --- | --- |
+| `profil` | Username, nama, tanggal daftar, alamat foto profil dan sampul. |
+| `aktivitas` | Semua aktivitas, termasuk `jejak` GPS, split, pratinjau, visibilitas, dan `sembunyikanPeta`. |
+| `rekor` | Waktu terbaik per jarak. |
+| `rute`, `segmen`, `upayaSegmen` | Rute rencana, segmen yang dibuat, dan upaya segmen. |
+| `postingan`, `komentar`, `sukaPostingan`, `balasanPostingan` | Postingan beserta alamat foto, komentar, dan interaksi. |
+| `likeDiberi` | Aktivitas yang pernah diberi like. |
+| `mengikuti`, `pengikut` | Daftar teman dan tanggal mulai mengikuti. |
+| `pesanTerkirim` | Pesan chat yang **dikirim** pengguna; pesan dari orang lain tidak ikut. |
+| `diblokir` | Username yang diblokir. |
+
+Alamat foto di dalam arsip bertanda tangan dan berlaku sekitar dua minggu. Respons tidak disimpan di server.
+
+### `DELETE /me`
+
+Login. Menghapus akun beserta seluruh datanya secara permanen. Badan `{ "password": "…" }`.
+
+- Kata sandi dicek seperti saat masuk. Salah: **400** *Kata sandi salah*.
+- Baris pengguna dihapus; aktivitas, rute, segmen, upaya segmen, postingan, foto, komentar, like, pengikut, pesan, blokir, sesi, dan token notifikasi ikut terhapus lewat cascade.
+- Berkas foto (profil, sampul, foto postingan) dihapus dari folder unggahan setelah baris database hilang.
+- Respons `{ "ok": true }`. Sesi yang dipakai ikut hilang, jadi permintaan berikutnya dengan token itu dibalas 401.
 
 ### `GET /users?q=<teks>`
 
@@ -466,7 +497,9 @@ Body `NewActivity`:
     [[-7.8120, 110.9260, 1761631000000, null]]
   ],
   "routeId": 3,
-  "clientId": "m3k9x1-8fa2c7d1"
+  "clientId": "m3k9x1-8fa2c7d1",
+  "visibility": "followers",
+  "hideMap": false
 }
 ```
 
@@ -477,6 +510,8 @@ Body `NewActivity`:
 | `track` | Array bagian; tiap bagian array `TrackPoint`. Bagian baru dimulai setiap kali rekaman dilanjutkan setelah jeda. Bagian kosong dibuang. Waktu di dalam satu bagian tidak boleh mundur. Total titik 2–60.000. |
 | `routeId` | Opsional. Bila rute tidak ditemukan atau bukan milikmu, diam-diam disimpan sebagai `null`. |
 | `clientId` | Opsional, 1–64 karakter. Kunci idempoten dari app. Bila pengguna yang sama sudah punya aktivitas dengan `clientId` ini, server mengembalikan aktivitas itu dengan **200** tanpa membuat salinan. Kunci unik per pengguna, jadi dua pengguna boleh memakai nilai yang sama. |
+| `visibility` | Opsional, bawaan `public`. Lihat [Visibilitas aktivitas](#visibilitas-aktivitas). |
+| `hideMap` | Opsional, bawaan `false`. Bila `true`, orang lain tidak menerima garis rute. |
 
 Respons **201** `Activity` (lihat `GET /activities/:id`), atau **200** `Activity` yang sudah ada bila `clientId` sama.
 
@@ -506,11 +541,11 @@ Bila ditolak, rekaman di HP tidak hilang (statusnya tetap *selesai*), jadi pengg
 
 ### `GET /activities/:id`
 
-Semua pengguna yang login bisa membaca aktivitas siapa pun, tetapi jejak orang lain dipotong [zona privasi](#zona-privasi). Respons `Activity` = `ActivitySummary` ditambah:
+Aktivitas bisa dibaca bila pemiliknya mengizinkan: `public` untuk semua pengguna yang login, `followers` hanya untuk pengikut, `private` hanya pemilik. Aktivitas yang tidak boleh dilihat dibalas **404**, bukan 403, supaya keberadaannya tidak bocor. Jejak orang lain juga dipotong [zona privasi](#zona-privasi). Respons `Activity` = `ActivitySummary` ditambah:
 
 | Field | Arti |
 | --- | --- |
-| `track` | `TrackPoint[][]`. Lengkap untuk pemilik; untuk orang lain tanpa zona privasi di awal dan akhir (batas bagian tetap). |
+| `track` | `TrackPoint[][]`. Lengkap untuk pemilik; untuk orang lain tanpa zona privasi di awal dan akhir (batas bagian tetap), atau `[]` bila pemilik memilih **sembunyikan peta**. |
 | `maxSpeedMps` | Kecepatan maksimum (jendela ≥5 detik). |
 | `splits` | `Split[]`: `{ index, distanceM, elapsedS }` per km. |
 | `bestEfforts` | `BestEffort[]`: `{ name, distanceM, elapsedS, isPr }`, urut jarak. |
@@ -528,13 +563,37 @@ Awal dan akhir aktivitas sering berada di rumah. Karena itu, untuk aktivitas **o
 - Pemilik selalu menerima jejak penuh, termasuk dari `POST`/`PATCH /activities`. Layar buat segmen memakai indeks track penuh.
 - Angka ringkasan (jarak, waktu, split, waktu terbaik), pencocokan segmen, dan leaderboard tetap dihitung dari jejak penuh.
 
+### Visibilitas aktivitas
+
+Tiap aktivitas punya `visibility`:
+
+| Nilai | Siapa yang boleh melihat |
+| --- | --- |
+| `public` (bawaan) | Semua pengguna yang login. |
+| `followers` | Pemilik dan pengguna yang **mengikuti** pemilik. |
+| `private` | Hanya pemilik. |
+
+Aturan ini berlaku untuk detail aktivitas, feed, timeline, daftar aktivitas profil, statistik, like, komentar, dan leaderboard segmen. Aktivitas pribadi tetap dihitung dalam statistik dan rekor pemiliknya, tetapi tidak muncul di statistik atau papan peringkat orang lain.
+
+`sembunyikan peta` (`hideMap`) menyembunyikan **garis rute** dari orang lain: `preview` menjadi `[]` dan `track` menjadi `[]`, sedangkan jarak, waktu, split, dan waktu terbaik tetap terlihat. Pemilik selalu melihat petanya sendiri.
+
 ### `PATCH /activities/:id`
 
-Mengubah judul. Body `{ "title": "..." }` (1–100 karakter). Respons `Activity`. Belum dipakai app.
+Mengubah judul, visibilitas, atau sembunyikan peta. Semua field opsional; yang tidak dikirim tidak berubah. Respons `Activity`.
+
+```json
+{ "title": "Lari sore", "visibility": "followers", "hideMap": true }
+```
+
+| Field | Aturan |
+| --- | --- |
+| `title` | 1–100 karakter setelah di-trim. |
+| `visibility` | `public`, `followers`, atau `private`. |
+| `hideMap` | `true` atau `false`. |
 
 | Kode | Pesan |
 | --- | --- |
-| 400 | `Judul wajib diisi`, `Judul maksimal 100 karakter`, `Isi permintaan harus JSON` |
+| 400 | `Judul wajib diisi`, `Judul maksimal 100 karakter`, `Visibilitas harus public, followers, atau private`, `hideMap harus true atau false`, `Isi permintaan harus JSON` |
 | 403 | `Hanya pemilik yang bisa mengubah` |
 | 404 | `Aktivitas tidak ditemukan` |
 
@@ -751,6 +810,7 @@ Bentuk `Post`:
 | `activity` | `{ id, title, type }` aktivitas yang ditautkan, atau `null` (juga bila aktivitasnya sudah dihapus). |
 | `likes`, `hasLiked` | Jumlah suka dan apakah kamu sudah menyukai. |
 | `replies` | Jumlah balasan. |
+| `visibility` | `public`, `followers`, atau `private`. Lihat [Visibilitas postingan](#visibilitas-postingan). |
 
 ### `POST /posts`
 
@@ -762,6 +822,7 @@ Badan `multipart/form-data`:
 | `foto` | Opsional, 0–4 berkas (isian `foto` diulang). Aturan tiap berkas sama dengan [`PUT /me/avatar`](#put-meavatar-dan-put-mecover): JPEG, maksimal 2 MB, EXIF/XMP/IPTC dibuang. |
 | `segmentId` | Opsional. Segmen siapa pun. |
 | `activityId` | Opsional. Hanya aktivitas milikmu sendiri. App 0.2.0 belum memakainya. |
+| `visibility` | Opsional, bawaan `public`. `public`, `followers`, atau `private`. |
 
 ```bash
 curl -s -X POST "$API/posts" -H "Authorization: Bearer TOKEN" \
@@ -783,9 +844,29 @@ Respons **201** `Post`.
 
 Postingan dan fotonya disimpan dalam satu transaksi.
 
+### Visibilitas postingan
+
+| Nilai | Siapa yang boleh melihat |
+| --- | --- |
+| `public` (bawaan) | Semua pengguna yang login. |
+| `followers` | Penulis dan pengguna yang mengikuti penulis. |
+| `private` | Hanya penulis. |
+
+Aturan ini berlaku untuk `GET /posts/:id`, `GET /timeline`, `GET /segments/:id/posts`, suka, balasan, dan laporan. Postingan yang tidak boleh dilihat dibalas **404**.
+
 ### `GET /posts/:id`
 
-Respons `Post`. Semua pengguna yang login bisa membaca postingan siapa pun lewat id-nya. Error: **404** `Postingan tidak ditemukan`.
+Respons `Post` bila boleh dilihat. Error: **404** `Postingan tidak ditemukan`.
+
+### `PATCH /posts/:id`
+
+Hanya penulisnya. Mengubah visibilitas. Badan `{ "visibility": "followers" }`. Respons `Post`.
+
+| Kode | Pesan |
+| --- | --- |
+| 400 | `Visibilitas harus public, followers, atau private` |
+| 403 | `Hanya pemilik yang bisa mengubah` |
+| 404 | `Postingan tidak ditemukan` |
 
 ### `DELETE /posts/:id`
 

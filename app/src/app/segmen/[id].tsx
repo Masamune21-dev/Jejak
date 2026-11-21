@@ -24,6 +24,7 @@ import {
   Segmented,
   Stat,
   T,
+  Verified,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
@@ -132,10 +133,13 @@ export default function SegmentScreen() {
                 <Rank rank={r.rank} />
                 <Avatar name={r.user.name} uri={r.user.avatarUrl} size={36} />
                 <View style={{ flex: 1 }}>
-                  <T v="strong" numberOfLines={1}>
-                    {r.user.name}
-                    {r.user.id === me.id ? ' (kamu)' : ''}
-                  </T>
+                  <Row gap={4}>
+                    <T v="strong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                      {r.user.name}
+                    </T>
+                    {r.user.verified ? <Verified size={14} /> : null}
+                    {r.user.id === me.id ? <T v="strong">(kamu)</T> : null}
+                  </Row>
                   <T v="small">
                     {dateShort(r.date)}, {tempoOf(r)}
                   </T>

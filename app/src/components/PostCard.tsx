@@ -14,7 +14,7 @@ import { TYPE_ICON, when } from '@/lib/format';
 import { font, IMAGE_FADE, radius, space, useColors } from '@/lib/theme';
 
 import Sheet from './Sheet';
-import { Avatar, Card, Row, T } from './ui';
+import { Avatar, Card, Row, T, Verified } from './ui';
 
 /** Segarkan semua daftar yang bisa memuat postingan. */
 export function useRefreshPosts() {
@@ -62,10 +62,22 @@ export default function PostCard({ post, detail }: { post: Post; detail?: boolea
             <Avatar name={post.user.name} uri={post.user.avatarUrl} size={40} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <T v="strong" numberOfLines={1}>
-              {post.user.name}
-            </T>
-            <T v="small">{when(post.createdAt)}</T>
+            <Row gap={4}>
+              <T v="strong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {post.user.name}
+              </T>
+              {post.user.verified ? <Verified size={14} /> : null}
+            </Row>
+            <Row gap={5}>
+              <T v="small">{when(post.createdAt)}</T>
+              {post.visibility !== 'public' ? (
+                <Ionicons
+                  name={post.visibility === 'private' ? 'lock-closed' : 'people-outline'}
+                  size={12}
+                  color={c.muted}
+                />
+              ) : null}
+            </Row>
           </View>
           <Pressable onPress={() => setMenu(true)} hitSlop={10} accessibilityLabel="Pilihan postingan">
             <Ionicons name="ellipsis-horizontal" size={20} color={c.muted} />

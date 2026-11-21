@@ -15,6 +15,10 @@ Daftar ini disusun dari kebutuhan nyata pelari dan pesepeda di Indonesia, dimula
 | Tema dan warna (0.2.0) | Gelap, terang, atau ikuti HP, dengan 5 warna aksen. |
 | Zona privasi rumah | 300 m pertama dan terakhir jalur disembunyikan dari orang lain (paling banyak seperempat jarak), supaya alamat tidak terbaca dari peta. |
 | Antrean unggah otomatis (belum rilis) | Rekaman yang gagal diunggah saat sinyal buruk disimpan di HP, lalu dicoba lagi otomatis saat app dibuka atau kembali aktif. Kartu di Beranda menampilkan sisa antrean dengan tombol coba lagi dan hapus. `clientId` membuat unggahan ulang tidak menghasilkan aktivitas ganda. |
+| Visibilitas aktivitas (belum rilis) | Publik, pengikut, atau pribadi untuk setiap aktivitas, plus sakelar sembunyikan peta. Aktivitas pribadi tidak muncul di feed, statistik orang lain, atau leaderboard. |
+| Ekspor data dan hapus akun (belum rilis) | Unduh semua data sebagai satu berkas JSON dari layar Akun; hapus akun beserta seluruh datanya dari dalam app. |
+| Jeda otomatis (belum rilis) | Stopwatch berhenti setelah diam sekitar 10 detik dan lanjut saat bergerak lagi minimal 8 m. Bisa dimatikan di layar rekam. |
+| Impor GPX/FIT (belum rilis) | Baca berkas GPX atau FIT dari jam GPS, pilih jenis dan judul, lalu unggah seperti rekaman biasa. Tanpa sinyal masuk antrean unggah. |
 
 ## Disarankan berikutnya
 
@@ -52,34 +56,26 @@ Atur target ("5:30/km") dengan getar saat terlalu cepat atau lambat; latihan int
 Ketinggian GPS HP kurang akurat. Ambil ketinggian dari data elevasi terbuka (SRTM/Open-Elevation) di server, lalu tampilkan grafik elevasi dan kemiringan per segmen.
 - Usaha: sedang.
 
-### 8. Impor dari jam pintar
-Impor file GPX/FIT dari Garmin, Coros, Huawei, Amazfit; nantinya sinkron otomatis lewat Health Connect (Android).
-- Usaha: sedang untuk impor file, besar untuk sinkron. Butuh build: ya untuk Health Connect.
-
-### 9. Detak jantung
+### 8. Detak jantung
 Sambungkan sabuk/gelang detak jantung lewat Bluetooth, lalu tampilkan zona detak jantung di aktivitas.
 - Usaha: besar. Butuh build: ya.
 
 ## Keamanan dan privasi
 
-### 10. Visibilitas aktivitas
-Pilihan publik, teman saja, atau pribadi untuk setiap aktivitas.
-- Usaha: kecil.
-
-### 11. Lacak langsung (beacon)
+### 9. Lacak langsung (beacon)
 Kirim tautan lokasi langsung ke keluarga saat lari malam atau gowes jauh; berhenti otomatis saat rekaman selesai.
 - Usaha: sedang.
 
 ## Motivasi
 
-### 12. Lencana lokal
+### 10. Lencana lokal
 "Pelari Subuh" (mulai sebelum 05.30), "Penakluk Tanjakan" (tanjakan > 300 m sebulan), "Rantai Mingguan" (aktif 4 minggu berturut-turut). Tampil di profil dan bisa ikut dibagikan ke foto.
 - Usaha: kecil–sedang.
 
-### 13. Template bagikan tambahan
+### 11. Template bagikan tambahan
 "Struk belanja" (statistik seperti struk minimarket, sedang tren), "Tiket kereta" (asal dan tujuan rute), dan video singkat garis rute yang tergambar perlahan.
 - Usaha: kecil per template; video besar.
 
-### 14. Peta jejak pribadi
+### 12. Peta jejak pribadi
 Semua jalur yang pernah dilewati ditumpuk jadi satu peta (heatmap), sehingga terlihat jalan mana yang belum pernah dijelajahi.
 - Usaha: sedang.

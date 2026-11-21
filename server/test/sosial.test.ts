@@ -226,3 +226,43 @@ test('chat: hanya saling mengikuti, belum dibaca, polling, blokir', async () => 
   await call('DELETE', `/users/${ani.user.id}/block`, budi.token);
   assert.equal((await call('POST', `/users/${budi.user.id}/follow`, ani.token)).status, 200);
 });
+
+test('postingan: publik, pengikut, dan pribadi', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  const ika = await register('ika');
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+
+  const make = async (body: string, visibility: string) => {
+    const form = new FormData();
+    form.append('body', body);
+    form.append('visibility', visibility);
+    return (await call<Post>('POST', '/posts', dicky.token, form)).body;
+  };
+  const pub = await make('publik', 'public');
+  const fol = await make('pengikut', 'followers');
+  const priv = await make('pribadi', 'private');
+  assert.equal(pub.visibility, 'public');
+  assert.equal(fol.visibility, 'followers');
+  assert.equal(priv.visibility, 'private');
+
+  const ids = (items: TimelineItem[]) => items.filter((x) => x.kind === 'post').map((x) => x.id);
+  assert.deepEqual((await call<TimelineItem[]>('GET', '/timeline', dicky.token)).body.filter((x) => x.kind === 'post').length, 3);
+  assert.deepEqual(ids((await call<TimelineItem[]>('GET', '/timeline', fajar.token)).body).sort(), [pub.id, fol.id].sort());
+  assert.deepEqual(ids((await call<TimelineItem[]>('GET', '/timeline', ika.token)).body), []);
+
+  assert.equal((await call('GET', `/posts/${pub.id}`, ika.token)).status, 200);
+  assert.equal((await call('GET', `/posts/${fol.id}`, ika.token)).status, 404);
+  assert.equal((await call('GET', `/posts/${priv.id}`, fajar.token)).status, 404);
+  assert.equal((await call('POST', `/posts/${priv.id}/like`, fajar.token)).status, 404);
+  assert.equal((await call('POST', `/posts/${priv.id}/replies`, fajar.token, { body: 'x' })).status, 404);
+
+  const changed = await call<Post>('PATCH', `/posts/${fol.id}`, dicky.token, { visibility: 'private' });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.body.visibility, 'private');
+  assert.equal((await call('GET', `/posts/${fol.id}`, fajar.token)).status, 404);
+  assert.equal((await call('PATCH', `/posts/${pub.id}`, fajar.token, { visibility: 'private' })).status, 403);
+  assert.equal((await call('PATCH', `/posts/${pub.id}`, dicky.token, { visibility: 'teman' })).status, 400);
+  assert.equal((await call('POST', '/posts', dicky.token, new FormData())).status, 400);
+});

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ChatMessage, Profile } from '@shared/api';
 
-import { Avatar, ErrorBox, KeyboardAvoid, Loading, T } from '@/components/ui';
+import { Avatar, ErrorBox, KeyboardAvoid, Loading, Row, T, Verified } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { font, radius, space, useColors } from '@/lib/theme';
@@ -133,9 +133,12 @@ export default function ChatScreen() {
             p ? (
               <Pressable onPress={() => router.push(`/atlet/${p.id}`)} style={styles.title} accessibilityRole="link">
                 <Avatar name={p.name} uri={p.avatarUrl} size={30} />
-                <Text style={{ color: c.text, fontFamily: font.bold, fontSize: 16 }} numberOfLines={1}>
-                  {p.name}
-                </Text>
+                <Row gap={4}>
+                  <Text style={{ color: c.text, fontFamily: font.bold, fontSize: 16 }} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                  {p.verified ? <Verified size={14} /> : null}
+                </Row>
               </Pressable>
             ) : null,
         }}

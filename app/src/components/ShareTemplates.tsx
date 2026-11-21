@@ -17,6 +17,9 @@ export interface TemplateProps {
   a: ActivitySummary;
   w: number;
   h: number;
+  /** Warna aksen tema; template memakai warna tema + putih, bukan warna merek tetap. */
+  accent: string;
+  accentInk: string;
 }
 
 export type TemplateKey = 'bib' | 'rute' | 'patok' | 'rambu';
@@ -37,7 +40,21 @@ function stats(a: ActivitySummary) {
 }
 
 /** Garis rute putih dengan bayangan, untuk ditimpa ke foto. */
-function RouteLine({ a, w, h, stroke, pad }: { a: ActivitySummary; w: number; h: number; stroke: number; pad: number }) {
+function RouteLine({
+  a,
+  w,
+  h,
+  stroke,
+  pad,
+  accent,
+}: {
+  a: ActivitySummary;
+  w: number;
+  h: number;
+  stroke: number;
+  pad: number;
+  accent: string;
+}) {
   const r = routePath(a.preview, w, h, pad);
   if (!r) return null;
   return (
@@ -52,23 +69,23 @@ function RouteLine({ a, w, h, stroke, pad }: { a: ActivitySummary; w: number; h:
         strokeLinejoin="round"
       />
       <Path d={r.d} fill="none" stroke="#fff" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx={r.start[0]} cy={r.start[1]} r={stroke * 1.3} fill={ROAD.rambu} stroke="#fff" strokeWidth={stroke * 0.5} />
-      <Circle cx={r.end[0]} cy={r.end[1]} r={stroke * 1.3} fill={ROAD.patok} stroke="#fff" strokeWidth={stroke * 0.5} />
+      <Circle cx={r.start[0]} cy={r.start[1]} r={stroke * 1.3} fill={accent} stroke="#fff" strokeWidth={stroke * 0.5} />
+      <Circle cx={r.end[0]} cy={r.end[1]} r={stroke * 1.3} fill={accent} stroke="#fff" strokeWidth={stroke * 0.5} />
     </Svg>
   );
 }
 
-function Wordmark({ k, color = '#fff' }: { k: number; color?: string }) {
+function Wordmark({ k, accent, color = '#fff' }: { k: number; accent: string; color?: string }) {
   return (
     <Text style={{ fontFamily: font.display, fontSize: 24 * k, color, textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 6 }}>
-      jejak<Text style={{ color: ROAD.marka }}>.</Text>
+      jejak<Text style={{ color: accent }}>.</Text>
     </Text>
   );
 }
 
 // --- 1. Nomor dada: kertas lomba putih dengan lubang peniti ---
 
-function BibTemplate({ a, w, h }: TemplateProps) {
+function BibTemplate({ a, w, h, accent, accentInk }: TemplateProps) {
   const k = w / 360;
   const s = stats(a);
   const bw = w * 0.76;
@@ -76,15 +93,15 @@ function BibTemplate({ a, w, h }: TemplateProps) {
   return (
     <View style={StyleSheet.absoluteFill}>
       <View style={{ position: 'absolute', top: 18 * k, left: 18 * k }}>
-        <Wordmark k={k} />
+        <Wordmark k={k} accent={accent} />
       </View>
       <View
         style={[
           styles.bib,
           { width: bw, left: (w - bw) / 2, bottom: h * 0.07, borderRadius: 8 * k, transform: [{ rotate: '-3deg' }] },
         ]}>
-        <View style={{ backgroundColor: ROAD.patok, paddingVertical: 8 * k, paddingHorizontal: 26 * k }}>
-          <Text style={{ color: '#fff', fontFamily: font.black, fontSize: 13 * k }} numberOfLines={1}>
+        <View style={{ backgroundColor: accent, paddingVertical: 8 * k, paddingHorizontal: 26 * k }}>
+          <Text style={{ color: accentInk, fontFamily: font.black, fontSize: 13 * k }} numberOfLines={1}>
             {a.title}
           </Text>
         </View>
@@ -123,17 +140,17 @@ function BibStat({ k, label, value }: { k: number; label: string; value: string 
 
 // --- 2. Rute: garis rute besar + statistik di pita bawah ---
 
-function RouteTemplate({ a, w, h }: TemplateProps) {
+function RouteTemplate({ a, w, h, accent }: TemplateProps) {
   const k = w / 360;
   const s = stats(a);
   const band = 92 * k;
   return (
     <View style={StyleSheet.absoluteFill}>
       <View style={{ position: 'absolute', top: 18 * k, left: 18 * k }}>
-        <Wordmark k={k} />
+        <Wordmark k={k} accent={accent} />
       </View>
       <View style={{ position: 'absolute', top: 56 * k, left: 0 }}>
-        <RouteLine a={a} w={w} h={h - band - 70 * k} stroke={5 * k} pad={36 * k} />
+        <RouteLine a={a} w={w} h={h - band - 70 * k} stroke={5 * k} pad={36 * k} accent={accent} />
       </View>
       <View style={[styles.band, { height: band, paddingHorizontal: 18 * k }]}>
         <BandStat k={k} label="Jarak" value={s.dist.value} unit={s.dist.unit} />
@@ -158,7 +175,7 @@ function BandStat({ k, label, value, unit }: { k: number; label: string; value: 
 
 // --- 3. Patok KM: tugu kilometer pinggir jalan ---
 
-function PatokTemplate({ a, w, h }: TemplateProps) {
+function PatokTemplate({ a, w, h, accent, accentInk }: TemplateProps) {
   const k = w / 360;
   const s = stats(a);
   const pw = 128 * k;
@@ -167,7 +184,7 @@ function PatokTemplate({ a, w, h }: TemplateProps) {
   return (
     <View style={StyleSheet.absoluteFill}>
       <View style={{ position: 'absolute', top: 18 * k, right: 18 * k }}>
-        <Wordmark k={k} />
+        <Wordmark k={k} accent={accent} />
       </View>
       <View
         style={{
@@ -183,11 +200,11 @@ function PatokTemplate({ a, w, h }: TemplateProps) {
             style={{
               height: ph * 0.36,
               alignSelf: 'stretch',
-              backgroundColor: ROAD.patok,
+              backgroundColor: accent,
               alignItems: 'center',
               justifyContent: 'flex-end',
             }}>
-            <Text style={{ color: '#fff', fontFamily: font.display, fontSize: 22 * k, paddingBottom: 4 * k }}>
+            <Text style={{ color: accentInk, fontFamily: font.display, fontSize: 22 * k, paddingBottom: 4 * k }}>
               {TYPE_LABEL[a.type].split(' ')[0].toUpperCase()}
             </Text>
           </View>
@@ -218,22 +235,26 @@ function PatokTemplate({ a, w, h }: TemplateProps) {
 
 // --- 4. Rambu: papan petunjuk arah hijau berisi "tujuan" dan jaraknya ---
 
-function RambuTemplate({ a, w, h }: TemplateProps) {
+function RambuTemplate({ a, w, h, accent, accentInk }: TemplateProps) {
   const k = w / 360;
   const s = stats(a);
   const row = (label: string, value: string) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <Text style={{ color: '#fff', fontFamily: font.bold, fontSize: 17 * k }}>{label}</Text>
-      <Text style={{ color: '#fff', fontFamily: font.display, fontSize: 30 * k }}>{value}</Text>
+      <Text style={{ color: accentInk, fontFamily: font.bold, fontSize: 17 * k }}>{label}</Text>
+      <Text style={{ color: accentInk, fontFamily: font.display, fontSize: 30 * k }}>{value}</Text>
     </View>
   );
   return (
     <View style={StyleSheet.absoluteFill}>
-      <View style={[styles.plate, { left: 18 * k, right: 18 * k, bottom: h * 0.06, borderRadius: 12 * k, padding: 5 * k }]}>
+      <View
+        style={[
+          styles.plate,
+          { left: 18 * k, right: 18 * k, bottom: h * 0.06, borderRadius: 12 * k, padding: 5 * k, backgroundColor: accent },
+        ]}>
         <View style={{ borderWidth: 3 * k, borderColor: '#fff', borderRadius: 9 * k, padding: 14 * k, gap: 4 * k }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * k, marginBottom: 4 * k }}>
-            <Ionicons name="arrow-up" size={34 * k} color="#fff" />
-            <Text style={{ flex: 1, color: '#fff', fontFamily: font.black, fontSize: 20 * k }} numberOfLines={2}>
+            <Ionicons name="arrow-up" size={34 * k} color={accentInk} />
+            <Text style={{ flex: 1, color: accentInk, fontFamily: font.black, fontSize: 20 * k }} numberOfLines={2}>
               {a.title}
             </Text>
           </View>
@@ -241,10 +262,10 @@ function RambuTemplate({ a, w, h }: TemplateProps) {
           {row('Waktu', s.time)}
           {row(s.tempo.label, `${s.tempo.value} ${s.tempo.unit}`.trim())}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 * k }}>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontFamily: font.medium, fontSize: 11 * k }}>
+            <Text style={{ color: accentInk, opacity: 0.8, fontFamily: font.medium, fontSize: 11 * k }}>
               {a.user.name}, {dateShort(a.startedAt)}
             </Text>
-            <Text style={{ color: '#fff', fontFamily: font.display, fontSize: 14 * k }}>jejak.</Text>
+            <Text style={{ color: accentInk, fontFamily: font.display, fontSize: 14 * k }}>jejak.</Text>
           </View>
         </View>
       </View>
@@ -253,7 +274,7 @@ function RambuTemplate({ a, w, h }: TemplateProps) {
 }
 
 /** Latar bila belum ada foto: aspal dengan garis kontur samar dan garis rute pudar. */
-export function PlainBackground({ a, w, h, faintRoute = true }: TemplateProps & { faintRoute?: boolean }) {
+export function PlainBackground({ a, w, h, accent, faintRoute = true }: TemplateProps & { faintRoute?: boolean }) {
   const lines = Array.from({ length: 9 }, (_, i) => {
     const y = (h / 9) * i + 20;
     return `M -20 ${y} C ${w * 0.3} ${y - 40}, ${w * 0.6} ${y + 50}, ${w + 20} ${y - 10}`;
@@ -268,7 +289,7 @@ export function PlainBackground({ a, w, h, faintRoute = true }: TemplateProps & 
         {r ? (
           <Path
             d={r.d}
-            stroke={ROAD.marka}
+            stroke={accent}
             strokeOpacity={0.25}
             strokeWidth={10}
             fill="none"
@@ -314,7 +335,6 @@ const styles = StyleSheet.create({
   },
   plate: {
     position: 'absolute',
-    backgroundColor: ROAD.rambu,
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowRadius: 12,

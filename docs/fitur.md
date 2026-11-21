@@ -138,7 +138,8 @@ Layar `(tabs)/rekam.tsx`, dengan logika di `lib/recorder.ts`.
 1. **Pilih jenis**: Lari, Bersepeda, atau Jalan kaki.
 2. **Pilih rute** (opsional): ketuk baris **Rute**. Pilih *Bebas, tanpa rute* atau salah satu rute yang sudah kamu simpan (baris lalu bertuliskan *Nama rute, 5,20 km*). Jenis aktivitas otomatis mengikuti jenis rute yang dipilih.
 3. Bila memilih rute, peta menampilkan garis rute (biru) dan banner berwarna aksen berisi nama rute serta posisimu terhadap rute: *Kamu sudah di rute. Total X* (dalam 40 m dari garis) atau *Titik terdekat rute X dari sini. Total Y*.
-4. Ketuk tombol besar **Mulai lari / bersepeda / jalan kaki**.
+4. **Jeda otomatis** (bawaan menyala): stopwatch berhenti sendiri saat kamu diam, lalu lanjut saat bergerak lagi. Bisa dimatikan di panel yang sama.
+5. Ketuk tombol besar **Mulai lari / bersepeda / jalan kaki**.
 
 Saat pertama kali, app meminta izin lokasi. Di APK yang dibangun sendiri, app juga menanyakan izin lokasi latar (*Izinkan sepanjang waktu*) **satu kali saja**. Di Android 11 ke atas permintaan ini membuka halaman Pengaturan.
 
@@ -157,7 +158,17 @@ Bila izin ditolak atau GPS gagal menyala, pesan error tampil di panel dan rekama
 - Peta mengikuti posisimu. Jalur yang sudah terekam digambar dengan warna aksen.
 - Tombol **Jeda** menghentikan GPS dan stopwatch.
 
-Tidak ada jeda otomatis: berdiri diam tetap menambah stopwatch. Namun saat aktivitas disimpan, server menghitung **waktu bergerak** terpisah (lihat [algoritma.md](algoritma.md#waktu-bergerak)).
+### Jeda otomatis
+
+Sakelar **Jeda otomatis** di panel sebelum mulai (bawaan menyala) membuat stopwatch berhenti sendiri setelah posisi tidak bergerak lebih dari 3 m selama sekitar 10 detik. GPS tetap berjalan, jadi app tahu kapan kamu mulai bergerak lagi.
+
+- Saat beku, label stopwatch berubah **Jeda otomatis**, angkanya berhenti, dan peta tetap menampilkan posisimu.
+- Hitungan lanjut otomatis setelah kamu bergerak minimal 8 m dari titik berhenti. Jalur setelahnya menjadi bagian baru, sehingga waktu diam tidak masuk waktu aktif.
+- Tombol **Lanjut** bisa memaksa hitungan hidup kembali tanpa menunggu gerakan.
+- Mematikan sakelar saat sedang beku langsung melanjutkan hitungan.
+- Pilihan disimpan di HP dan berlaku untuk rekaman berikutnya.
+
+Selain itu, saat aktivitas disimpan server tetap menghitung **waktu bergerak** terpisah (lihat [algoritma.md](algoritma.md#waktu-bergerak)).
 
 ### Saat dijeda
 
@@ -278,7 +289,12 @@ Layar `aktivitas/[id]/index.tsx`.
 
 Rumus lengkapnya ada di [algoritma.md](algoritma.md).
 
-**Khusus pemilik**, tepat di bawah angka utama: tombol **Bagikan** (lihat [Bagikan ke foto](#bagikan-ke-foto)) dan **Ekspor GPX** (lihat [Ekspor GPX](#ekspor-gpx)).
+**Khusus pemilik**, tepat di bawah angka utama: tombol **Bagikan** (lihat [Bagikan ke foto](#bagikan-ke-foto)) dan **Ekspor GPX** (lihat [Ekspor GPX](#ekspor-gpx)). Di bawahnya ada kartu privasi aktivitas:
+
+- **Siapa yang bisa melihat**: **Publik** (semua pengguna Jejak), **Pengikut** (hanya pengikut), atau **Pribadi** (hanya pemilik). Perubahan langsung disimpan. Aktivitas pribadi tidak muncul di feed, statistik orang lain, atau leaderboard.
+- **Sembunyikan peta**: sakelar yang membuat orang lain tidak melihat garis rute; jarak, waktu, dan split tetap terlihat. Pemilik selalu melihat petanya sendiri. Orang lain melihat keterangan *Peta aktivitas ini disembunyikan oleh pemiliknya.*
+
+Untuk aktivitas orang lain, tepi awal dan akhir jalur tetap dipotong oleh [zona privasi](#zona-privasi) 300 m.
 
 **Like**: jumlah like dan nama depan pemberinya (hingga 50 terbaru). Untuk aktivitas orang lain ada tombol **Beri like** / **Sudah** (ketuk lagi untuk membatalkan). Di API dan database namanya tetap `kudos`.
 
@@ -409,6 +425,19 @@ Bila gagal, pesan error tampil di bawah tombol.
 
 ---
 
+## Impor GPX/FIT
+
+Tombol **Impor GPX/FIT dari jam GPS** di layar rekam membuka layar **Impor aktivitas** (`impor.tsx`). Pilih berkas `.gpx` atau `.fit` hasil ekspor jam atau aplikasi lain (Garmin, COROS, Huawei, Amazfit, dan sebagainya).
+
+- **GPX**: membaca setiap `<trkseg>` dan `<trkpt>` beserta waktu dan ketinggian. Jeda lebih dari 2 menit dipecah menjadi bagian baru.
+- **FIT**: membaca pesan *record* (waktu, posisi, ketinggian) dari berkas biner FIT. Data lain seperti detak jantung dan cadence belum diimpor.
+- Jenis aktivitas ditebak dari `<type>` GPX (running/cycling/walking); bila tidak ada, pilih manual. Judul diambil dari `<name>` atau nama berkas dan bisa diubah.
+- Layar menampilkan jumlah titik, jarak, dan waktu sebelum disimpan.
+- **Simpan aktivitas** mengirim jejak apa adanya ke server, tanpa menghitung ulang jarak. Bila server tidak bisa dihubungi, aktivitas masuk [antrean unggah](#simpan-atau-buang) dan terunggah otomatis.
+- Berkas tanpa waktu atau tanpa minimal 2 titik ditolak dengan pesan yang jelas.
+
+---
+
 ## Membuat segmen
 
 Layar `aktivitas/[id]/segmen.tsx`, dibuka dari detail aktivitasmu sendiri.
@@ -466,7 +495,7 @@ Setiap kartu: cuplikan peta (garis ungu), nama, lalu panjang dan jumlah atlet (*
 Bagian atas (hero):
 
 - **foto sampul** sebagai latar (bila ada) atau gradasi bersemu warna aksen. Di atas foto sampul ada gradasi gelap supaya teks terbaca, dan baris angka di bawah (Aktivitas / Jarak / Waktu) diberi **blur** dari foto di belakangnya. Blur memakai `expo-blur`; di Android 11 ke bawah blur tidak aktif dan yang tersisa lapisan tembus pandang serta gradasi gelap;
-- **foto profil** (atau inisial berwarna bila belum ada foto), nama, `@username`;
+- **foto profil** (atau inisial berwarna bila belum ada foto), nama, `@username`. Akun terverifikasi menampilkan **centang biru** di samping nama; tanda yang sama muncul di kartu aktivitas, postingan, komentar, leaderboard, dan pesan;
 - jumlah **pengikut** dan **mengikuti**. Ketuk salah satunya untuk membuka [daftar pengikut / mengikuti](#pengikut-dan-mengikuti);
 - di profil orang lain: tombol **Ikuti / Mengikuti**, ikon **Kirim pesan** (hanya bila kalian saling mengikuti dan tidak ada blokir; membuka [percakapan](#pesan-chat)), dan ikon **…** berisi **Blokir** (dengan konfirmasi: *Blokir …? Kalian berhenti saling mengikuti dan tidak bisa saling mengirim pesan.*). Profil yang kamu blokir hanya menampilkan tombol **Buka blokir**;
 - total semua jenis: **Aktivitas**, **Jarak**, **Waktu** bergerak;
@@ -529,9 +558,10 @@ Postingan pendek ala X: teks sampai 500 karakter, sampai 4 foto, dan bisa menand
 Layar `tulis.tsx` (judul **Tulis postingan**), dibuka dari kotak **Tulis** di Aksi cepat Beranda, atau dari tombol **Tulis** di bagian Diskusi halaman segmen.
 
 1. Ketik teks. Penghitung *N/500* di kanan bawah kotak berubah merah bila lewat 500 karakter, dan tombol **Kirim** nonaktif.
-2. **Foto (N/4)** membuka galeri, **Kamera** membuka kamera (tidak ada di web). Foto diperkecil ke lebar 1600 px dan disimpan ulang sebagai JPEG sebelum diunggah, jadi data lokasi GPS di foto terbuang. Foto tidak dipotong. Ketuk **×** di pojok foto untuk membatalkannya.
-3. Bila dibuka dari halaman segmen, muncul tanda segmen (ikon bendera + nama). Ketuk **×** di tanda itu bila tidak ingin menandai segmen. Dari Beranda belum bisa memilih segmen.
-4. Tekan **Kirim**. Tombol aktif bila ada teks atau minimal satu foto. Setelah terkirim, layar kembali ke halaman sebelumnya (atau ke Beranda) dan daftar postingan disegarkan.
+2. **Siapa yang bisa melihat**: **Publik** (semua pengguna), **Pengikut** (hanya pengikutmu), atau **Pribadi** (hanya kamu). Bawaan publik. Postingan pribadi tidak muncul di Beranda atau Diskusi segmen.
+3. **Foto (N/4)** membuka galeri, **Kamera** membuka kamera (tidak ada di web). Foto diperkecil ke lebar 1600 px dan disimpan ulang sebagai JPEG sebelum diunggah, jadi data lokasi GPS di foto terbuang. Foto tidak dipotong. Ketuk **×** di pojok foto untuk membatalkannya.
+4. Bila dibuka dari halaman segmen, muncul tanda segmen (ikon bendera + nama). Ketuk **×** di tanda itu bila tidak ingin menandai segmen. Dari Beranda belum bisa memilih segmen.
+5. Tekan **Kirim**. Tombol aktif bila ada teks atau minimal satu foto. Setelah terkirim, layar kembali ke halaman sebelumnya (atau ke Beranda) dan daftar postingan disegarkan.
 
 Kotak keterangan di bawah mengingatkan siapa yang bisa melihat postingan dan bahwa lokasi di foto dihapus.
 
@@ -539,7 +569,7 @@ Kotak keterangan di bawah mengingatkan siapa yang bisa melihat postingan dan bah
 
 Di Beranda, Diskusi segmen, dan layar detail postingan:
 
-- foto profil dan nama penulis (ketuk untuk membuka profilnya) dan waktu (*Hari ini pukul 07.01*, *Kemarin pukul 16.40*, *3 hari lalu*, atau tanggal);
+- foto profil dan nama penulis (ketuk untuk membuka profilnya), centang biru bila akun terverifikasi, dan waktu (*Hari ini pukul 07.01*, *Kemarin pukul 16.40*, *3 hari lalu*, atau tanggal). Ikon gembok/orang di samping waktu menandai postingan pribadi atau khusus pengikut;
 - teks (di feed dipotong 8 baris; lengkap di layar detail);
 - foto: satu foto 4:3; dua atau empat foto berpetak persegi; tiga foto dengan foto pertama melebar 16:9;
 - tanda **segmen** (ketuk untuk membuka segmen) dan, bila ada, tanda aktivitas;
@@ -586,10 +616,12 @@ Dari ikon **…** di profil orang lain. Blokir memutus saling mengikuti dari ked
 
 Layar `pengaturan.tsx` (judul **Pengaturan**), dibuka dari ikon roda gigi di kanan atas tab Profil.
 
-**Akun** (paling atas): kartu berisi nama dan @username dengan tulisan *Ganti nama atau kata sandi*, membuka layar `akun.tsx` (judul **Akun**, sejak 0.3.1):
+**Akun** (paling atas): kartu berisi nama dan @username dengan tulisan *Nama, kata sandi, ekspor data*, membuka layar `akun.tsx` (judul **Akun**, sejak 0.3.1):
 
 - **Nama tampilan**: kolom nama (1–50 karakter) dan tombol **Simpan nama** (aktif bila nama berubah). Berhasil: *Nama disimpan.*; nama baru langsung dipakai di Beranda dan data lain diambil ulang. Di bawah kolom: *Username @… tidak bisa diganti.*
 - **Kata sandi**: **Kata sandi sekarang**, **Kata sandi baru**, **Ulangi kata sandi baru**, dan tombol **Ganti kata sandi**. Aturan kata sandi baru sama dengan saat daftar, dan harus berbeda dari yang sekarang. Pesan bila gagal: *Kata sandi baru dan ulangannya tidak sama* (dicek app), *Kata sandi sekarang salah*, atau aturan kata sandi dari server. Berhasil: kolom dikosongkan dan tampil *Kata sandi diganti. HP dan browser lain yang masuk dengan akun ini sudah dikeluarkan.*; HP yang dipakai mengganti tetap masuk.
+- **Data saya**: tombol **Ekspor semua data** mengunduh satu berkas `jejak-<username>-<tanggal>.json` berisi profil, aktivitas beserta jejak GPS, rute, segmen, postingan, komentar, like, daftar teman, dan pesan yang dikirim. Di HP berkas dibuka lewat lembar berbagi; di web langsung terunduh. Tautan foto di dalamnya berlaku sekitar dua minggu.
+- **Hapus akun**: kolom **Kata sandi** dan tombol merah **Hapus akun permanen**. Setelah konfirmasi yang menyebutkan semua data yang ikut terhapus, akun dan seluruh datanya dihapus dari server; app kembali ke layar masuk. Kata sandi salah ditolak dengan *Kata sandi salah* dan tidak ada yang terhapus.
 
 **Tampilan**:
 

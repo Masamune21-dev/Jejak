@@ -38,7 +38,7 @@ export default function ShareScreen() {
   const [index, setIndex] = useState(0);
   const [ratio, setRatio] = useState<Ratio>('story');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [lineKey, setLineKey] = useState<'oranye' | 'putih' | 'tema'>('oranye');
+  const [lineKey, setLineKey] = useState<'putih' | 'tema'>('tema');
   const [busy, setBusy] = useState<Busy>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const canvas = useRef<ComponentRef<typeof View>>(null);
@@ -59,7 +59,7 @@ export default function ShareScreen() {
   const ch = cw / r;
   const shrink = w / cw;
   const item = ITEMS[index];
-  const lines = { oranye: '#FF5A1F', putih: '#FFFFFF', tema: c.accent };
+  const lines = { putih: '#FFFFFF', tema: c.accent };
   const line = lines[lineKey];
 
   const pick = async (camera: boolean) => {
@@ -125,11 +125,11 @@ export default function ShareScreen() {
             {photo ? (
               <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
             ) : it.kind === 'template' ? (
-              <PlainBackground a={a} w={cw} h={ch} faintRoute={it.key !== 'rute'} />
+              <PlainBackground a={a} w={cw} h={ch} accent={c.accent} accentInk={c.accentInk} faintRoute={it.key !== 'rute'} />
             ) : null}
             {it.kind === 'sticker'
               ? STICKERS.find((s) => s.key === it.key)!.render({ a, w: cw, h: ch, line })
-              : TEMPLATES.find((t) => t.key === it.key)!.render({ a, w: cw, h: ch })}
+              : TEMPLATES.find((t) => t.key === it.key)!.render({ a, w: cw, h: ch, accent: c.accent, accentInk: c.accentInk })}
           </View>
         </View>
       </View>
@@ -200,7 +200,6 @@ export default function ShareScreen() {
             <Row gap={space.sm}>
               {(
                 [
-                  ['oranye', 'Oranye'],
                   ['putih', 'Putih'],
                   ['tema', 'Warna tema'],
                 ] as const

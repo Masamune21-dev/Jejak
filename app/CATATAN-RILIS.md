@@ -7,6 +7,17 @@ satu perubahan per butir, sebelum menjalankan `deploy.sh apk`.
 Baris `Versi minimal: x.y.z` (opsional, di luar bagian versi) memaksa app yang lebih lama memperbarui diri. Isi
 hanya bila server berubah sehingga versi lama tidak bisa dipakai lagi.
 
+## 0.4.0
+
+- Impor aktivitas dari berkas GPX atau FIT jam GPS (Garmin, COROS, Huawei, Amazfit)
+- Jeda otomatis: stopwatch berhenti saat kamu diam dan lanjut saat bergerak lagi
+- Visibilitas aktivitas dan postingan: publik, pengikut, atau pribadi; peta aktivitas bisa disembunyikan
+- Ekspor semua data sebagai berkas JSON dan hapus akun langsung dari dalam app
+- Rekaman yang gagal diunggah tersimpan di HP dan terunggah otomatis saat sinyal kembali
+- Centang biru untuk akun terverifikasi
+- Template bagikan memakai warna tema dan putih; pilihan garis oranye dihapus
+- Foto sampul lebih jelas di tema terang, dan peta layar rekam langsung menuju lokasimu
+
 ## 0.3.1
 
 - Ganti nama tampilan dan kata sandi di Pengaturan → Akun

@@ -5,10 +5,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { Post, Profile } from '@shared/api';
+import type { ActivityVisibility, Post, Profile } from '@shared/api';
 
 import { useRefreshPosts } from '@/components/PostCard';
-import { Avatar, Button, Card, ErrorBox, KeyboardAvoid, Row, T } from '@/components/ui';
+import { Avatar, Button, Card, ErrorBox, KeyboardAvoid, Row, Segmented, T } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { appendPhoto, pickPhoto } from '@/lib/photo';
@@ -28,6 +28,7 @@ export default function ComposeScreen() {
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [segment, setSegment] = useState(params.segmentId ? { id: params.segmentId, name: params.segmentName ?? 'Segmen' } : null);
+  const [visibility, setVisibility] = useState<ActivityVisibility>('public');
   const [pickError, setPickError] = useState<unknown>(null);
 
   const addPhoto = async (camera: boolean) => {
@@ -45,6 +46,7 @@ export default function ComposeScreen() {
       const form = new FormData();
       form.append('body', text.trim());
       if (segment) form.append('segmentId', segment.id);
+      form.append('visibility', visibility);
       for (const uri of photos) await appendPhoto(form, 'foto', uri);
       return api<Post>('/posts', { method: 'POST', body: form, timeoutMs: 90_000 });
     },
@@ -91,6 +93,26 @@ export default function ComposeScreen() {
           </Row>
         ) : null}
 
+        <View style={{ gap: space.sm }}>
+          <T v="label">Siapa yang bisa melihat</T>
+          <Segmented<ActivityVisibility>
+            options={[
+              { key: 'public', label: 'Publik' },
+              { key: 'followers', label: 'Pengikut' },
+              { key: 'private', label: 'Pribadi' },
+            ]}
+            value={visibility}
+            onChange={setVisibility}
+          />
+          <T v="small">
+            {visibility === 'public'
+              ? 'Semua pengguna Jejak bisa melihat postingan ini.'
+              : visibility === 'followers'
+                ? 'Hanya pengikutmu yang bisa melihat postingan ini.'
+                : 'Hanya kamu. Postingan ini tidak muncul di Beranda atau Diskusi segmen.'}
+          </T>
+        </View>
+
         {photos.length > 0 ? (
           <View style={styles.grid}>
             {photos.map((uri) => (
@@ -124,8 +146,12 @@ export default function ComposeScreen() {
         {send.error ? <ErrorBox error={send.error} /> : null}
         <Card flat style={{ backgroundColor: c.surface2, borderWidth: 0 }}>
           <T v="small">
-            Postingan tampil di Beranda orang yang mengikutimu{segment ? ' dan di Diskusi segmen untuk semua pengguna' : ''}. Lokasi di foto
-            dihapus sebelum diunggah.
+            {visibility === 'public'
+              ? `Postingan tampil di Beranda orang yang mengikutimu${segment ? ' dan di Diskusi segmen untuk semua pengguna' : ''}.`
+              : visibility === 'followers'
+                ? 'Postingan hanya tampil untuk pengikutmu.'
+                : 'Postingan hanya terlihat olehmu.'}{' '}
+            Lokasi di foto dihapus sebelum diunggah.
           </T>
         </Card>
         <Button title="Kirim" icon="send" loading={send.isPending} disabled={!canSend} onPress={() => send.mutate()} />

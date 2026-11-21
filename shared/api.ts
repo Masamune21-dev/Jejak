@@ -11,6 +11,8 @@ export interface UserSummary {
   id: number;
   username: string;
   name: string;
+  /** Akun terverifikasi (centang biru). Hanya dapat diatur dari server. */
+  verified: boolean;
   /** Alamat foto profil relatif terhadap API (bertanda tangan, berlaku 1–2 minggu); null bila belum ada. */
   avatarUrl?: string | null;
 }
@@ -84,6 +86,9 @@ export interface SegmentEffort {
   isPr: boolean;
 }
 
+/** Siapa yang boleh melihat sebuah aktivitas. */
+export type ActivityVisibility = 'public' | 'followers' | 'private';
+
 export interface ActivitySummary {
   id: number;
   user: UserSummary;
@@ -100,6 +105,10 @@ export interface ActivitySummary {
   comments: number;
   routeId: number | null;
   prCount: number;
+  /** `public` semua pengguna, `followers` hanya pengikut, `private` hanya pemilik. */
+  visibility: ActivityVisibility;
+  /** Garis rute disembunyikan dari orang lain; pemilik tetap melihatnya. */
+  hideMap: boolean;
 }
 
 export interface Activity extends ActivitySummary {
@@ -116,6 +125,15 @@ export interface NewActivity {
   title: string;
   track: TrackPoint[][];
   routeId?: number | null;
+  visibility?: ActivityVisibility;
+  hideMap?: boolean;
+}
+
+/** Perubahan sebagian pada aktivitas; kolom yang tidak dikirim tidak berubah. */
+export interface ActivityUpdate {
+  title?: string;
+  visibility?: ActivityVisibility;
+  hideMap?: boolean;
 }
 
 export interface Comment {
@@ -233,6 +251,8 @@ export interface Post {
   likes: number;
   hasLiked: boolean;
   replies: number;
+  /** `public`, `followers`, atau `private`. */
+  visibility: ActivityVisibility;
 }
 
 export interface PostReply {

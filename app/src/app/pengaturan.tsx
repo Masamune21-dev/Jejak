@@ -36,7 +36,7 @@ export default function SettingsScreen() {
             <T v="small">@{me.username}</T>
           </View>
           <T v="small" color={c.accentText}>
-            Ganti nama atau kata sandi
+            Nama, kata sandi, ekspor data
           </T>
           <Ionicons name="chevron-forward" size={18} color={c.muted} />
         </Row>

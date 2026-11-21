@@ -10,10 +10,9 @@ import { Platform } from 'react-native';
 import type { Activity, ActivityType, PlannedRoute } from '@shared/api';
 import { cumulativeDistance, haversine, progressOnRoute, type LatLon, type TrackPoint } from '@shared/geo';
 
-import { api, ApiError, errorText } from './api';
 import type { Fix, LocationSource, SourceKind } from './location-source';
 import { drainBackgroundBuffer, stopBackgroundUpdates } from './location-task';
-import { enqueue, newClientId } from './upload-queue';
+import { newClientId, uploadDraft } from './upload-queue';
 
 export type RecStatus = 'idle' | 'recording' | 'paused' | 'finished';
 
@@ -43,9 +42,14 @@ export interface RecState {
   accuracy: number | null;
   sourceKind: SourceKind | null;
   guide: RouteGuide | null;
+  /** Preferensi jeda otomatis; disimpan di HP dan berlaku untuk rekaman berikutnya. */
+  autoPause: boolean;
+  /** Sedang dijeda otomatis: stopwatch beku, GPS tetap berjalan untuk mendeteksi gerakan. */
+  autoPaused: boolean;
 }
 
 const STORAGE_KEY = 'jejak.rekaman';
+const AUTO_PAUSE_KEY = 'jejak.jeda-otomatis';
 const OFF_ROUTE_M = 40;
 const MIN_STEP_M = 3;
 const MAX_ACCURACY_M = 25;
@@ -57,6 +61,11 @@ export const FIRST_FIX_ACCURACY_M = 20;
 const WARMUP_MS = 20_000;
 const MAX_SPEED_MPS = 45;
 const SAVE_EVERY_MS = 10_000;
+/** Diam dianggap berhenti setelah 10 detik tanpa bergerak lebih dari 3 m. */
+const STILL_AFTER_MS = 10_000;
+const STILL_RADIUS_M = 3;
+/** Setelah jeda otomatis, hitungan lanjut lagi saat bergerak minimal 8 m dari titik berhenti. */
+const MOVE_AFTER_M = 8;
 
 const initial = (): RecState => ({
   status: 'idle',
@@ -71,6 +80,8 @@ const initial = (): RecState => ({
   accuracy: null,
   sourceKind: null,
   guide: null,
+  autoPause: true,
+  autoPaused: false,
 });
 
 let state: RecState = initial();
@@ -82,6 +93,10 @@ let announcedStep = -1;
 let lastSave = 0;
 /** Saat Mulai ditekan; titik pertama ditunggu sampai GPS akurat (lihat FIRST_FIX_ACCURACY_M). */
 let warmupFrom = 0;
+/** Sejak kapan posisi tidak bergerak (ms sumber); null bila sedang bergerak. */
+let stillSince: number | null = null;
+/** Titik saat jeda otomatis dimulai; dipakai untuk mendeteksi mulai bergerak lagi. */
+let pauseAnchor: LatLon | null = null;
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<RecState>) {
@@ -145,11 +160,28 @@ function addFixes(fixes: Fix[]) {
   let distanceM = state.distanceM;
   let here = state.here;
   let accuracy = state.accuracy;
+  let autoPaused = state.autoPaused;
+  let activeMs = state.activeMs;
+  let runningSince = state.runningSince;
   for (const f of fixes) {
     here = [f.lat, f.lon];
     accuracy = f.acc;
     if (state.status !== 'recording') continue;
     if (f.acc != null && f.acc > MAX_ACCURACY_M) continue;
+
+    if (autoPaused) {
+      // GPS tetap masuk saat jeda otomatis; hitungan lanjut setelah bergerak cukup jauh.
+      if (pauseAnchor && haversine(pauseAnchor, here) >= MOVE_AFTER_M) {
+        autoPaused = false;
+        runningSince = f.t;
+        parts = [...parts, []];
+        stillSince = null;
+        pauseAnchor = null;
+      } else {
+        continue;
+      }
+    }
+
     const warmingUp = f.t - warmupFrom < WARMUP_MS && parts.every((p) => p.length === 0);
     if (warmingUp && f.acc != null && f.acc > FIRST_FIX_ACCURACY_M) continue;
     const part = parts[parts.length - 1] ?? [];
@@ -158,14 +190,30 @@ function addFixes(fixes: Fix[]) {
       const d = haversine(prev, here);
       const dt = (f.t - prev[2]) / 1000;
       // Abaikan getaran GPS saat diam dan lompatan posisi yang mustahil.
-      if (dt <= 0 || d < MIN_STEP_M || d / dt > MAX_SPEED_MPS) continue;
+      if (dt <= 0 || d < MIN_STEP_M || d / dt > MAX_SPEED_MPS) {
+        // Diam terdeteksi dari titik-titik yang terlalu dekat untuk dicatat.
+        if (state.autoPause && d < STILL_RADIUS_M) {
+          stillSince ??= f.t;
+          if (f.t - stillSince >= STILL_AFTER_MS) {
+            if (runningSince != null) activeMs += Math.max(0, f.t - runningSince);
+            runningSince = null;
+            autoPaused = true;
+            pauseAnchor = here;
+            stillSince = null;
+          }
+        } else if (d >= STILL_RADIUS_M) {
+          stillSince = null;
+        }
+        continue;
+      }
       distanceM += d;
+      stillSince = null;
     }
     const point: TrackPoint = [f.lat, f.lon, f.t, f.alt == null ? null : Math.round(f.alt * 10) / 10];
     parts = [...parts.slice(0, -1), [...part, point]];
   }
   const guide = here ? computeGuide(here) : state.guide;
-  set({ parts, distanceM, here, accuracy, guide });
+  set({ parts, distanceM, here, accuracy, guide, autoPaused, activeMs, runningSince });
 }
 
 export function elapsedMs(s: RecState, now: number): number {
@@ -186,6 +234,28 @@ export const recorder = {
     if (state.status === 'idle') set({ type });
   },
 
+  /** Nyalakan/matikan jeda otomatis; pilihan disimpan untuk rekaman berikutnya. */
+  setAutoPause(enabled: boolean) {
+    if (enabled === state.autoPause) return;
+    stillSince = null;
+    pauseAnchor = null;
+    if (!enabled && state.autoPaused && state.status === 'recording') {
+      // Dimatikan saat sedang beku: lanjutkan hitungan sekarang juga.
+      set({ autoPause: false, autoPaused: false, runningSince: clock(), parts: [...state.parts, []] });
+    } else {
+      set({ autoPause: enabled });
+    }
+    void AsyncStorage.setItem(AUTO_PAUSE_KEY, enabled ? '1' : '0');
+  },
+
+  /** Lanjutkan hitungan tanpa menunggu gerakan (mis. pengguna menekan Lanjut). */
+  resumeFromAutoPause() {
+    if (state.status !== 'recording' || !state.autoPaused) return;
+    stillSince = null;
+    pauseAnchor = null;
+    set({ autoPaused: false, runningSince: clock(), parts: [...state.parts, []] });
+  },
+
   setRoute(route: PlannedRoute | null) {
     if (state.status !== 'idle') return;
     loadRoute(route);
@@ -203,8 +273,10 @@ export const recorder = {
     const src = await makeSource();
     source = src;
     warmupFrom = Date.now();
+    stillSince = null;
+    pauseAnchor = null;
     loadRoute(state.route);
-    set({ status: 'recording', parts: [[]], distanceM: 0, activeMs: 0, runningSince: clock(), sourceKind: src.kind });
+    set({ status: 'recording', parts: [[]], distanceM: 0, activeMs: 0, runningSince: clock(), sourceKind: src.kind, autoPaused: false });
     try {
       await src.start(addFixes);
     } catch (e) {
@@ -219,8 +291,10 @@ export const recorder = {
   async pause() {
     if (state.status !== 'recording') return;
     const now = clock();
+    stillSince = null;
+    pauseAnchor = null;
     await source?.stop();
-    set({ status: 'paused', activeMs: elapsedMs(state, now), runningSince: null });
+    set({ status: 'paused', activeMs: elapsedMs(state, now), runningSince: null, autoPaused: false });
     await save();
   },
 
@@ -229,8 +303,10 @@ export const recorder = {
     if (state.status !== 'paused' && state.status !== 'finished') return;
     const before = state;
     const src = source ?? (await makeSource());
+    stillSince = null;
+    pauseAnchor = null;
     source = src;
-    set({ status: 'recording', parts: [...state.parts, []], runningSince: clock(), sourceKind: src.kind });
+    set({ status: 'recording', parts: [...state.parts, []], runningSince: clock(), sourceKind: src.kind, autoPaused: false });
     try {
       await src.start(addFixes);
     } catch (e) {
@@ -244,48 +320,48 @@ export const recorder = {
     if (state.status === 'recording') await recorder.pause();
     await source?.stop();
     source = null;
-    set({ status: 'finished', sourceKind: null });
+    stillSince = null;
+    pauseAnchor = null;
+    set({ status: 'finished', sourceKind: null, autoPaused: false });
     await save();
   },
 
   async discard() {
     await source?.stop();
     source = null;
+    stillSince = null;
+    pauseAnchor = null;
     loadRoute(null);
-    state = { ...initial(), type: state.type, here: state.here };
+    state = { ...initial(), type: state.type, here: state.here, autoPause: state.autoPause };
     listeners.forEach((l) => l());
     await save();
   },
 
   async upload(title: string, userId: number): Promise<{ activity: Activity; queued: false } | { queued: true }> {
     const track = state.parts.filter((p) => p.length > 0);
-    const draft = {
+    const res = await uploadDraft({
+      userId,
       clientId: state.clientId,
       type: state.type,
       title,
       track,
       routeId: state.route?.id ?? null,
-    };
-    try {
-      const activity = await api<Activity>('/activities', { body: draft, timeoutMs: 60_000 });
-      await recorder.discard();
-      return { activity, queued: false };
-    } catch (e) {
-      // Server mati atau internet putus: simpan rekaman di HP, unggah otomatis nanti.
-      // Penolakan server (4xx) dibiarkan terbuka supaya pengguna bisa memperbaiki atau menghapus.
-      const status = e instanceof ApiError ? e.status : 0;
-      if (status >= 400 && status < 500) throw e;
-      await enqueue({ userId, ...draft, createdAt: new Date().toISOString(), lastError: errorText(e) });
-      await recorder.discard();
-      return { queued: true };
-    }
+      createdAt: new Date().toISOString(),
+    });
+    await recorder.discard();
+    return res.ok ? { activity: res.activity, queued: false } : { queued: true };
   },
 
   /** Muat rekaman yang belum selesai (mis. app tertutup saat merekam). */
   async restore() {
     try {
+      const pref = await AsyncStorage.getItem(AUTO_PAUSE_KEY);
+      state = { ...state, autoPause: pref == null ? true : pref === '1' };
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        listeners.forEach((l) => l());
+        return;
+      }
       const saved = JSON.parse(raw) as Pick<
         RecState,
         'status' | 'type' | 'route' | 'parts' | 'distanceM' | 'activeMs'

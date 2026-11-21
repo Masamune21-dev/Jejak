@@ -43,18 +43,20 @@ Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen ber
 
 ## Fitur
 
-- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup atau layar mati. Kalau sinyal putus saat menyimpan, rekaman masuk antrean di HP dan terunggah sendiri saat app dibuka lagi, tanpa membuat duplikat.
+- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, jeda otomatis saat diam, dan rekaman yang tetap aman walau app tertutup atau layar mati. Kalau sinyal putus saat menyimpan, rekaman masuk antrean di HP dan terunggah sendiri saat app dibuka lagi, tanpa membuat duplikat.
+- **Impor GPX/FIT**: bawa aktivitas dari Garmin, COROS, Huawei, Amazfit, atau aplikasi lain. Jejak dipakai apa adanya, tanpa dihitung ulang.
 - **Buat rute sendiri**: ketuk titik-titik di peta, rute otomatis mengikuti jalan (OpenStreetMap/OSRM), lengkap dengan petunjuk belok berbahasa Indonesia. Ada tombol batal, pulang-pergi, dan kembali ke titik awal.
 - **Ikuti rute**: saat merekam muncul banner belokan berikutnya ("Belok kiri ke Jalan Pemuda · dalam 120 m"), sisa jarak, dan peringatan *keluar dari rute*. HP bergetar saat mendekati belokan atau keluar jalur.
 - **Riwayat & statistik**: split per km, waktu terbaik (400 m, 1 km, 5 km, 10 km, setengah maraton, maraton; sepeda 5–100 km), PR, grafik 12 minggu, total tahun ini dan sepanjang masa.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
-- **Akun & teman**: daftar/masuk, ganti nama dan kata sandi, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, like, komentar.
-- **Postingan & Diskusi segmen**: tulis postingan pendek (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen.
+- **Akun & teman**: daftar/masuk, ganti nama dan kata sandi, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, like, komentar. Akun terverifikasi memakai centang biru.
+- **Postingan & Diskusi segmen**: tulis postingan pendek (teks dan sampai 4 foto) dengan pilihan publik, pengikut, atau pribadi. Suka, balas, laporkan. Postingan yang menandai segmen dan publik muncul di bagian Diskusi halaman segmen.
 - **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir.
 - **Bagikan ke foto**: 5 stiker transparan (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di atas foto Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu).
 - **Ekspor GPX**: aktivitas dan rute bisa diekspor ke aplikasi lain atau jam GPS.
 - **Foto profil & sampul**: dari galeri atau kamera, dipotong dan diperkecil di HP. Data lokasi GPS di foto dibuang sebelum disimpan.
-- **Privasi**: awal dan akhir jejak disembunyikan dari orang lain, supaya alamat rumah tidak terlihat.
+- **Privasi**: awal dan akhir jejak disembunyikan dari orang lain, supaya alamat rumah tidak terlihat. Tiap aktivitas bisa disetel publik, pengikut saja, atau pribadi, dan garis petanya bisa disembunyikan.
+- **Data milikmu**: ekspor semua data sebagai satu berkas JSON, atau hapus akun beserta seluruh datanya dari dalam app.
 - **Notifikasi & pembaruan** (APK): pengumuman dan info versi baru lewat notifikasi push, kartu pembaruan di Beranda.
 - **Tema**: gelap, terang, atau ikuti HP, dengan 5 warna aksen.
 

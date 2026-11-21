@@ -85,6 +85,13 @@ Urutan rilis 0.2.0: deploy server dulu (`deploy/deploy.sh server`), lalu build A
 - **Kanal:** `info` (*Info dan pengumuman*, penting) dan `pembaruan` (*Pembaruan aplikasi*, biasa), dibuat app sebelum meminta izin. Setelah dibuat, Android hanya mengizinkan mengganti nama dan deskripsi kanal.
 - **APK 0.2.x** tidak punya notifikasi maupun kartu pembaruan, jadi 0.3.0 harus dibagikan manual sekali lagi. Pembaruan sesudahnya diumumkan lewat `deploy/deploy.sh apk --umumkan` dan kartu di Beranda.
 
+## Impor GPX/FIT di 0.4.0
+
+- **Modul:** `expo-document-picker` (~58.0.5). Tidak butuh plugin di `app.json`; modul native-nya ikut ter-autolink saat build EAS.
+- **Expo Go:** pemilih berkas tersedia, tetapi uji impor sebaiknya di APK karena berkas FIT besar lebih stabil dibaca dari cache app.
+- **APK 0.3.x** tidak punya tombol **Impor GPX/FIT**, jadi 0.4.0 perlu dipasang manual sekali. Pembaruan sesudahnya bisa lewat kartu di Beranda atau `deploy/deploy.sh apk --umumkan`.
+- Berkas dibaca di HP: GPX sebagai teks, FIT sebagai byte biner. Tidak ada unggahan berkas mentah ke server; yang dikirim hanya titik GPS hasil parsing lewat `POST /activities`.
+
 ---
 
 ## Membuat APK

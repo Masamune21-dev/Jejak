@@ -31,7 +31,7 @@ const mmss = (s: number) => {
 /** Aktivitas contoh untuk pratinjau stiker (bukan data pengguna). */
 export const DEMO_ACTIVITY: Activity = {
   id: 0,
-  user: { id: 0, username: 'jejak', name: 'Jejak' },
+  user: { id: 0, username: 'jejak', name: 'Jejak', verified: false },
   type: 'run',
   title: 'Keliling Alun-alun Pati',
   startedAt: '2026-10-28T22:10:00.000Z',
@@ -45,6 +45,8 @@ export const DEMO_ACTIVITY: Activity = {
   comments: 0,
   routeId: null,
   prCount: 0,
+  visibility: 'public',
+  hideMap: false,
   track: [PATI.map(([lat, lon], i) => [lat, lon, i * 1000, 14 + (i % 5)])],
   maxSpeedMps: 3.9,
   splits: [],

@@ -76,7 +76,7 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
-const NOBODY: UserSummary = { id: 0, username: '', name: '' };
+const NOBODY: UserSummary = { id: 0, username: '', name: '', verified: false };
 
 /** Pengguna yang sedang masuk. Layar di balik guard selalu punya user; NOBODY hanya sesaat ketika keluar. */
 export function useMe(): UserSummary {

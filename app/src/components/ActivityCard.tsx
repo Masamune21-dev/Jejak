@@ -12,7 +12,7 @@ import { activityMeta, distanceParts, duration, tempoParts, TYPE_ICON } from '@/
 import { font, radius, space, useColors } from '@/lib/theme';
 
 import StaticMap from './StaticMap';
-import { Avatar, Badge, Row, Stat, T } from './ui';
+import { Avatar, Badge, Row, Stat, T, Verified } from './ui';
 
 export function useKudos(activity: Pick<ActivitySummary, 'id' | 'hasKudo'>) {
   const qc = useQueryClient();
@@ -46,9 +46,12 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
             <Row gap={space.md}>
               <Avatar name={a.user.name} uri={a.user.avatarUrl} size={40} />
               <View style={{ flex: 1 }}>
-                <T v="strong" numberOfLines={1}>
-                  {a.user.name}
-                </T>
+                <Row gap={4}>
+                  <T v="strong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    {a.user.name}
+                  </T>
+                  {a.user.verified ? <Verified size={14} /> : null}
+                </Row>
                 <Row gap={5}>
                   <Ionicons name={TYPE_ICON[a.type]} size={13} color={c.muted} />
                   <T v="small">{activityMeta(a.type, a.startedAt)}</T>
@@ -68,7 +71,14 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
         </View>
 
         <View style={styles.map}>
-          <StaticMap points={a.preview} height={180} radius={16} />
+          {a.preview.length > 1 ? (
+            <StaticMap points={a.preview} height={180} radius={16} />
+          ) : (
+            <View style={[styles.noMap, { backgroundColor: c.surface2 }]}>
+              <Ionicons name="eye-off-outline" size={22} color={c.muted} />
+              <T v="small">Peta disembunyikan</T>
+            </View>
+          )}
         </View>
 
         <Row style={styles.bottom}>
@@ -105,6 +115,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden' },
   top: { padding: space.lg, gap: space.md },
   map: { paddingHorizontal: space.md },
+  noMap: { height: 180, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 6 },
   bottom: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
   kudos: {
     flexDirection: 'row',

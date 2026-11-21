@@ -10,6 +10,6 @@
     "app": "npm start --prefix app",
     "web": "npm run web --prefix app",
     "test": "npm test --prefix server",
-    "check": "npm run typecheck --prefix server && npm test --prefix server && npm run typecheck --prefix app && npm run lint --prefix app"
+    "check": "npm run typecheck --prefix server && npm test --prefix server && npm run typecheck --prefix app && npm test --prefix app && npm run lint --prefix app"
   }
 }

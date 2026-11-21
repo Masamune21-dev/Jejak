@@ -119,8 +119,10 @@ export default function RecordScreen() {
 
   const fit = useMemo<LatLon[] | null>(() => {
     if (s.status === 'idle' && s.route) return s.route.geometry;
+    // Saat belum merekam dan belum memilih rute, peta langsung menuju posisi sekarang.
+    if (s.status === 'idle' && s.here) return [s.here];
     return null;
-  }, [s.status, s.route]);
+  }, [s.status, s.route, s.here]);
 
   const save = () =>
     act(async () => {
@@ -158,7 +160,15 @@ export default function RecordScreen() {
       )}
 
       <TopOverlay
-        sourceText={waitingGps ? 'Menunggu GPS akurat sebelum mencatat…' : s.sourceKind ? SOURCE_TEXT[s.sourceKind] : null}
+        sourceText={
+          s.autoPaused
+            ? 'Jeda otomatis — mulai bergerak untuk lanjut'
+            : waitingGps
+              ? 'Menunggu GPS akurat sebelum mencatat…'
+              : s.sourceKind
+                ? SOURCE_TEXT[s.sourceKind]
+                : null
+        }
         accuracy={s.sourceKind === 'sim' ? null : s.accuracy}
       />
 
@@ -199,6 +209,13 @@ export default function RecordScreen() {
                 </View>
                 <Ionicons name="chevron-down" size={18} color={c.muted} />
               </Pressable>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, gap: 2, paddingRight: space.md }}>
+                  <T v="strong">Jeda otomatis</T>
+                  <T v="small">Berhenti menghitung saat kamu diam, lanjut sendiri saat bergerak lagi.</T>
+                </View>
+                <Switch value={s.autoPause} onValueChange={(v) => recorder.setAutoPause(v)} trackColor={{ true: c.accentText }} />
+              </Row>
               {__DEV__ ? (
                 <Row style={{ justifyContent: 'space-between' }}>
                   <T v="small">Simulasi GPS (mode uji)</T>
@@ -216,14 +233,21 @@ export default function RecordScreen() {
                   onPress={() => act(() => recorder.start(makeSource))}
                 />
               </View>
+              <Button
+                kind="ghost"
+                icon="cloud-upload-outline"
+                title="Impor GPX/FIT dari jam GPS"
+                onPress={() => router.push('/impor')}
+              />
             </>
           ) : null}
 
           {active ? (
             <>
               <View style={{ alignItems: 'center' }}>
-                <T v="label">{s.status === 'paused' ? 'Dijeda' : 'Waktu'}</T>
-                <Text style={[styles.clock, { color: s.status === 'paused' ? c.muted : c.text }]}>{duration(elapsedS)}</Text>
+                <T v="label">{s.status === 'paused' ? 'Dijeda' : s.autoPaused ? 'Jeda otomatis' : 'Waktu'}</T>
+                <Text style={[styles.clock, { color: s.status === 'paused' || s.autoPaused ? c.muted : c.text }]}>{duration(elapsedS)}</Text>
+                {s.autoPaused ? <T v="small">Mulai bergerak untuk melanjutkan, atau ketuk Lanjut.</T> : null}
               </View>
               <Row style={{ justifyContent: 'space-around' }}>
                 <Stat align="center" label="Jarak" value={km(s.distanceM)} unit="km" size={40} />
@@ -231,7 +255,7 @@ export default function RecordScreen() {
                 <Stat align="center" label={t.label} value={t.value} unit={t.unit} size={40} />
               </Row>
               <Row style={{ justifyContent: 'center', gap: space.xl, paddingTop: space.xs }}>
-                {s.status === 'recording' ? (
+                {s.status === 'recording' && !s.autoPaused ? (
                   <RoundButton
                     size={76}
                     icon="pause"
@@ -250,7 +274,11 @@ export default function RecordScreen() {
                       color={c.accentInk}
                       label="Lanjut"
                       disabled={busy}
-                      onPress={() => act(() => recorder.resume(makeSource))}
+                      onPress={() => {
+                        // Saat jeda otomatis, sumber GPS masih hidup: cukup hidupkan hitungan.
+                        if (s.status === 'recording') recorder.resumeFromAutoPause();
+                        else void act(() => recorder.resume(makeSource));
+                      }}
                     />
                     <RoundButton
                       size={76}

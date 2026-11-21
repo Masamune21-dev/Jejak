@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
-import type { Activity, Comment } from '@shared/api';
+import type { Activity, ActivityVisibility, Comment } from '@shared/api';
 import { flatten, toLatLon, type LatLon } from '@shared/geo';
 
 import { useKudos } from '@/components/ActivityCard';
@@ -22,8 +22,10 @@ import {
   Row,
   Screen,
   SectionTitle,
+  Segmented,
   Stat,
   T,
+  Verified,
 } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useMe } from '@/lib/auth';
@@ -32,6 +34,12 @@ import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { shareTextFile } from '@/lib/share-file';
 import { activityMeta, distanceParts, duration, pace, speed, tempoParts, TYPE_ICON, when } from '@/lib/format';
 import { font, radius, space, useColors } from '@/lib/theme';
+
+const VISIBILITY_HINT: Record<ActivityVisibility, string> = {
+  public: 'Semua pengguna Jejak bisa melihat aktivitas ini.',
+  followers: 'Hanya pengikutmu yang bisa melihat aktivitas ini.',
+  private: 'Hanya kamu. Aktivitas ini tidak muncul di feed, statistik orang lain, atau leaderboard.',
+};
 
 export default function ActivityScreen() {
   const c = useColors();
@@ -72,6 +80,14 @@ export default function ActivityScreen() {
       router.back();
     },
   });
+  const privacy = useMutation({
+    mutationFn: (patch: { visibility?: ActivityVisibility; hideMap?: boolean }) =>
+      api<Activity>(`/activities/${id}`, { method: 'PATCH', body: patch }),
+    onSuccess: (next) => {
+      qc.setQueryData(['activity', id], next);
+      for (const key of ['timeline', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
+    },
+  });
 
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorBox error={q.error} onRetry={() => q.refetch()} />;
@@ -88,7 +104,14 @@ export default function ActivityScreen() {
   return (
     <Screen padded={false}>
       <View style={{ height: 320 }}>
-        <JejakMap lines={lines} pins={pins} fit={fit} />
+        {points.length > 0 ? (
+          <JejakMap lines={lines} pins={pins} fit={fit} />
+        ) : (
+          <View style={[styles.noMap, { backgroundColor: c.surface2 }]}>
+            <Ionicons name="map-outline" size={34} color={c.muted} />
+            <T v="small">Peta aktivitas ini disembunyikan oleh pemiliknya.</T>
+          </View>
+        )}
       </View>
 
       <View style={[styles.body, { backgroundColor: c.bg }]}>
@@ -96,7 +119,10 @@ export default function ActivityScreen() {
           <Row>
             <Avatar name={a.user.name} uri={a.user.avatarUrl} size={44} />
             <View style={{ flex: 1 }}>
-              <T v="strong">{a.user.name}</T>
+              <Row gap={4}>
+                <T v="strong">{a.user.name}</T>
+                {a.user.verified ? <Verified size={15} /> : null}
+              </Row>
               <Row gap={5}>
                 <Ionicons name={TYPE_ICON[a.type]} size={13} color={c.muted} />
                 <T v="small">{activityMeta(a.type, a.startedAt)}</T>
@@ -148,6 +174,37 @@ export default function ActivityScreen() {
           </Row>
         ) : null}
         {exportError ? <ErrorBox error={new Error(exportError)} /> : null}
+
+        {mine ? (
+          <Card style={{ gap: space.md }}>
+            <View style={{ gap: space.sm }}>
+              <T v="label">Siapa yang bisa melihat</T>
+              <Segmented<ActivityVisibility>
+                options={[
+                  { key: 'public', label: 'Publik' },
+                  { key: 'followers', label: 'Pengikut' },
+                  { key: 'private', label: 'Pribadi' },
+                ]}
+                value={a.visibility}
+                onChange={(visibility) => privacy.mutate({ visibility })}
+              />
+              <T v="small">{VISIBILITY_HINT[a.visibility]}</T>
+            </View>
+            <Row>
+              <View style={{ flex: 1, gap: 2 }}>
+                <T v="strong">Sembunyikan peta</T>
+                <T v="small">Orang lain tidak melihat garis rute. Jarak dan waktu tetap terlihat.</T>
+              </View>
+              <Switch
+                value={a.hideMap}
+                disabled={privacy.isPending}
+                onValueChange={(hideMap) => privacy.mutate({ hideMap })}
+                trackColor={{ true: c.accentText }}
+              />
+            </Row>
+            {privacy.error ? <ErrorBox error={privacy.error} /> : null}
+          </Card>
+        ) : null}
 
         <KudosRow a={a} mine={mine} />
 
@@ -346,9 +403,12 @@ function Comments({ activityId, ownerId }: { activityId: number; ownerId: number
             <Avatar name={cm.user.name} uri={cm.user.avatarUrl} size={34} />
             <View style={[styles.bubble, { backgroundColor: c.surface2 }]}>
               <Row gap={6}>
-                <T v="strong" size={13}>
-                  {cm.user.name}
-                </T>
+                <Row gap={3}>
+                  <T v="strong" size={13}>
+                    {cm.user.name}
+                  </T>
+                  {cm.user.verified ? <Verified size={12} /> : null}
+                </Row>
                 <T v="small" size={12}>
                   {when(cm.createdAt)}
                 </T>
@@ -395,6 +455,7 @@ function Comments({ activityId, ownerId }: { activityId: number; ownerId: number
 }
 
 const styles = StyleSheet.create({
+  noMap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.sm, padding: space.lg },
   kmDot: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   kmNum: { fontFamily: font.bold, fontSize: 13 },
   body: {

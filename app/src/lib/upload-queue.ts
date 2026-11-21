@@ -102,6 +102,27 @@ export async function enqueue(
   scheduleRetry(item.userId);
 }
 
+/**
+ * Kirim satu draf aktivitas. Bila server tidak bisa dihubungi, draf masuk antrean
+ * dan hasilnya `{ ok: false }`; penolakan server (4xx) tetap dilempar ke pemanggil.
+ */
+export async function uploadDraft(
+  draft: Omit<PendingUpload, 'attempts' | 'lastError' | 'stuck'>,
+): Promise<{ ok: true; activity: Activity } | { ok: false; queued: true }> {
+  try {
+    const activity = await api<Activity>('/activities', {
+      body: { clientId: draft.clientId, type: draft.type, title: draft.title, track: draft.track, routeId: draft.routeId },
+      timeoutMs: 60_000,
+    });
+    return { ok: true, activity };
+  } catch (e) {
+    const status = e instanceof ApiError ? e.status : 0;
+    if (status >= 400 && status < 500) throw e;
+    await enqueue({ ...draft, lastError: errorText(e) });
+    return { ok: false, queued: true };
+  }
+}
+
 /** Buang satu rekaman dari antrean (mis. pengguna memilih menghapus). */
 export async function removeQueued(clientId: string): Promise<void> {
   await loadQueue();

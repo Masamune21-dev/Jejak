@@ -10,6 +10,8 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type {
   Activity,
   ActivitySummary,
+  ActivityType,
+  ActivityVisibility,
   ChatMessage,
   ChatSummary,
   FollowItem,
@@ -17,7 +19,6 @@ import type {
   Post,
   PostReply,
   TimelineItem,
-  ActivityType,
   AuthResult,
   BestEffort,
   Comment,
@@ -148,6 +149,26 @@ function actType(v: unknown): ActivityType {
   return v as ActivityType;
 }
 
+const VISIBILITIES: ActivityVisibility[] = ['public', 'followers', 'private'];
+
+/** Username yang otomatis mendapat centang biru; bisa ditambah lewat env VERIFIED_USERNAMES. */
+const VERIFIED_USERNAMES = new Set(
+  (process.env.VERIFIED_USERNAMES ?? 'masamune')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+function visibilityOf(v: unknown): ActivityVisibility {
+  if (!VISIBILITIES.includes(v as ActivityVisibility)) fail(400, 'Visibilitas harus public, followers, atau private');
+  return v as ActivityVisibility;
+}
+
+function boolOf(v: unknown, field: string): boolean {
+  if (typeof v !== 'boolean') fail(400, `${field} harus true atau false`);
+  return v;
+}
+
 const isNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 const isLatLon = (p: unknown): p is [number, number, ...unknown[]] =>
   Array.isArray(p) && isNum(p[0]) && isNum(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180;
@@ -240,43 +261,65 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
   const all = <T = Row>(sql: string, ...p: any[]) => db.prepare(sql).all(...p) as T[];
   const run = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
 
-  const userOf = (r: Row): UserSummary => ({ id: r.u_id, username: r.u_username, name: r.u_name, avatarUrl: photoUrl(r.u_avatar) });
+  const userOf = (r: Row): UserSummary => ({
+    id: r.u_id,
+    username: r.u_username,
+    name: r.u_name,
+    verified: !!r.u_verified,
+    avatarUrl: photoUrl(r.u_avatar),
+  });
 
   const ACTIVITY_SELECT = `
     select a.id, a.type, a.title, a.started_at, a.elapsed_s, a.moving_s, a.distance_m, a.elev_gain_m,
-           a.preview, a.route_id, a.pr_count,
-           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+           a.preview, a.route_id, a.pr_count, a.visibility, a.hide_map,
+           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified,
            (select count(*) from kudos k where k.activity_id = a.id) as kudos,
            exists(select 1 from kudos k where k.activity_id = a.id and k.user_id = $me) as has_kudo,
            (select count(*) from comments c where c.activity_id = a.id) as comments
     from activities a join users u on u.id = a.user_id`;
 
+  /**
+   * Syarat baris aktivitas yang boleh dilihat `$me`: milik sendiri, publik, atau
+   * milik orang yang diikuti bila visibilitasnya `followers`.
+   */
+  const VISIBLE_SQL = `(a.user_id = $me
+    or a.visibility = 'public'
+    or (a.visibility = 'followers' and a.user_id in (select followee_id from follows where follower_id = $me)))`;
+
   // Zona privasi: orang lain tidak melihat awal dan akhir jejak (sering rumah). Pemilik selalu melihat jejak penuh.
-  const toSummary = (r: Row, me: number): ActivitySummary => ({
-    id: r.id,
-    user: userOf(r),
-    type: r.type,
-    title: r.title,
-    startedAt: r.started_at,
-    elapsedS: r.elapsed_s,
-    movingS: r.moving_s,
-    distanceM: r.distance_m,
-    elevGainM: r.elev_gain_m,
-    preview: r.u_id === me ? JSON.parse(r.preview) : geo.hideEnds(JSON.parse(r.preview), geo.privacyZoneM(r.distance_m)),
-    kudos: r.kudos,
-    hasKudo: !!r.has_kudo,
-    comments: r.comments,
-    routeId: r.route_id ?? null,
-    prCount: r.pr_count,
-  });
+  const toSummary = (r: Row, me: number): ActivitySummary => {
+    const mine = r.u_id === me;
+    const preview: LatLon[] = JSON.parse(r.preview);
+    return {
+      id: r.id,
+      user: userOf(r),
+      type: r.type,
+      title: r.title,
+      startedAt: r.started_at,
+      elapsedS: r.elapsed_s,
+      movingS: r.moving_s,
+      distanceM: r.distance_m,
+      elevGainM: r.elev_gain_m,
+      preview: mine ? preview : r.hide_map ? [] : geo.hideEnds(preview, geo.privacyZoneM(r.distance_m)),
+      kudos: r.kudos,
+      hasKudo: !!r.has_kudo,
+      comments: r.comments,
+      routeId: r.route_id ?? null,
+      prCount: r.pr_count,
+      visibility: r.visibility as ActivityVisibility,
+      hideMap: !!r.hide_map,
+    };
+  };
 
   const isFollowing = (me: number, other: number) =>
     !!one('select 1 from follows where follower_id = ? and followee_id = ?', me, other);
 
-  const totalsOf = (where: string, ...p: any[]): Totals => {
+  const totalsOf = (uid: number, me: number, type?: 'all' | ActivityType): Totals => {
+    const byType = !type || type === 'all' ? '' : 'and a.type = $type';
     const r = one(
-      `select count(*) as count, coalesce(sum(distance_m), 0) as d, coalesce(sum(moving_s), 0) as m from activities where ${where}`,
-      ...p,
+      `select count(*) as count, coalesce(sum(a.distance_m), 0) as d, coalesce(sum(a.moving_s), 0) as m
+       from activities a where a.user_id = $uid ${byType} and ${VISIBLE_SQL}`,
+      type && type !== 'all' ? { uid, me, type } : { uid, me },
     )!;
     return { count: r.count, distanceM: r.d, movingS: r.m };
   };
@@ -285,7 +328,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     !!one('select 1 from blocks where blocker_id = ? and blocked_id = ?', blocker, blocked);
 
   function profile(id: number, me: number): Profile {
-    const u = one('select id, username, name, created_at, avatar, cover from users where id = ?', id);
+    const u = one('select id, username, name, created_at, avatar, cover, verified from users where id = ?', id);
     if (!u) fail(404, 'Pengguna tidak ditemukan');
     const following = isFollowing(me, id);
     const mutual = following && isFollowing(id, me);
@@ -294,6 +337,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       id: u.id,
       username: u.username,
       name: u.name,
+      verified: !!u.verified,
       avatarUrl: photoUrl(u.avatar),
       coverUrl: photoUrl(u.cover),
       createdAt: u.created_at,
@@ -301,7 +345,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       following: one('select count(*) as n from follows where follower_id = ?', id)!.n,
       isFollowing: following,
       isMe: id === me,
-      totals: totalsOf('user_id = ?', id),
+      totals: totalsOf(id, me),
       isMutual: mutual,
       blocked,
       canMessage: id !== me && mutual && !blocked && !blockedBy(id, me),
@@ -309,23 +353,30 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
   }
 
   // Peringkat bila waktu `elapsedS` dibandingkan waktu terbaik pengguna lain di segmen.
-  const rankOn = (segmentId: number, userId: number, elapsedS: number) =>
+  // Hanya aktivitas yang boleh dilihat `me` yang dihitung, supaya aktivitas pribadi tidak bocor.
+  const rankOn = (segmentId: number, userId: number, elapsedS: number, me: number) =>
     1 +
     one(
-      `select count(*) as n from (select user_id, min(elapsed_s) as b from segment_efforts
-       where segment_id = ? and user_id != ? group by user_id) where b < ?`,
-      segmentId,
-      userId,
-      elapsedS,
+      `select count(*) as n from (
+         select e.user_id, min(e.elapsed_s) as b
+         from segment_efforts e join activities a on a.id = e.activity_id
+         where e.segment_id = $segmentId and e.user_id != $userId and ${VISIBLE_SQL}
+         group by e.user_id
+       ) where b < $elapsedS`,
+      { segmentId, userId, elapsedS, me },
     )!.n;
 
   function getActivity(id: number, me: number): Activity {
-    const r = one(`${ACTIVITY_SELECT} where a.id = $id`, { me, id });
+    const r = one(`${ACTIVITY_SELECT} where a.id = $id and ${VISIBLE_SQL}`, { me, id });
     if (!r) fail(404, 'Aktivitas tidak ditemukan');
     const extra = one('select track, splits, max_speed_mps from activities where id = ?', id)!;
     const full: TrackPoint[][] = JSON.parse(extra.track);
     const { track, dropped } =
-      r.u_id === me ? { track: full, dropped: 0 } : geo.hideTrackEnds(full, geo.privacyZoneM(r.distance_m));
+      r.u_id === me
+        ? { track: full, dropped: 0 }
+        : r.hide_map
+          ? { track: [] as TrackPoint[][], dropped: 0 }
+          : geo.hideTrackEnds(full, geo.privacyZoneM(r.distance_m));
     // Indeks effort menunjuk ke track penuh; geser ke track yang terlihat.
     const lastIndex = Math.max(0, track.reduce((n, p) => n + p.length, 0) - 1);
     const visibleIndex = (i: number) => Math.min(Math.max(i - dropped, 0), lastIndex);
@@ -346,11 +397,11 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       distanceM: e.distance_m,
       startIndex: visibleIndex(e.start_index),
       endIndex: visibleIndex(e.end_index),
-      rank: rankOn(e.segment_id, e.user_id, e.elapsed_s),
+      rank: rankOn(e.segment_id, e.user_id, e.elapsed_s, me),
       isPr: !!e.is_pr,
     }));
     const kudosBy = all(
-      `select u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
+      `select u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified
        from kudos k join users u on u.id = k.user_id where k.activity_id = ? order by k.created_at desc limit 50`,
       id,
     ).map(userOf);
@@ -414,6 +465,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     track: TrackPoint[][],
     routeId: number | null,
     clientId: string | null,
+    visibility: ActivityVisibility,
+    hideMap: boolean,
   ) {
     const s = geo.summarize(track);
     const cum = geo.cumulative(track);
@@ -423,8 +476,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       const id = Number(
         run(
           `insert into activities (user_id, type, title, started_at, elapsed_s, moving_s, distance_m, elev_gain_m, max_speed_mps,
-             min_lat, max_lat, min_lon, max_lon, preview, track, splits, route_id, client_id)
-           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             min_lat, max_lat, min_lon, max_lon, preview, track, splits, route_id, client_id, visibility, hide_map)
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           userId,
           type,
           title,
@@ -443,6 +496,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
           JSON.stringify(geo.splits(cum)),
           routeId,
           clientId,
+          visibility,
+          hideMap ? 1 : 0,
         ).lastInsertRowid,
       );
       let prs = 0;
@@ -485,7 +540,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     createdAt: r.created_at,
   });
 
-  const ROUTE_SELECT = `select r.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
+  const ROUTE_SELECT = `select r.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified
     from routes r join users u on u.id = r.user_id`;
 
   /** Rute rencana hanya untuk pembuatnya (sering dimulai dari rumah). */
@@ -500,7 +555,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     };
   }
 
-  const SEGMENT_SELECT = `select s.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+  const SEGMENT_SELECT = `select s.*, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified,
       (select count(distinct e.user_id) from segment_efforts e where e.segment_id = s.id) as athletes
     from segments s join users u on u.id = s.user_id`;
 
@@ -526,12 +581,13 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       : '';
     // SQLite mengambil activity_id & started_at dari baris dengan min(elapsed_s).
     const board = all(
-      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified,
               min(e.elapsed_s) as elapsed_s, e.activity_id, e.started_at
        from segment_efforts e join users u on u.id = e.user_id
-       where e.segment_id = $id ${filter}
+       join activities a on a.id = e.activity_id
+       where e.segment_id = $id ${filter} and ${VISIBLE_SQL}
        group by e.user_id order by elapsed_s asc limit 100`,
-      followingOnly ? { id, me } : { id },
+      { id, me },
     );
     const leaderboard: LeaderboardRow[] = board.map((b, i) => ({
       rank: i + 1,
@@ -541,7 +597,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       date: b.started_at,
     }));
     const mine = one(
-      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+      `select e.user_id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified,
               min(e.elapsed_s) as elapsed_s, e.activity_id, e.started_at
        from segment_efforts e join users u on u.id = e.user_id
        where e.segment_id = ? and e.user_id = ?`,
@@ -551,7 +607,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const myBest: LeaderboardRow | null =
       mine && mine.elapsed_s != null
         ? {
-            rank: rankOn(id, me, mine.elapsed_s),
+            rank: rankOn(id, me, mine.elapsed_s, me),
             user: userOf(mine),
             elapsedS: mine.elapsed_s,
             activityId: mine.activity_id,
@@ -594,21 +650,34 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     checkNewPassword(password, username);
     if (one('select 1 from users where username = ?', username)) fail(409, 'Username sudah dipakai');
     const id = Number(
-      run('insert into users (username, name, password_hash) values (?, ?, ?)', username, name, hashPassword(password))
-        .lastInsertRowid,
+      run(
+        'insert into users (username, name, password_hash, verified) values (?, ?, ?, ?)',
+        username,
+        name,
+        hashPassword(password),
+        VERIFIED_USERNAMES.has(username) ? 1 : 0,
+      ).lastInsertRowid,
     );
-    return c.json(startSession({ id, username, name }), 201);
+    return c.json(startSession({ id, username, name, verified: VERIFIED_USERNAMES.has(username) }), 201);
   });
 
   app.post('/auth/login', async (c) => {
     const b = await body(c);
     const username = str(b.username, 'Username', 1, 50).toLowerCase();
     const password = typeof b.password === 'string' ? b.password : '';
-    const u = one('select id, username, name, avatar, password_hash from users where username = ?', username);
+    const u = one('select id, username, name, avatar, verified, password_hash from users where username = ?', username);
     // Akun lama didaftarkan dengan kata sandi yang di-trim, jadi coba juga versi tanpa spasi tepi.
     const ok = u && (verifyPassword(password, u.password_hash) || verifyPassword(password.trim(), u.password_hash));
     if (!u || !ok) fail(401, 'Username atau kata sandi salah');
-    return c.json(startSession({ id: u.id, username: u.username, name: u.name, avatarUrl: photoUrl(u.avatar) }));
+    return c.json(
+      startSession({
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        verified: !!u.verified,
+        avatarUrl: photoUrl(u.avatar),
+      }),
+    );
   });
 
   // Foto disajikan tanpa header Authorization (tag <img> di web tidak bisa mengirimnya); aksesnya dijaga tanda tangan URL.
@@ -629,7 +698,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       return next();
     const hash = hashToken(bearer(c) ?? '');
     const u = one(
-      'select u.id, u.username, u.name, s.last_used_at from sessions s join users u on u.id = s.user_id where s.token_hash = ?',
+      'select u.id, u.username, u.name, u.verified, s.last_used_at from sessions s join users u on u.id = s.user_id where s.token_hash = ?',
       hash,
     );
     if (!u) fail(401, 'Sesi berakhir, silakan masuk lagi');
@@ -640,7 +709,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     }
     // Cukup dicatat sekali sehari supaya tiap permintaan tidak menulis ke database.
     if (idleMs > DAY_MS) run('update sessions set last_used_at = ? where token_hash = ?', new Date().toISOString(), hash);
-    c.set('me', { id: u.id, username: u.username, name: u.name });
+    c.set('me', { id: u.id, username: u.username, name: u.name, verified: !!u.verified });
     await next();
   });
 
@@ -701,18 +770,172 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     return c.json({ ok: true });
   });
 
+  /** Arsip semua data pengguna sebagai satu berkas JSON. */
+  app.get('/me/export', (c) => {
+    const me = c.var.me.id;
+    const u = one('select id, username, name, created_at, avatar, cover from users where id = ?', me)!;
+    const postPhotos = new Map<number, string[]>();
+    for (const p of all(
+      `select f.post_id, f.file from post_photos f join posts p on p.id = f.post_id
+       where p.user_id = ? order by f.post_id, f.position`,
+      me,
+    )) {
+      const list = postPhotos.get(p.post_id) ?? [];
+      list.push(photoUrl(p.file)!);
+      postPhotos.set(p.post_id, list);
+    }
+    return c.json({
+      versi: 1,
+      dibuat: new Date().toISOString(),
+      profil: {
+        username: u.username,
+        nama: u.name,
+        terdaftar: u.created_at,
+        fotoProfil: photoUrl(u.avatar),
+        fotoSampul: photoUrl(u.cover),
+      },
+      aktivitas: all('select * from activities where user_id = ? order by started_at', me).map((r) => ({
+        id: r.id,
+        jenis: r.type,
+        judul: r.title,
+        mulai: r.started_at,
+        durasiS: r.elapsed_s,
+        bergerakS: r.moving_s,
+        jarakM: r.distance_m,
+        tanjakanM: r.elev_gain_m,
+        kecepatanMaks: r.max_speed_mps,
+        visibilitas: r.visibility,
+        sembunyikanPeta: !!r.hide_map,
+        pr: r.pr_count,
+        ruteId: r.route_id,
+        pratinjau: JSON.parse(r.preview),
+        jejak: JSON.parse(r.track),
+        split: JSON.parse(r.splits),
+        dibuat: r.created_at,
+      })),
+      rekor: all('select * from best_efforts where user_id = ?', me).map((r) => ({
+        aktivitasId: r.activity_id,
+        jenis: r.type,
+        nama: r.name,
+        jarakM: r.distance_m,
+        waktuS: r.elapsed_s,
+        pr: !!r.is_pr,
+      })),
+      rute: all('select * from routes where user_id = ?', me).map((r) => ({
+        id: r.id,
+        nama: r.name,
+        jenis: r.type,
+        jarakM: r.distance_m,
+        titik: JSON.parse(r.waypoints),
+        geometri: JSON.parse(r.geometry),
+        petunjuk: JSON.parse(r.steps),
+        dibuat: r.created_at,
+      })),
+      segmen: all('select * from segments where user_id = ?', me).map((r) => ({
+        id: r.id,
+        nama: r.name,
+        jenis: r.type,
+        jarakM: r.distance_m,
+        geometri: JSON.parse(r.geometry),
+        dibuat: r.created_at,
+      })),
+      upayaSegmen: all('select * from segment_efforts where user_id = ?', me).map((r) => ({
+        segmenId: r.segment_id,
+        aktivitasId: r.activity_id,
+        waktuS: r.elapsed_s,
+        jarakM: r.distance_m,
+        pr: !!r.is_pr,
+        mulai: r.started_at,
+      })),
+      postingan: all('select * from posts where user_id = ?', me).map((r) => ({
+        id: r.id,
+        isi: r.body,
+        segmenId: r.segment_id,
+        aktivitasId: r.activity_id,
+        foto: postPhotos.get(r.id) ?? [],
+        dibuat: r.created_at,
+      })),
+      komentar: all('select * from comments where user_id = ?', me).map((r) => ({
+        id: r.id,
+        aktivitasId: r.activity_id,
+        isi: r.body,
+        dibuat: r.created_at,
+      })),
+      likeDiberi: all('select * from kudos where user_id = ?', me).map((r) => ({
+        aktivitasId: r.activity_id,
+        dibuat: r.created_at,
+      })),
+      sukaPostingan: all('select * from post_likes where user_id = ?', me).map((r) => ({
+        postinganId: r.post_id,
+        dibuat: r.created_at,
+      })),
+      balasanPostingan: all('select * from post_replies where user_id = ?', me).map((r) => ({
+        id: r.id,
+        postinganId: r.post_id,
+        isi: r.body,
+        dibuat: r.created_at,
+      })),
+      mengikuti: all(
+        `select u.username, f.created_at from follows f join users u on u.id = f.followee_id
+         where f.follower_id = ? order by f.created_at`,
+        me,
+      ).map((r) => ({ username: r.username, sejak: r.created_at })),
+      pengikut: all(
+        `select u.username, f.created_at from follows f join users u on u.id = f.follower_id
+         where f.followee_id = ? order by f.created_at`,
+        me,
+      ).map((r) => ({ username: r.username, sejak: r.created_at })),
+      pesanTerkirim: all(
+        `select u.username as ke, m.body, m.created_at from messages m join users u on u.id = m.to_id
+         where m.from_id = ? order by m.id`,
+        me,
+      ).map((r) => ({ ke: r.ke, isi: r.body, dibuat: r.created_at })),
+      diblokir: all(
+        'select u.username from blocks b join users u on u.id = b.blocked_id where b.blocker_id = ?',
+        me,
+      ).map((r) => r.username),
+    });
+  });
+
+  /** Hapus akun beserta seluruh datanya. Kata sandi diminta supaya HP yang tertinggal tidak bisa menghapus akun. */
+  app.delete('/me', async (c) => {
+    const b = await body(c);
+    const password = typeof b.password === 'string' ? b.password : '';
+    const u = one('select password_hash, avatar, cover from users where id = ?', c.var.me.id)!;
+    if (!verifyPassword(password, u.password_hash) && !verifyPassword(password.trim(), u.password_hash))
+      fail(400, 'Kata sandi salah');
+    // Kumpulkan berkas foto sebelum baris pengguna (dan baris turunannya) dihapus.
+    const files: (string | null)[] = [u.avatar, u.cover];
+    for (const r of all(
+      `select f.file from post_photos f join posts p on p.id = f.post_id where p.user_id = ?`,
+      c.var.me.id,
+    )) {
+      files.push(r.file);
+    }
+    run('delete from users where id = ?', c.var.me.id);
+    for (const f of files) removeMedia(media, f);
+    return c.json({ ok: true });
+  });
+
   app.get('/users', (c) => {
     const me = c.var.me.id;
     const q = (c.req.query('q') ?? '').trim();
     const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
     const rows = all(
-      `select id, username, name, avatar, exists(select 1 from follows where follower_id = $me and followee_id = users.id) as f
+      `select id, username, name, avatar, verified, exists(select 1 from follows where follower_id = $me and followee_id = users.id) as f
        from users where id != $me and (username like $q escape '\\' or name like $q escape '\\')
        order by username limit 30`,
       { me, q: like },
     );
     return c.json(
-      rows.map<UserListItem>((r) => ({ id: r.id, username: r.username, name: r.name, avatarUrl: photoUrl(r.avatar), isFollowing: !!r.f })),
+      rows.map<UserListItem>((r) => ({
+        id: r.id,
+        username: r.username,
+        name: r.name,
+        verified: !!r.verified,
+        avatarUrl: photoUrl(r.avatar),
+        isFollowing: !!r.f,
+      })),
     );
   });
 
@@ -735,11 +958,11 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.get('/users/:id/activities', (c) => {
     const me = c.var.me.id;
-    const rows = all(`${ACTIVITY_SELECT} where a.user_id = $uid and a.started_at < $before order by a.started_at desc limit 20`, {
-      me,
-      uid: idParam(c),
-      before: c.req.query('before') ?? '9999',
-    });
+    const rows = all(
+      `${ACTIVITY_SELECT} where a.user_id = $uid and a.started_at < $before and ${VISIBLE_SQL}
+       order by a.started_at desc limit 20`,
+      { me, uid: idParam(c), before: c.req.query('before') ?? '9999' },
+    );
     return c.json(rows.map((r) => toSummary(r, me)));
   });
 
@@ -748,8 +971,9 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const rawType = c.req.query('type') ?? 'run';
     // type=all menggabungkan semua jenis (untuk ringkasan mingguan di beranda).
     const type = rawType === 'all' ? 'all' : actType(rawType);
-    const byType = type === 'all' ? '' : 'and type = ?';
-    const typeArg = type === 'all' ? [] : [type];
+    const me = c.var.me.id;
+    const byType = type === 'all' ? '' : 'and a.type = $type';
+    const typeArg = type === 'all' ? {} : { type };
     // Zona waktu pengguna dalam menit di timur UTC (WIB = 420), dibatasi ke zona yang ada (UTC−12 s.d. UTC+14).
     const tz = Math.min(840, Math.max(-720, Number(c.req.query('tz') ?? 420) || 0));
     const local = (iso: string | number) => new Date(new Date(iso).getTime() + tz * 60_000);
@@ -765,7 +989,11 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     }
     const byWeek = new Map(weeks.map((w) => [w.start, w]));
     const thisYear: Totals = { count: 0, distanceM: 0, movingS: 0 };
-    const rows = all(`select started_at, distance_m, moving_s from activities where user_id = ? ${byType}`, uid, ...typeArg);
+    const rows = all(
+      `select a.started_at, a.distance_m, a.moving_s from activities a
+       where a.user_id = $uid ${byType} and ${VISIBLE_SQL}`,
+      { uid, me, ...typeArg },
+    );
     for (const r of rows) {
       const d = local(r.started_at);
       const w = byWeek.get(weekStart(d));
@@ -779,9 +1007,9 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const records = all(
       `select b.name, b.distance_m, min(b.elapsed_s) as elapsed_s, b.activity_id, a.started_at
        from best_efforts b join activities a on a.id = b.activity_id
-       where b.user_id = ? and b.type = ? group by b.name order by b.distance_m`,
-      uid,
-      type === 'all' ? '' : type,
+       where b.user_id = $uid and b.type = $btype and ${VISIBLE_SQL}
+       group by b.name order by b.distance_m`,
+      { uid, me, btype: type === 'all' ? '' : type },
     ).map((r) => ({
       name: r.name,
       distanceM: r.distance_m,
@@ -790,15 +1018,16 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       date: r.started_at,
     }));
     const l = one(
-      `select id, distance_m, started_at from activities where user_id = ? ${byType} order by distance_m desc limit 1`,
-      uid,
-      ...typeArg,
+      `select a.id, a.distance_m, a.started_at from activities a
+       where a.user_id = $uid ${byType} and ${VISIBLE_SQL}
+       order by a.distance_m desc limit 1`,
+      { uid, me, ...typeArg },
     );
     const stats: Stats = {
       type,
       weeks,
       thisYear,
-      allTime: totalsOf(`user_id = ? ${byType}`, uid, ...typeArg),
+      allTime: totalsOf(uid, me, type),
       records,
       longest: l ? { distanceM: l.distance_m, activityId: l.id, date: l.started_at } : null,
     };
@@ -812,7 +1041,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const rows = all(
       `${ACTIVITY_SELECT}
        where (a.user_id = $me or a.user_id in (select followee_id from follows where follower_id = $me))
-         and a.started_at < $before
+         and a.started_at < $before and ${VISIBLE_SQL}
        order by a.started_at desc limit 20`,
       { me, before: c.req.query('before') ?? '9999' },
     );
@@ -833,6 +1062,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const title = str(b.title, 'Judul', 1, 100);
     const track = trackOf(b.track);
     checkPlausible(type, track);
+    const visibility = b.visibility == null ? 'public' : visibilityOf(b.visibility);
+    const hideMap = b.hideMap == null ? false : boolOf(b.hideMap, 'hideMap');
     let routeId: number | null = null;
     if (b.routeId != null) {
       routeId = Number(b.routeId);
@@ -840,7 +1071,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     }
     let id: number;
     try {
-      id = saveActivity(c.var.me.id, type, title, track, routeId, clientId);
+      id = saveActivity(c.var.me.id, type, title, track, routeId, clientId, visibility, hideMap);
     } catch (e) {
       // Dua unggahan bersamaan dengan clientId sama: yang kalah balapan memakai baris pemenang.
       const done = clientId
@@ -860,7 +1091,22 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const r = one('select user_id from activities where id = ?', id);
     if (!r) fail(404, 'Aktivitas tidak ditemukan');
     if (r.user_id !== c.var.me.id) fail(403, 'Hanya pemilik yang bisa mengubah');
-    run('update activities set title = ? where id = ?', str(b.title, 'Judul', 1, 100), id);
+    // Semua kolom opsional: app hanya mengirim yang diubah.
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    if (b.title !== undefined) {
+      sets.push('title = ?');
+      values.push(str(b.title, 'Judul', 1, 100));
+    }
+    if (b.visibility !== undefined) {
+      sets.push('visibility = ?');
+      values.push(visibilityOf(b.visibility));
+    }
+    if (b.hideMap !== undefined) {
+      sets.push('hide_map = ?');
+      values.push(boolOf(b.hideMap, 'hideMap') ? 1 : 0);
+    }
+    if (sets.length > 0) run(`update activities set ${sets.join(', ')} where id = ?`, ...values, id);
     return c.json(getActivity(id, c.var.me.id));
   });
 
@@ -878,10 +1124,14 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     hasKudo: !!one('select 1 from kudos where activity_id = ? and user_id = ?', id, me),
   });
 
+  /** Baris aktivitas bila `me` boleh melihatnya; 404 supaya keberadaan aktivitas pribadi tidak bocor. */
+  const visibleActivity = (id: number, me: number) =>
+    one(`select a.id, a.user_id from activities a where a.id = $id and ${VISIBLE_SQL}`, { id, me }) ??
+    fail(404, 'Aktivitas tidak ditemukan');
+
   app.post('/activities/:id/kudos', (c) => {
     const id = idParam(c);
-    const r = one('select user_id from activities where id = ?', id);
-    if (!r) fail(404, 'Aktivitas tidak ditemukan');
+    const r = visibleActivity(id, c.var.me.id);
     if (r.user_id === c.var.me.id) fail(400, 'Tidak bisa memberi like ke aktivitas sendiri');
     run('insert or ignore into kudos (activity_id, user_id) values (?, ?)', id, c.var.me.id);
     return c.json(kudosState(id, c.var.me.id));
@@ -889,21 +1139,24 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.delete('/activities/:id/kudos', (c) => {
     const id = idParam(c);
+    visibleActivity(id, c.var.me.id);
     run('delete from kudos where activity_id = ? and user_id = ?', id, c.var.me.id);
     return c.json(kudosState(id, c.var.me.id));
   });
 
-  const COMMENT_SELECT = `select c.id, c.body, c.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
+  const COMMENT_SELECT = `select c.id, c.body, c.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified
     from comments c join users u on u.id = c.user_id`;
   const toComment = (r: Row): Comment => ({ id: r.id, body: r.body, createdAt: r.created_at, user: userOf(r) });
 
-  app.get('/activities/:id/comments', (c) =>
-    c.json(all(`${COMMENT_SELECT} where c.activity_id = ? order by c.created_at`, idParam(c)).map(toComment)),
-  );
+  app.get('/activities/:id/comments', (c) => {
+    const id = idParam(c);
+    visibleActivity(id, c.var.me.id);
+    return c.json(all(`${COMMENT_SELECT} where c.activity_id = ? order by c.created_at`, id).map(toComment));
+  });
 
   app.post('/activities/:id/comments', async (c) => {
     const id = idParam(c);
-    if (!one('select 1 from activities where id = ?', id)) fail(404, 'Aktivitas tidak ditemukan');
+    visibleActivity(id, c.var.me.id);
     const text = str((await body(c)).body, 'Komentar', 1, 500);
     const cid = run('insert into comments (activity_id, user_id, body) values (?, ?, ?)', id, c.var.me.id, text).lastInsertRowid;
     return c.json(toComment(one(`${COMMENT_SELECT} where c.id = ?`, cid)!), 201);
@@ -1116,13 +1369,14 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
         id: r.id,
         username: r.username,
         name: r.name,
+        verified: !!r.verified,
         avatarUrl: photoUrl(r.avatar),
         isFollowing: !!r.f,
         since: r.since,
       })),
     );
   };
-  const FOLLOW_COLS = `u.id, u.username, u.name, u.avatar, f.created_at as since,
+  const FOLLOW_COLS = `u.id, u.username, u.name, u.avatar, u.verified, f.created_at as since,
     exists(select 1 from follows x where x.follower_id = $me and x.followee_id = u.id) as f`;
   app.get(
     '/users/:id/followers',
@@ -1138,14 +1392,20 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
   // --- Postingan ---
 
   const POST_SELECT = `
-    select p.id, p.body, p.created_at, p.segment_id, p.activity_id, s.name as s_name, a.title as a_title, a.type as a_type,
-           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar,
+    select p.id, p.body, p.created_at, p.segment_id, p.activity_id, p.visibility,
+           s.name as s_name, a.title as a_title, a.type as a_type,
+           u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified,
            (select count(*) from post_likes l where l.post_id = p.id) as likes,
            exists(select 1 from post_likes l where l.post_id = p.id and l.user_id = $me) as has_liked,
            (select count(*) from post_replies r where r.post_id = p.id) as replies
     from posts p join users u on u.id = p.user_id
       left join segments s on s.id = p.segment_id
       left join activities a on a.id = p.activity_id`;
+
+  /** Postingan yang boleh dilihat `$me`. Postingan pribadi hanya untuk pemiliknya. */
+  const POST_VISIBLE_SQL = `(p.user_id = $me
+    or p.visibility = 'public'
+    or (p.visibility = 'followers' and p.user_id in (select followee_id from follows where follower_id = $me)))`;
 
   const toPost = (r: Row): Post => ({
     id: r.id,
@@ -1158,13 +1418,19 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     likes: r.likes,
     hasLiked: !!r.has_liked,
     replies: r.replies,
+    visibility: r.visibility as ActivityVisibility,
   });
 
   const getPost = (id: number, me: number): Post => {
-    const r = one(`${POST_SELECT} where p.id = $id`, { id, me });
+    const r = one(`${POST_SELECT} where p.id = $id and ${POST_VISIBLE_SQL}`, { id, me });
     if (!r) fail(404, 'Postingan tidak ditemukan');
     return toPost(r);
   };
+
+  /** Baris postingan bila `me` boleh melihatnya; 404 supaya postingan pribadi tidak bocor. */
+  const visiblePost = (id: number, me: number) =>
+    one(`select p.id, p.user_id from posts p where p.id = $id and ${POST_VISIBLE_SQL}`, { id, me }) ??
+    fail(404, 'Postingan tidak ditemukan');
 
   app.post('/posts', async (c) => {
     const me = c.var.me.id;
@@ -1187,10 +1453,17 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       if (!a) fail(404, 'Aktivitas tidak ditemukan');
       if (a.user_id !== me) fail(403, 'Hanya aktivitas sendiri yang bisa ditautkan');
     }
+    const visibility = form.visibility == null || form.visibility === '' ? 'public' : visibilityOf(form.visibility);
     const id = tx(db, () => {
       const id = Number(
-        run('insert into posts (user_id, body, segment_id, activity_id) values (?, ?, ?, ?)', me, text, segmentId, activityId)
-          .lastInsertRowid,
+        run(
+          'insert into posts (user_id, body, segment_id, activity_id, visibility) values (?, ?, ?, ?, ?)',
+          me,
+          text,
+          segmentId,
+          activityId,
+          visibility,
+        ).lastInsertRowid,
       );
       photos.forEach((data, i) => run('insert into post_photos (post_id, position, file) values (?, ?, ?)', id, i, saveJpeg(media, data)));
       return id;
@@ -1199,6 +1472,17 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
   });
 
   app.get('/posts/:id', (c) => c.json(getPost(idParam(c), c.var.me.id)));
+
+  /** Pemilik dapat mengubah visibilitas postingan setelah dikirim. */
+  app.patch('/posts/:id', async (c) => {
+    const id = idParam(c);
+    const b = await body(c);
+    const r = one('select user_id from posts where id = ?', id);
+    if (!r) fail(404, 'Postingan tidak ditemukan');
+    if (r.user_id !== c.var.me.id) fail(403, 'Hanya pemilik yang bisa mengubah');
+    run('update posts set visibility = ? where id = ?', visibilityOf(b.visibility), id);
+    return c.json(getPost(id, c.var.me.id));
+  });
 
   app.delete('/posts/:id', (c) => {
     const id = idParam(c);
@@ -1218,28 +1502,31 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/posts/:id/like', (c) => {
     const id = idParam(c);
-    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    visiblePost(id, c.var.me.id);
     run('insert or ignore into post_likes (post_id, user_id) values (?, ?)', id, c.var.me.id);
     return c.json(likeState(id, c.var.me.id));
   });
 
   app.delete('/posts/:id/like', (c) => {
     const id = idParam(c);
+    visiblePost(id, c.var.me.id);
     run('delete from post_likes where post_id = ? and user_id = ?', id, c.var.me.id);
     return c.json(likeState(id, c.var.me.id));
   });
 
-  const REPLY_SELECT = `select r.id, r.body, r.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar
+  const REPLY_SELECT = `select r.id, r.body, r.created_at, u.id as u_id, u.username as u_username, u.name as u_name, u.avatar as u_avatar, u.verified as u_verified
     from post_replies r join users u on u.id = r.user_id`;
   const toReply = (r: Row): PostReply => ({ id: r.id, body: r.body, createdAt: r.created_at, user: userOf(r) });
 
-  app.get('/posts/:id/replies', (c) =>
-    c.json(all(`${REPLY_SELECT} where r.post_id = ? order by r.created_at`, idParam(c)).map(toReply)),
-  );
+  app.get('/posts/:id/replies', (c) => {
+    const id = idParam(c);
+    visiblePost(id, c.var.me.id);
+    return c.json(all(`${REPLY_SELECT} where r.post_id = ? order by r.created_at`, id).map(toReply));
+  });
 
   app.post('/posts/:id/replies', async (c) => {
     const id = idParam(c);
-    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    visiblePost(id, c.var.me.id);
     const text = str((await body(c)).body, 'Balasan', 1, 500);
     const rid = run('insert into post_replies (post_id, user_id, body) values (?, ?, ?)', id, c.var.me.id, text).lastInsertRowid;
     return c.json(toReply(one(`${REPLY_SELECT} where r.id = ?`, rid)!), 201);
@@ -1256,7 +1543,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/posts/:id/report', async (c) => {
     const id = idParam(c);
-    if (!one('select 1 from posts where id = ?', id)) fail(404, 'Postingan tidak ditemukan');
+    visiblePost(id, c.var.me.id);
     const reason = str((await body(c)).reason, 'Alasan', 1, 300);
     run('insert into reports (reporter_id, post_id, reason) values (?, ?, ?)', c.var.me.id, id, reason);
     return c.json({ ok: true }, 201);
@@ -1268,6 +1555,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const rows = all(
       `${POST_SELECT} where p.segment_id = $id and p.created_at < $before
          and p.user_id not in (select blocked_id from blocks where blocker_id = $me)
+         and ${POST_VISIBLE_SQL}
        order by p.created_at desc limit 20`,
       { id: idParam(c), me, before: c.req.query('before') ?? '9999' },
     );
@@ -1280,11 +1568,11 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const params = { me, before: c.req.query('before') ?? '9999' };
     const circle = 'in (select followee_id from follows where follower_id = $me)';
     const acts = all(
-      `${ACTIVITY_SELECT} where (a.user_id = $me or a.user_id ${circle}) and a.started_at < $before order by a.started_at desc limit 20`,
+      `${ACTIVITY_SELECT} where (a.user_id = $me or a.user_id ${circle}) and a.started_at < $before and ${VISIBLE_SQL} order by a.started_at desc limit 20`,
       params,
     ).map((r): TimelineItem => ({ kind: 'activity', at: r.started_at, ...toSummary(r, me) }));
     const posts = all(
-      `${POST_SELECT} where (p.user_id = $me or p.user_id ${circle}) and p.created_at < $before order by p.created_at desc limit 20`,
+      `${POST_SELECT} where (p.user_id = $me or p.user_id ${circle}) and p.created_at < $before and ${POST_VISIBLE_SQL} order by p.created_at desc limit 20`,
       params,
     ).map((r): TimelineItem => ({ kind: 'post', at: r.created_at, ...toPost(r) }));
     return c.json([...acts, ...posts].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0)).slice(0, 20));
@@ -1318,7 +1606,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     );
     return c.json(
       rows.map<ChatSummary>((r) => {
-        const u = one('select id as u_id, username as u_username, name as u_name, avatar as u_avatar from users where id = ?', r.partner)!;
+        const u = one('select id as u_id, username as u_username, name as u_name, avatar as u_avatar, verified as u_verified from users where id = ?', r.partner)!;
         return { user: userOf(u), last: toMessage(one('select * from messages where id = ?', r.last_id)!, me), unread: r.unread };
       }),
     );

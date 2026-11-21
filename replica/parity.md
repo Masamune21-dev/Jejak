@@ -1,6 +1,6 @@
-## Parity: 59.7 / 100
+## Parity: 62.1 / 100
 
-features 59.7  (84 counted, must-haves 31 of 31 done)
+features 62.1  (84 counted, must-haves 31 of 31 done)
 
 ## By area, weakest first
 - Perangkat                      0.0  (3 features)
@@ -10,12 +10,12 @@ features 59.7  (84 counted, must-haves 31 of 31 done)
 - Notifikasi                    42.9  (3 features)
 - Privasi                       50.0  (3 features)
 - Platform                      53.8  (7 features)
-- Rekam                         56.2  (7 features)
 - Rute                          64.7  (9 features)
 - Aktivitas                     70.8  (10 features)
 - Segmen                        71.4  (10 features)
 - Sosial                        75.0  (12 features)
 - Bagikan                       75.0  (2 features)
+- Rekam                         81.2  (7 features)
 - Profil                       100.0  (3 features)
 - Tampilan                     100.0  (1 features)
 
@@ -31,8 +31,6 @@ features 59.7  (84 counted, must-haves 31 of 31 done)
 - [should] Perangkat: Sinkron jam GPS (Garmin/COROS/Wahoo), no  (Butuh integrasi vendor)
 - [should] Platform: Health Connect atau Apple Health, no  (Diusulkan di docs/ide-fitur.md)
 - [should] Privasi: Visibilitas per aktivitas, no  (Diusulkan di docs/ide-fitur.md)
-- [should] Rekam: Impor aktivitas GPX/FIT, no  (Jejak baru bisa ekspor)
-- [should] Rekam: Jeda otomatis, no  (Diusulkan di docs/ide-fitur.md)
 - [should] Rekam: Panduan suara per km dan belokan, no  (Diusulkan di docs/ide-fitur.md)
 - [should] Rute: Impor rute GPX, no
 - [should] Segmen: Segmen favorit (starred), no

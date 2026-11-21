@@ -9,7 +9,7 @@ alurnya, bukan kode, merek, teks, atau asetnya.
 | Ukuran | Hasil |
 | --- | --- |
 | Fitur Strava yang dinilai | 84 |
-| Skor paritas fitur | **59,7 / 100** |
+| Skor paritas fitur | **62,1 / 100** |
 | Must-have selesai | **31 / 31** |
 | Ulasan Strava terkumpul | **1.177 unik** (App Store US/GB/ID, 2017–2026) |
 | Ulasan 1–3 bintang | 672 |

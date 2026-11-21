@@ -462,3 +462,157 @@ test('validasi: kata sandi mudah ditebak ditolak saat daftar, tz ekstrem tidak m
     assert.equal((await call('GET', `/users/${u.user.id}/stats?tz=${tz}`, u.token)).status, 200, tz);
   }
 });
+
+test('visibilitas: publik terlihat semua, pengikut hanya pengikut, pribadi hanya pemilik', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  const ika = await register('ika');
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+
+  const make = (title: string, visibility: string, day: number) =>
+    call<Activity>('POST', '/activities', dicky.token, {
+      type: 'run',
+      title,
+      visibility,
+      track: [walkPath([A, B], 3, Date.UTC(2026, 9, day))],
+    });
+  const pub = await make('publik', 'public', 1);
+  const fol = await make('pengikut', 'followers', 2);
+  const priv = await make('pribadi', 'private', 3);
+  for (const r of [pub, fol, priv]) assert.equal(r.status, 201, r.body.error);
+  assert.equal(pub.body.visibility, 'public');
+
+  const feed = async (token: string) => (await call<ActivitySummary[]>('GET', '/feed', token)).body.map((a) => a.id);
+  assert.deepEqual(await feed(fajar.token), [fol.body.id, pub.body.id]);
+  // Feed hanya berisi diri sendiri dan yang diikuti; publik tetap terlihat lewat profil.
+  assert.deepEqual(await feed(ika.token), []);
+  assert.equal((await call<ActivitySummary[]>('GET', `/users/${dicky.user.id}/activities`, fajar.token)).body.length, 2);
+  assert.equal((await call<ActivitySummary[]>('GET', `/users/${dicky.user.id}/activities`, ika.token)).body.length, 1);
+
+  // Detail: yang tidak boleh melihat mendapat 404, bukan 403 (keberadaan aktivitas tidak bocor).
+  assert.equal((await call('GET', `/activities/${priv.body.id}`, fajar.token)).status, 404);
+  assert.equal((await call('GET', `/activities/${fol.body.id}`, ika.token)).status, 404);
+  assert.equal((await call('GET', `/activities/${priv.body.id}`, dicky.token)).status, 200);
+  // Like dan komentar juga mengikuti visibilitas.
+  assert.equal((await call('POST', `/activities/${priv.body.id}/kudos`, fajar.token)).status, 404);
+  assert.equal((await call('GET', `/activities/${priv.body.id}/comments`, fajar.token)).status, 404);
+
+  // Statistik mengikuti apa yang boleh dilihat pemirsanya.
+  const count = async (token: string) =>
+    (await call<Stats>('GET', `/users/${dicky.user.id}/stats?type=run&tz=420`, token)).body.allTime.count;
+  assert.equal(await count(dicky.token), 3);
+  assert.equal(await count(fajar.token), 2);
+  assert.equal(await count(ika.token), 1);
+
+  // Pemilik bisa mengubah; judul saja tidak menghapus visibilitas.
+  const changed = await call<Activity>('PATCH', `/activities/${fol.body.id}`, dicky.token, { visibility: 'private' });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.body.visibility, 'private');
+  assert.equal(changed.body.title, 'pengikut');
+  assert.deepEqual(await feed(fajar.token), [pub.body.id]);
+  assert.equal((await call('PATCH', `/activities/${pub.body.id}`, dicky.token, { visibility: 'teman' })).status, 400);
+  assert.equal((await call('PATCH', `/activities/${pub.body.id}`, fajar.token, { title: 'x' })).status, 403);
+});
+
+test('privasi: sembunyikan peta menghapus pratinjau dan jejak untuk orang lain', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+  const created = await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'Rute rumah',
+    hideMap: true,
+    track: [walkPath([A, B, C], 3)],
+  });
+  assert.equal(created.status, 201, created.body.error);
+  assert.equal(created.body.hideMap, true);
+  assert.ok(created.body.preview.length > 0);
+  assert.ok(created.body.track.length > 0);
+
+  const seen = (await call<Activity>('GET', `/activities/${created.body.id}`, fajar.token)).body;
+  assert.deepEqual(seen.preview, []);
+  assert.deepEqual(seen.track, []);
+  assert.equal(seen.distanceM > 0, true);
+  const card = (await call<ActivitySummary[]>('GET', '/feed', fajar.token)).body[0];
+  assert.deepEqual(card.preview, []);
+  assert.equal(card.hideMap, true);
+
+  await call('PATCH', `/activities/${created.body.id}`, dicky.token, { hideMap: false });
+  const again = (await call<Activity>('GET', `/activities/${created.body.id}`, fajar.token)).body;
+  assert.ok(again.track.length > 0);
+  assert.ok(again.preview.length > 0);
+});
+
+test('ekspor: semua data pengguna dalam satu JSON', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const act = await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'Lari ekspor',
+    track: [walkPath([A, B], 3)],
+  });
+  await call('POST', '/routes', dicky.token, {
+    name: 'Rute ekspor',
+    type: 'run',
+    waypoints: [A, B],
+    geometry: [A, B],
+    steps: [],
+  });
+  const r = await call<Record<string, any>>('GET', '/me/export', dicky.token);
+  assert.equal(r.status, 200, r.body.error);
+  assert.equal(r.body.versi, 1);
+  assert.equal(r.body.profil.username, 'dicky');
+  assert.equal(r.body.aktivitas.length, 1);
+  assert.equal(r.body.aktivitas[0].id, act.body.id);
+  assert.ok(Array.isArray(r.body.aktivitas[0].jejak));
+  assert.equal(r.body.rute.length, 1);
+  assert.equal(r.body.rute[0].nama, 'Rute ekspor');
+  assert.ok(Array.isArray(r.body.segmen));
+  assert.ok(Array.isArray(r.body.pesanTerkirim));
+});
+
+test('hapus akun: kata sandi wajib, semua data ikut terhapus, username bisa dipakai lagi', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const fajar = await register('fajar');
+  await call('POST', `/users/${dicky.user.id}/follow`, fajar.token);
+  const act = await call<Activity>('POST', '/activities', dicky.token, {
+    type: 'run',
+    title: 'Terakhir',
+    track: [walkPath([A, B], 3)],
+  });
+  await call('POST', `/activities/${act.body.id}/kudos`, fajar.token);
+
+  assert.equal((await call('DELETE', '/me', dicky.token, { password: 'salah' })).status, 400);
+  assert.equal((await call('GET', '/me', dicky.token)).status, 200);
+
+  assert.equal((await call('DELETE', '/me', dicky.token, { password: 'rahasia1' })).status, 200);
+  // Sesi ikut hilang dan akun tidak bisa dipakai lagi.
+  assert.equal((await call('GET', '/me', dicky.token)).status, 401);
+  assert.equal((await call('POST', '/auth/login', undefined, { username: 'dicky', password: 'rahasia1' })).status, 401);
+  // Data turunannya ikut terhapus, termasuk dari feed orang lain.
+  assert.equal((await call('GET', `/activities/${act.body.id}`, fajar.token)).status, 404);
+  assert.equal((await call('GET', `/users/${dicky.user.id}`, fajar.token)).status, 404);
+  assert.equal((await call<ActivitySummary[]>('GET', '/feed', fajar.token)).body.length, 0);
+  // Username bebas dipakai pendaftar baru.
+  assert.equal(
+    (await call('POST', '/auth/register', undefined, { username: 'dicky', name: 'Dicky Baru', password: 'rahasia1' })).status,
+    201,
+  );
+});
+
+test('centang biru: hanya username di daftar terverifikasi', async () => {
+  const { call, register } = setup();
+  const biasa = await register('biasa');
+  const owner = await register('masamune');
+  assert.equal(biasa.user.verified, false);
+  assert.equal(owner.user.verified, true);
+  assert.equal((await call<Profile>('GET', '/me', owner.token)).body.verified, true);
+  const seen = (await call<Profile>('GET', `/users/${owner.user.id}`, biasa.token)).body;
+  assert.equal(seen.verified, true);
+  // Login juga membawa flag-nya.
+  const login = (await call<AuthResult>('POST', '/auth/login', undefined, { username: 'masamune', password: 'rahasia1' })).body;
+  assert.equal(login.user.verified, true);
+});

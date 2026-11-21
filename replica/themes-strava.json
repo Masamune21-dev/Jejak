@@ -1,0 +1,165 @@
+{
+  "themes": [
+    {
+      "id": "subscription-price",
+      "label": "Harga langganan dan paywall",
+      "kind": "complaint",
+      "patterns": [
+        "\\bsubscription\\b", "\\bsubscri", "paywall", "pay wall", "\\bpremium\\b",
+        "\\bprice", "\\bpricing\\b", "expensive", "\\bcost", "charged", "refund",
+        "free version", "\\bmoney\\b", "langganan", "mahal", "\\bbayar\\b", "biaya"
+      ]
+    },
+    {
+      "id": "ads-feed",
+      "label": "Iklan dan feed yang penuh",
+      "kind": "complaint",
+      "patterns": [
+        "\\bads?\\b", "advert", "sponsored", "promoted", "\\bfeed\\b", "algorithm",
+        "clutter", "social media", "timeline", "iklan", "beranda"
+      ]
+    },
+    {
+      "id": "gps-tracking",
+      "label": "GPS dan jarak melenceng",
+      "kind": "complaint",
+      "patterns": [
+        "\\bgps\\b", "\\bdistance\\b", "\\btracking\\b", "\\btrack\\b", "accuracy",
+        "inaccurate", "off by", "mileage", "cut corner", "jarak", "akurasi",
+        "rute.*(salah|melenceng)"
+      ]
+    },
+    {
+      "id": "battery",
+      "label": "Baterai boros",
+      "kind": "complaint",
+      "patterns": ["battery", "drain", "burns? battery", "baterai", "boros"]
+    },
+    {
+      "id": "crashes-bugs",
+      "label": "Crash dan bug",
+      "kind": "complaint",
+      "patterns": [
+        "crash", "freeze", "frozen", "\\bbug", "glitch", "won'?t open", "wont open",
+        "stuck", "\\berror", "broken", "doesn'?t work", "does not work", "force close",
+        "\\beror\\b", "macet", "nyangkut", "gagal"
+      ]
+    },
+    {
+      "id": "sync-upload",
+      "label": "Sinkron dan unggah gagal",
+      "kind": "complaint",
+      "patterns": [
+        "\\bsync", "\\bupload", "download", "missing activit", "didn'?t save",
+        "did not save", "lost.*activit", "garmin.*strava", "strava.*garmin",
+        "sinkron", "unggah", "hilang.*aktivitas"
+      ]
+    },
+    {
+      "id": "watch-device",
+      "label": "Jam GPS dan perangkat",
+      "kind": "complaint",
+      "patterns": [
+        "\\bwatch\\b", "garmin", "apple watch", "wear os", "coros", "wahoo",
+        "\\bdevice", "\\bpair", "bluetooth", "heart rate", "\\bhr\\b", "sensor",
+        "detak jantung"
+      ]
+    },
+    {
+      "id": "privacy-safety",
+      "label": "Privasi dan keamanan",
+      "kind": "complaint",
+      "patterns": [
+        "privacy", "private", "location", "home address", "stalk", "creepy",
+        "safety", "beacon", "hide.*(map|home)", "data.*(share|sell)", "privasi",
+        "lokasi", "rumah", "keamanan"
+      ]
+    },
+    {
+      "id": "social-community",
+      "label": "Teman, klub, dan tantangan",
+      "kind": "complaint",
+      "patterns": [
+        "friends", "followers", "kudos", "comments", "social", "community",
+        "\\bclub", "challenge", "teman", "komunitas", "klub", "tantangan"
+      ]
+    },
+    {
+      "id": "segments-leaderboard",
+      "label": "Segmen dan leaderboard",
+      "kind": "complaint",
+      "patterns": [
+        "segment", "leaderboard", "\\bkom\\b", "\\bqom\\b", "local legend",
+        "ranking", "\\brank", "segmen", "peringkat"
+      ]
+    },
+    {
+      "id": "notifications",
+      "label": "Notifikasi",
+      "kind": "complaint",
+      "patterns": ["notification", "notify", "\\bpush\\b", "\\balert", "\\bemail", "notifikasi"]
+    },
+    {
+      "id": "customer-support",
+      "label": "Layanan pelanggan",
+      "kind": "complaint",
+      "patterns": [
+        "support", "customer service", "\\bhelp\\b", "response", "ticket",
+        "contact", "bantuan", "layanan"
+      ]
+    },
+    {
+      "id": "account-login",
+      "label": "Akun, login, dan hapus data",
+      "kind": "complaint",
+      "patterns": [
+        "export", "delete.*account", "account.*delet", "lost.*account", "login",
+        "log in", "password", "sign in", "akun", "\\bmasuk\\b", "kata sandi"
+      ]
+    },
+    {
+      "id": "navigation-maps",
+      "label": "Peta dan navigasi",
+      "kind": "complaint",
+      "patterns": [
+        "navigation", "navigate", "\\bmap", "\\broute", "directions", "reroute",
+        "peta", "rute", "navigasi"
+      ]
+    },
+    {
+      "id": "ui-ux",
+      "label": "Tampilan susah dipakai",
+      "kind": "complaint",
+      "patterns": [
+        "interface", "\\bui\\b", "\\bux\\b", "design", "layout", "hard to",
+        "confusing", "difficult to", "find.*button", "new update", "update.*worse",
+        "tampilan", "desain", "susah", "membingungkan"
+      ]
+    },
+    {
+      "id": "performance",
+      "label": "Aplikasi lambat",
+      "kind": "complaint",
+      "patterns": [
+        "\\bslow\\b", "lag", "laggy", "loading", "takes forever", "performance",
+        "lemot", "lambat"
+      ]
+    },
+    {
+      "id": "data-loss",
+      "label": "Data hilang",
+      "kind": "complaint",
+      "patterns": [
+        "lost.*data", "data.*lost", "deleted", "disappeared", "\\bgone\\b",
+        "missing", "hilang", "terhapus"
+      ]
+    }
+  ],
+  "request_patterns": [
+    "\\bwish\\b", "please add", "would love", "\\bneed\\b", "bring back",
+    "feature request", "suggestion", "should have", "hoping", "hope you",
+    "can you", "why can'?t", "no option", "there is no", "doesn'?t have",
+    "does not have", "add.*(option|feature|ability)", "tolong", "mohon",
+    "semoga", "seharusnya", "tambahkan", "fitur"
+  ]
+}

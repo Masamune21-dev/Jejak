@@ -4,3 +4,8 @@ node_modules/
 
 # Database server (berisi akun & aktivitas pengguna)
 server/data/
+
+# Replica: tangkapan layar pembanding dan hasil diff tidak ikut repo
+replica/screens/
+replica/clone-screens/
+replica/diffs/

@@ -10,3 +10,14 @@ export function confirm(title: string, message: string, okText = 'Ya'): Promise<
     ]);
   });
 }
+
+/** Pemberitahuan satu tombol, juga untuk web tempat `Alert.alert` tidak tampil. */
+export function notice(title: string, message: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [{ text: 'Oke', onPress: () => resolve() }]);
+  });
+}

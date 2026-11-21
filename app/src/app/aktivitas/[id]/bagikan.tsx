@@ -22,7 +22,7 @@ type Ratio = 'post' | 'story';
 const RATIO: Record<Ratio, number> = { post: 4 / 5, story: 9 / 16 };
 const EXPORT_WIDTH = 1080;
 
-/** Stiker transparan dulu (gaya Strava), lalu template lama yang punya latar sendiri. */
+/** Stiker transparan dulu, lalu template lama yang punya latar sendiri. */
 type Item = { kind: 'sticker'; key: StickerKey; name: string } | { kind: 'template'; key: TemplateKey; name: string };
 const ITEMS: Item[] = [
   ...STICKERS.map((s) => ({ kind: 'sticker' as const, key: s.key, name: s.name })),

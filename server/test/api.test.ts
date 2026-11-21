@@ -152,6 +152,40 @@ test('aktivitas, feed teman, kudos, komentar, statistik', async () => {
   assert.equal(profile.isFollowing, true);
 });
 
+test('unggah ulang dengan clientId yang sama tidak menggandakan aktivitas', async () => {
+  const { call, register } = setup();
+  const dicky = await register('dicky');
+  const body = {
+    type: 'run',
+    title: 'Lari pagi',
+    track: [walkPath([A, B, C], 3)],
+    clientId: 'rekaman-abc-123',
+  };
+  const first = await call<Activity>('POST', '/activities', dicky.token, body);
+  assert.equal(first.status, 201, first.body.error);
+
+  // Aplikasi mengirim ulang karena balasan pertama tidak sampai: yang dikembalikan aktivitas yang sama.
+  const again = await call<Activity>('POST', '/activities', dicky.token, body);
+  assert.equal(again.status, 200);
+  assert.equal(again.body.id, first.body.id);
+  assert.equal((await call<ActivitySummary[]>('GET', `/users/${dicky.user.id}/activities`, dicky.token)).body.length, 1);
+
+  // clientId berbeda tetap membuat aktivitas baru.
+  const other = await call<Activity>('POST', '/activities', dicky.token, { ...body, clientId: 'rekaman-abc-124' });
+  assert.equal(other.status, 201);
+  assert.notEqual(other.body.id, first.body.id);
+
+  // Pengguna lain boleh memakai clientId yang sama (kunci unik per pengguna).
+  const fajar = await register('fajar');
+  const mine = await call<Activity>('POST', '/activities', fajar.token, body);
+  assert.equal(mine.status, 201);
+  assert.notEqual(mine.body.id, first.body.id);
+
+  // clientId kosong atau kepanjangan ditolak, bukan diam-diam diabaikan.
+  assert.equal((await call('POST', '/activities', dicky.token, { ...body, clientId: ' ' })).status, 400);
+  assert.equal((await call('POST', '/activities', dicky.token, { ...body, clientId: 'x'.repeat(65) })).status, 400);
+});
+
 test('rute: rencana, simpan, lihat, hapus', async () => {
   const { call, register } = setup();
   const u = await register('masamune');
@@ -347,6 +381,26 @@ test('migrasi: database lama dengan token mentah tetap bisa dipakai', async () =
       (db.prepare('select token_hash from sessions').get() as { token_hash: string }).token_hash,
       hashToken('token-lama'),
     );
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migrasi: tabel activities lama mendapat kolom client_id', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'jejak-'));
+  try {
+    const path = join(dir, 'lama.db');
+    const first = openDb(path);
+    // Tiru database sebelum fitur unggah idempoten: tanpa kolom dan indeksnya.
+    first.exec('drop index if exists activities_client');
+    first.exec('alter table activities drop column client_id');
+    first.close();
+
+    const db = openDb(path);
+    const cols = (db.prepare('pragma table_info(activities)').all() as { name: string }[]).map((c) => c.name);
+    assert.ok(cols.includes('client_id'));
+    assert.ok(db.prepare("select 1 from sqlite_master where type = 'index' and name = 'activities_client'").get());
     db.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

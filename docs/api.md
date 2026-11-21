@@ -465,7 +465,8 @@ Body `NewActivity`:
     [[-7.8139, 110.9258, 1761630723000, 112.3], [-7.81385, 110.92581, 1761630724000, 112.4]],
     [[-7.8120, 110.9260, 1761631000000, null]]
   ],
-  "routeId": 3
+  "routeId": 3,
+  "clientId": "m3k9x1-8fa2c7d1"
 }
 ```
 
@@ -475,8 +476,9 @@ Body `NewActivity`:
 | `title` | 1–100 karakter setelah di-trim. |
 | `track` | Array bagian; tiap bagian array `TrackPoint`. Bagian baru dimulai setiap kali rekaman dilanjutkan setelah jeda. Bagian kosong dibuang. Waktu di dalam satu bagian tidak boleh mundur. Total titik 2–60.000. |
 | `routeId` | Opsional. Bila rute tidak ditemukan atau bukan milikmu, diam-diam disimpan sebagai `null`. |
+| `clientId` | Opsional, 1–64 karakter. Kunci idempoten dari app. Bila pengguna yang sama sudah punya aktivitas dengan `clientId` ini, server mengembalikan aktivitas itu dengan **200** tanpa membuat salinan. Kunci unik per pengguna, jadi dua pengguna boleh memakai nilai yang sama. |
 
-Respons **201** `Activity` (lihat `GET /activities/:id`).
+Respons **201** `Activity` (lihat `GET /activities/:id`), atau **200** `Activity` yang sudah ada bila `clientId` sama.
 
 | Kode | Pesan |
 | --- | --- |
@@ -549,6 +551,8 @@ Menghapus aktivitas beserta kudos, komentar, waktu terbaik, dan waktu segmennya 
 
 ## Kudos dan komentar
 
+Di aplikasi, tombol ini disebut **like**. Nama endpoint, tabel, dan tipe data tetap `kudos` supaya tidak perlu migrasi.
+
 ### `POST /activities/:id/kudos` dan `DELETE /activities/:id/kudos`
 
 Memberi / mencabut kudos. Idempoten. Respons `KudosState`:
@@ -559,7 +563,7 @@ Memberi / mencabut kudos. Idempoten. Respons `KudosState`:
 
 | Kode | Pesan |
 | --- | --- |
-| 400 | `Tidak bisa memberi kudos ke aktivitas sendiri` (POST) |
+| 400 | `Tidak bisa memberi like ke aktivitas sendiri` (POST) |
 | 404 | `Aktivitas tidak ditemukan` (POST) |
 
 `DELETE` tidak memeriksa keberadaan aktivitas; untuk id yang tidak ada hasilnya `{ "kudos": 0, "hasKudo": false }`.

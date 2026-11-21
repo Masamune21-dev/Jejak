@@ -113,7 +113,7 @@ export default function LandingScreen() {
     },
     {
       title: 'Ramai bareng teman',
-      text: 'Ikuti teman, beri kudos, tulis postingan, ngobrol di diskusi segmen, dan kirim pesan ke teman yang saling mengikuti.',
+      text: 'Ikuti teman, beri like, tulis postingan, ngobrol di diskusi segmen, dan kirim pesan ke teman yang saling mengikuti.',
       fragment: <ChatFragment />,
     },
   ];

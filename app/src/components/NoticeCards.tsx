@@ -3,9 +3,12 @@ import { StyleSheet, View } from 'react-native';
 
 import { Button, Card, Empty, IconTile, Row, T } from '@/components/ui';
 import { errorText } from '@/lib/api';
+import { useMe } from '@/lib/auth';
+import { confirm } from '@/lib/confirm';
 import { usePush } from '@/lib/push-state';
 import { space, useColors } from '@/lib/theme';
 import { APP_VERSION, openApkDownload, useUpdate, type ApkInfo } from '@/lib/update';
+import { removeQueued, retryQueued, useUploadQueue } from '@/lib/upload-queue';
 
 /** Kartu di Beranda saat ada APK yang lebih baru di situs. */
 export function UpdateCard() {
@@ -27,6 +30,67 @@ export function UpdateCard() {
       <Row gap={space.sm}>
         <Button small title="Unduh" icon="download-outline" onPress={() => void openApkDownload(versi)} style={{ flex: 1 }} />
         <Button small kind="ghost" title="Nanti" onPress={() => void u.dismiss()} />
+      </Row>
+    </Card>
+  );
+}
+
+/** Kartu di Beranda bila ada rekaman yang belum terunggah (server mati atau tanpa internet). */
+export function UploadQueueCard() {
+  const me = useMe();
+  const all = useUploadQueue();
+  const q = all.filter((x) => x.userId === me.id);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (q.length === 0) return null;
+  const stuck = q.find((x) => x.stuck);
+  const retry = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await retryQueued(me.id);
+      if (r.error) setError(r.error);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    // Yang ditolak server dihapus lebih dulu; kalau tidak ada, tawarkan menghapus semua.
+    const items = stuck ? q.filter((x) => x.stuck) : q;
+    const ok = await confirm(
+      'Hapus rekaman',
+      `${items.length} rekaman yang belum terunggah akan dihapus dan tidak bisa dikembalikan.`,
+      'Hapus',
+    );
+    if (!ok) return;
+    for (const item of items) await removeQueued(item.clientId);
+  };
+  return (
+    <Card>
+      <Row style={{ alignItems: 'flex-start' }}>
+        <IconTile icon="cloud-upload-outline" />
+        <View style={styles.text}>
+          <T v="h3">{q.length > 1 ? `${q.length} aktivitas menunggu diunggah` : 'Aktivitas menunggu diunggah'}</T>
+          <T v="small">
+            {stuck
+              ? `Server menolak salah satu rekaman: ${stuck.lastError ?? 'tidak diketahui'}. Datanya tetap di HP sampai kamu menghapusnya.`
+              : 'Tersimpan aman di HP. Jejak mencoba mengunggah lagi otomatis saat koneksi kembali.'}
+          </T>
+        </View>
+      </Row>
+      {error ? <ErrorLine text={error} /> : null}
+      <Row gap={space.sm}>
+        <Button
+          small
+          title="Coba lagi"
+          icon="refresh-outline"
+          loading={busy}
+          onPress={() => void retry()}
+          style={{ flex: 1 }}
+        />
+        <Button small kind="ghost" title="Hapus" icon="trash-outline" disabled={busy} onPress={() => void remove()} />
       </Row>
     </Card>
   );

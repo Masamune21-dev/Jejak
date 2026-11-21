@@ -10,7 +10,7 @@ import { routePath } from '@/lib/route-path';
 import { font } from '@/lib/theme';
 
 /**
- * Stiker bagikan bergaya Strava: garis rute dan angka TANPA latar, diekspor sebagai PNG transparan
+ * Stiker bagikan bergaya aplikasi olahraga: garis rute dan angka TANPA latar, diekspor sebagai PNG transparan
  * untuk ditempel di atas foto sendiri (Instagram Story dll). Merek yang dipakai tetap "jejak.".
  * Ukuran diskalakan dari lebar `w` (desain dasar 360 px); posisi vertikal relatif terhadap `h`.
  */
@@ -37,7 +37,7 @@ interface Stat {
   value: string;
 }
 
-/** "25m 2d" atau "1j 5m", seperti di stiker Strava. */
+/** "25m 2d" atau "1j 5m", format waktu ringkas. */
 function durasi(s: number): string {
   const t = Math.max(0, Math.round(s));
   const j = Math.floor(t / 3600);
@@ -56,7 +56,7 @@ function stickerStats(a: Activity) {
   const max: Stat | null =
     a.type === 'ride' ? { label: 'Kecepatan Maks', value: `${(a.maxSpeedMps * 3.6).toFixed(1).replace('.', ',')} km/j` } : null;
   const elevMax: Stat | null = alts.length ? { label: 'Elev Maks', value: `${Math.round(Math.max(...alts))} m` } : null;
-  /** Urutan daftar lengkap, seperti stiker Strava. */
+  /** Urutan daftar lengkap. */
   const all = [dist, gain, time, tempo, max, elevMax].filter((x): x is Stat => x != null);
   return { dist, gain, time, tempo, max, elevMax, all };
 }

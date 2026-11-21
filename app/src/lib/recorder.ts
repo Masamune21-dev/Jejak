@@ -10,9 +10,10 @@ import { Platform } from 'react-native';
 import type { Activity, ActivityType, PlannedRoute } from '@shared/api';
 import { cumulativeDistance, haversine, progressOnRoute, type LatLon, type TrackPoint } from '@shared/geo';
 
-import { api } from './api';
+import { api, ApiError, errorText } from './api';
 import type { Fix, LocationSource, SourceKind } from './location-source';
 import { drainBackgroundBuffer, stopBackgroundUpdates } from './location-task';
+import { enqueue, newClientId } from './upload-queue';
 
 export type RecStatus = 'idle' | 'recording' | 'paused' | 'finished';
 
@@ -28,6 +29,8 @@ export interface RouteGuide {
 export interface RecState {
   status: RecStatus;
   type: ActivityType;
+  /** Kunci idempoten rekaman ini; tetap sama saat unggahan diulang. */
+  clientId: string;
   route: PlannedRoute | null;
   /** Bagian-bagian track; jeda memulai bagian baru. */
   parts: TrackPoint[][];
@@ -58,6 +61,7 @@ const SAVE_EVERY_MS = 10_000;
 const initial = (): RecState => ({
   status: 'idle',
   type: 'run',
+  clientId: newClientId(),
   route: null,
   parts: [],
   distanceM: 0,
@@ -96,9 +100,9 @@ async function save() {
     await AsyncStorage.removeItem(STORAGE_KEY);
     return;
   }
-  const { status, type, route, parts, distanceM } = state;
+  const { status, type, clientId, route, parts, distanceM } = state;
   const activeMs = elapsedMs(state, clock());
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ status, type, route, parts, distanceM, activeMs }));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ status, type, clientId, route, parts, distanceM, activeMs }));
 }
 
 function haptic(kind: 'warn' | 'turn') {
@@ -253,14 +257,28 @@ export const recorder = {
     await save();
   },
 
-  async upload(title: string): Promise<Activity> {
+  async upload(title: string, userId: number): Promise<{ activity: Activity; queued: false } | { queued: true }> {
     const track = state.parts.filter((p) => p.length > 0);
-    const activity = await api<Activity>('/activities', {
-      body: { type: state.type, title, track, routeId: state.route?.id ?? null },
-      timeoutMs: 60_000,
-    });
-    await recorder.discard();
-    return activity;
+    const draft = {
+      clientId: state.clientId,
+      type: state.type,
+      title,
+      track,
+      routeId: state.route?.id ?? null,
+    };
+    try {
+      const activity = await api<Activity>('/activities', { body: draft, timeoutMs: 60_000 });
+      await recorder.discard();
+      return { activity, queued: false };
+    } catch (e) {
+      // Server mati atau internet putus: simpan rekaman di HP, unggah otomatis nanti.
+      // Penolakan server (4xx) dibiarkan terbuka supaya pengguna bisa memperbaiki atau menghapus.
+      const status = e instanceof ApiError ? e.status : 0;
+      if (status >= 400 && status < 500) throw e;
+      await enqueue({ userId, ...draft, createdAt: new Date().toISOString(), lastError: errorText(e) });
+      await recorder.discard();
+      return { queued: true };
+    }
   },
 
   /** Muat rekaman yang belum selesai (mis. app tertutup saat merekam). */
@@ -268,9 +286,13 @@ export const recorder = {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as Pick<RecState, 'status' | 'type' | 'route' | 'parts' | 'distanceM' | 'activeMs'>;
+      const saved = JSON.parse(raw) as Pick<
+        RecState,
+        'status' | 'type' | 'route' | 'parts' | 'distanceM' | 'activeMs'
+      > & { clientId?: string };
       loadRoute(saved.route);
-      state = { ...initial(), ...saved, runningSince: null };
+      // Rekaman lama (sebelum ada clientId) mendapat kunci baru saat dipulihkan.
+      state = { ...initial(), ...saved, clientId: saved.clientId ?? newClientId(), runningSince: null };
       if (saved.status === 'recording') {
         // Titik yang terkumpul layanan latar selama app mati ikut dimasukkan.
         addFixes(await drainBackgroundBuffer());

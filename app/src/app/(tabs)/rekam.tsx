@@ -26,7 +26,8 @@ import {
   TypePicker,
 } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
-import { confirm } from '@/lib/confirm';
+import { useMe } from '@/lib/auth';
+import { confirm, notice } from '@/lib/confirm';
 import { defaultTitle, distance, distanceParts, duration, km, tempoParts, TYPE_LABEL } from '@/lib/format';
 import { createGpsSource, currentPosition } from '@/lib/gps';
 import { elapsedMs, FIRST_FIX_ACCURACY_M, recorder, useRecorder } from '@/lib/recorder';
@@ -43,6 +44,7 @@ const SOURCE_TEXT = {
 
 export default function RecordScreen() {
   const c = useColors();
+  const me = useMe();
   const s = useRecorder();
   const qc = useQueryClient();
   const params = useLocalSearchParams<{ rute?: string }>();
@@ -122,10 +124,18 @@ export default function RecordScreen() {
 
   const save = () =>
     act(async () => {
-      const a = await recorder.upload(title.trim() || titleGuess);
+      const res = await recorder.upload(title.trim() || titleGuess, me.id);
       setTitle('');
       for (const key of ['timeline', 'userActivities', 'stats', 'user']) void qc.invalidateQueries({ queryKey: [key] });
-      router.push(`/aktivitas/${a.id}`);
+      if (res.queued) {
+        await notice(
+          'Tersimpan di HP',
+          'Server belum bisa dihubungi. Rekaman aman di HP dan akan diunggah otomatis saat koneksi kembali.',
+        );
+        router.replace('/');
+      } else {
+        router.push(`/aktivitas/${res.activity.id}`);
+      }
     });
 
   const active = s.status === 'recording' || s.status === 'paused';

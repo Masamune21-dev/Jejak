@@ -407,7 +407,14 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     return prs;
   }
 
-  function saveActivity(userId: number, type: ActivityType, title: string, track: TrackPoint[][], routeId: number | null) {
+  function saveActivity(
+    userId: number,
+    type: ActivityType,
+    title: string,
+    track: TrackPoint[][],
+    routeId: number | null,
+    clientId: string | null,
+  ) {
     const s = geo.summarize(track);
     const cum = geo.cumulative(track);
     const b = geo.bounds(cum.points)!;
@@ -416,8 +423,8 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       const id = Number(
         run(
           `insert into activities (user_id, type, title, started_at, elapsed_s, moving_s, distance_m, elev_gain_m, max_speed_mps,
-             min_lat, max_lat, min_lon, max_lon, preview, track, splits, route_id)
-           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             min_lat, max_lat, min_lon, max_lon, preview, track, splits, route_id, client_id)
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           userId,
           type,
           title,
@@ -435,6 +442,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
           JSON.stringify(track),
           JSON.stringify(geo.splits(cum)),
           routeId,
+          clientId,
         ).lastInsertRowid,
       );
       let prs = 0;
@@ -813,6 +821,14 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
 
   app.post('/activities', async (c) => {
     const b = await body(c);
+    // Kunci idempoten dari app: unggahan ulang rekaman yang sama mengembalikan
+    // aktivitas yang sudah ada, bukan membuat salinan kedua. Dicek sebelum
+    // validasi supaya percobaan ulang tidak ditolak aturan yang berubah.
+    const clientId = b.clientId == null ? null : str(b.clientId, 'clientId', 1, 64);
+    if (clientId) {
+      const done = one('select id from activities where user_id = ? and client_id = ?', c.var.me.id, clientId);
+      if (done) return c.json(getActivity(done.id, c.var.me.id));
+    }
     const type = actType(b.type);
     const title = str(b.title, 'Judul', 1, 100);
     const track = trackOf(b.track);
@@ -822,7 +838,17 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
       routeId = Number(b.routeId);
       if (!one('select 1 from routes where id = ? and user_id = ?', routeId, c.var.me.id)) routeId = null;
     }
-    const id = saveActivity(c.var.me.id, type, title, track, routeId);
+    let id: number;
+    try {
+      id = saveActivity(c.var.me.id, type, title, track, routeId, clientId);
+    } catch (e) {
+      // Dua unggahan bersamaan dengan clientId sama: yang kalah balapan memakai baris pemenang.
+      const done = clientId
+        ? one('select id from activities where user_id = ? and client_id = ?', c.var.me.id, clientId)
+        : null;
+      if (!done) throw e;
+      return c.json(getActivity(done.id, c.var.me.id));
+    }
     return c.json(getActivity(id, c.var.me.id), 201);
   });
 
@@ -856,7 +882,7 @@ export function createApp(db: DB, opts: { planRoute?: typeof defaultPlanRoute; m
     const id = idParam(c);
     const r = one('select user_id from activities where id = ?', id);
     if (!r) fail(404, 'Aktivitas tidak ditemukan');
-    if (r.user_id === c.var.me.id) fail(400, 'Tidak bisa memberi kudos ke aktivitas sendiri');
+    if (r.user_id === c.var.me.id) fail(400, 'Tidak bisa memberi like ke aktivitas sendiri');
     run('insert or ignore into kudos (activity_id, user_id) values (?, ?)', id, c.var.me.id);
     return c.json(kudosState(id, c.var.me.id));
   });

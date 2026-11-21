@@ -20,7 +20,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import CrashReportView from '@/components/CrashReport';
 import { UpdateRequired } from '@/components/NoticeCards';
@@ -30,6 +30,7 @@ import { useNotificationTaps, usePushSync } from '@/lib/push';
 import { recorder } from '@/lib/recorder';
 import { font, loadTheme, useColors, useIsDark } from '@/lib/theme';
 import { useUpdate, useUpdateCheckOnResume } from '@/lib/update';
+import { flushQueue, loadQueue, setActiveUser } from '@/lib/upload-queue';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -74,6 +75,31 @@ function Root() {
   useUpdateCheckOnResume();
   usePushSync(user?.id ?? null);
   useNotificationTaps(loaded);
+
+  // Rekaman yang tersimpan saat server mati diunggah ulang saat app dibuka atau kembali aktif.
+  const uid = user?.id ?? null;
+  useEffect(() => {
+    if (uid == null) return;
+    setActiveUser(uid);
+    const run = () => {
+      void loadQueue()
+        .then(() => flushQueue(uid))
+        .then((r) => {
+          if (r.uploaded > 0)
+            for (const key of ['timeline', 'userActivities', 'stats', 'user'])
+              void queryClient.invalidateQueries({ queryKey: [key] });
+        })
+        .catch(() => {});
+    };
+    run();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') run();
+    });
+    return () => {
+      setActiveUser(null);
+      sub.remove();
+    };
+  }, [uid]);
 
   useEffect(() => {
     void loadTheme().finally(() => setThemeReady(true));

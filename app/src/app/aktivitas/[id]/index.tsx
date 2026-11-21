@@ -274,7 +274,7 @@ export default function ActivityScreen() {
               title="Hapus aktivitas"
               loading={del.isPending}
               onPress={async () => {
-                if (await confirm('Hapus aktivitas', 'Aktivitas, kudos, komentar, dan waktu segmennya ikut terhapus.', 'Hapus'))
+                if (await confirm('Hapus aktivitas', 'Aktivitas, like, komentar, dan waktu segmennya ikut terhapus.', 'Hapus'))
                   del.mutate();
               }}
             />
@@ -294,7 +294,7 @@ function KudosRow({ a, mine }: { a: Activity; mine: boolean }) {
       <View style={{ flex: 1 }}>
         <Row gap={space.sm}>
           <Ionicons name="thumbs-up" size={18} color={c.accentText} />
-          <T v="h3">{a.kudos} kudos</T>
+          <T v="h3">{a.kudos} like</T>
         </Row>
         {a.kudosBy.length > 0 ? (
           <T v="small" numberOfLines={1}>
@@ -307,7 +307,7 @@ function KudosRow({ a, mine }: { a: Activity; mine: boolean }) {
           small
           kind={a.hasKudo ? 'soft' : 'primary'}
           icon={a.hasKudo ? 'thumbs-up' : 'thumbs-up-outline'}
-          title={a.hasKudo ? 'Sudah' : 'Beri kudos'}
+          title={a.hasKudo ? 'Sudah' : 'Beri like'}
           loading={kudos.isPending}
           onPress={() => kudos.mutate()}
         />

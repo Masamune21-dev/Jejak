@@ -33,7 +33,7 @@ Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen ber
 
 | Beranda | Detail aktivitas | Segmen & leaderboard |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/beranda.jpg" width="250" alt="Beranda: total minggu ini, aksi cepat, dan feed teman"> | <img src="docs/screenshots/aktivitas.jpg" width="250" alt="Detail aktivitas: peta jejak, jarak, pace, dan kudos"> | <img src="docs/screenshots/segmen.jpg" width="250" alt="Segmen: waktu terbaik, peringkat, dan leaderboard"> |
+| <img src="docs/screenshots/beranda.jpg" width="250" alt="Beranda: total minggu ini, aksi cepat, dan feed teman"> | <img src="docs/screenshots/aktivitas.jpg" width="250" alt="Detail aktivitas: peta jejak, jarak, pace, dan like"> | <img src="docs/screenshots/segmen.jpg" width="250" alt="Segmen: waktu terbaik, peringkat, dan leaderboard"> |
 | **Profil & statistik** | **Bagikan ke foto** | **Rute & petunjuk arah** |
 | <img src="docs/screenshots/profil.jpg" width="250" alt="Profil: total aktivitas dan grafik 12 minggu"> | <img src="docs/screenshots/bagikan.jpg" width="250" alt="Bagikan: stiker transparan dengan garis rute dan angka"> | <img src="docs/screenshots/rute.jpg" width="250" alt="Detail rute: jarak, perkiraan waktu, dan petunjuk belok"> |
 
@@ -43,12 +43,12 @@ Rekam dengan GPS, buat rute yang menempel ke jalan, lalu adu waktu di segmen ber
 
 ## Fitur
 
-- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup atau layar mati.
+- **Rekam aktivitas**: lari, bersepeda, jalan kaki. Ada stopwatch, jarak, pace/kecepatan, jeda/lanjut, dan rekaman yang tetap aman walau app tertutup atau layar mati. Kalau sinyal putus saat menyimpan, rekaman masuk antrean di HP dan terunggah sendiri saat app dibuka lagi, tanpa membuat duplikat.
 - **Buat rute sendiri**: ketuk titik-titik di peta, rute otomatis mengikuti jalan (OpenStreetMap/OSRM), lengkap dengan petunjuk belok berbahasa Indonesia. Ada tombol batal, pulang-pergi, dan kembali ke titik awal.
 - **Ikuti rute**: saat merekam muncul banner belokan berikutnya ("Belok kiri ke Jalan Pemuda · dalam 120 m"), sisa jarak, dan peringatan *keluar dari rute*. HP bergetar saat mendekati belokan atau keluar jalur.
 - **Riwayat & statistik**: split per km, waktu terbaik (400 m, 1 km, 5 km, 10 km, setengah maraton, maraton; sepeda 5–100 km), PR, grafik 12 minggu, total tahun ini dan sepanjang masa.
 - **Segmen & leaderboard**: buat segmen dari potongan aktivitasmu. Semua aktivitas lama dan baru yang melewatinya otomatis dicocokkan. Leaderboard bisa "Semua" atau "Yang kuikuti", dengan medali PR.
-- **Akun & teman**: daftar/masuk, ganti nama dan kata sandi, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, kudos, komentar.
+- **Akun & teman**: daftar/masuk, ganti nama dan kata sandi, cari dan ikuti teman, daftar pengikut dan yang diikuti, feed aktivitas dan postingan, like, komentar.
 - **Postingan & Diskusi segmen**: tulis postingan pendek (teks dan sampai 4 foto), suka, balas, laporkan. Postingan yang menandai segmen muncul di bagian Diskusi halaman segmen.
 - **Pesan**: chat 1-lawan-1 dengan teman yang saling mengikuti, status terkirim/dibaca, blokir.
 - **Bagikan ke foto**: 5 stiker transparan (Samping, Daftar, Tumpuk, Ringkas, Baris) untuk ditempel di atas foto Story, plus 4 template berlatar (Nomor dada, Rute, Patok KM, Rambu).

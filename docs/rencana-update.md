@@ -106,7 +106,7 @@ Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi 
 - Tombol **Tulis** untuk membuat postingan: teks maksimal 500 karakter, opsional 1–4 foto, opsional menandai **satu segmen** (atau satu aktivitas sendiri).
 - Postingan dari orang yang diikuti muncul di **feed Beranda** bersama aktivitas, urut waktu.
 - Halaman segmen mendapat tab **Diskusi** berisi postingan yang menandai segmen itu: kondisi jalan, tips, ajakan lari bareng. Tab ini terbuka untuk semua pengguna.
-- Postingan bisa disukai (seperti kudos), dibalas (seperti komentar), dan dihapus pemiliknya. Ada **Laporkan** untuk postingan orang lain.
+- Postingan bisa disukai (seperti like), dibalas (seperti komentar), dan dihapus pemiliknya. Ada **Laporkan** untuk postingan orang lain.
 
 **Server:** tabel `posts`, `post_photos`, `post_likes`, `post_replies` (lihat [Perubahan data](#perubahan-data)). Endpoint `POST /posts`, `GET /posts/:id`, `DELETE /posts/:id`, `GET /segments/:id/posts?before=`, suka/batal suka, balasan, dan `POST /posts/:id/report`. `GET /feed` menggabungkan aktivitas dan postingan berdasarkan waktu.
 
@@ -123,7 +123,7 @@ Permintaan pemilik: "bisa posting apa pun di segmen, seperti X". **Dikonfirmasi 
 - Kotak **Tulis** menggantikan kotak **Teman** di Aksi cepat Beranda (cari teman tetap lewat ikon di kanan atas).
 - Segmen hanya bisa ditandai bila layar Tulis dibuka dari halaman segmen; belum ada pemilih segmen di Tulis. Server menerima `activityId` (aktivitas sendiri), tetapi app belum menyediakan cara memilihnya.
 - **Laporkan** langsung terkirim dengan alasan tetap *Dilaporkan dari aplikasi*, tanpa pilihan alasan. Belum ada layar untuk meninjau laporan; tinjau lewat tabel `reports` (contoh kueri di [data.md](data.md#reports)).
-- Suka postingan sendiri diperbolehkan (berbeda dengan kudos).
+- Suka postingan sendiri diperbolehkan (berbeda dengan like).
 
 ---
 

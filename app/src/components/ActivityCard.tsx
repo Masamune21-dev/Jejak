@@ -77,7 +77,7 @@ export default function ActivityCard({ a }: { a: ActivitySummary }) {
             disabled={mine || kudos.isPending}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={a.hasKudo ? 'Batalkan kudos' : 'Beri kudos'}
+            accessibilityLabel={a.hasKudo ? 'Batalkan like' : 'Beri like'}
             style={[styles.kudos, { backgroundColor: a.hasKudo ? c.accent : c.surface2, borderColor: a.hasKudo ? c.accent : c.line }]}>
             <Ionicons name={a.hasKudo ? 'thumbs-up' : 'thumbs-up-outline'} size={17} color={a.hasKudo ? c.accentInk : c.text} />
             <T v="strong" size={14} color={a.hasKudo ? c.accentInk : c.text}>

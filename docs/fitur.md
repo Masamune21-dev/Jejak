@@ -120,7 +120,7 @@ Setiap aktivitas tampil sebagai kartu bergradasi dengan peta bersudut bulat di d
 - lencana **N PR** bila aktivitas itu memecahkan rekor pribadi atau rekor segmen;
 - judul, **Jarak**, **Pace** (lari/jalan, menit per km) atau **Kecepatan** (sepeda, km/j), dan **Waktu** bergerak;
 - cuplikan peta jalurnya;
-- tombol **kudos** (jempol) dengan jumlahnya. Ketuk untuk memberi, ketuk lagi untuk membatalkan. Tombol ini nonaktif untuk aktivitasmu sendiri;
+- tombol **like** (jempol) dengan jumlahnya. Ketuk untuk memberi, ketuk lagi untuk membatalkan. Tombol ini nonaktif untuk aktivitasmu sendiri;
 - jumlah komentar dan tautan **Lihat detail**.
 
 Postingan tampil sebagai kartu postingan (lihat [Postingan](#postingan)): penulis, waktu, teks, foto, tanda segmen, tombol suka dan jumlah balasan.
@@ -171,7 +171,7 @@ Label stopwatch berubah menjadi **Dijeda**. Pilih:
 Layar **Simpan aktivitas** menampilkan cuplikan peta, Jarak, Waktu, dan Pace/Kecepatan, lalu:
 
 - **Judul**: boleh dikosongkan. Judul bawaan dibuat dari jenis dan jam mulai, misalnya *Lari pagi*, *Bersepeda sore*, *Jalan kaki malam* (pagi sebelum 11.00, siang sebelum 15.00, sore sebelum 18.00). Maksimal 100 karakter.
-- **Simpan aktivitas**: mengunggah ke server. Setelah berhasil, app membuka detail aktivitas yang baru dan rekaman lokal dihapus. Bila gagal (misalnya tidak ada sinyal), rekaman tetap ada dan bisa dicoba lagi.
+- **Simpan aktivitas**: mengunggah ke server. Setelah berhasil, app membuka detail aktivitas yang baru dan rekaman lokal dihapus. Bila server tidak bisa dihubungi (misalnya tidak ada sinyal), rekaman tetap aman: app menyimpannya ke **antrean unggah** di HP, menampilkan pemberitahuan, lalu mencoba lagi otomatis saat app dibuka atau kembali aktif. Kartu **Aktivitas menunggu diunggah** di Beranda menampilkan sisa antrean dengan tombol **Coba lagi** dan **Hapus**. Setiap rekaman membawa `clientId` tetap, jadi mengirim ulang tidak membuat aktivitas ganda. Bila server menolak isinya (misalnya kecepatan mustahil), rekaman tetap terbuka di layar simpan supaya bisa diperbaiki atau dibuang.
 - **Lanjutkan**: kembali merekam (bagian baru).
 - **Buang**: menghapus rekaman setelah konfirmasi. Tidak bisa dikembalikan.
 
@@ -280,7 +280,7 @@ Rumus lengkapnya ada di [algoritma.md](algoritma.md).
 
 **Khusus pemilik**, tepat di bawah angka utama: tombol **Bagikan** (lihat [Bagikan ke foto](#bagikan-ke-foto)) dan **Ekspor GPX** (lihat [Ekspor GPX](#ekspor-gpx)).
 
-**Kudos**: jumlah kudos dan nama depan pemberinya (hingga 50 terbaru). Untuk aktivitas orang lain ada tombol **Beri kudos** / **Sudah** (ketuk lagi untuk membatalkan).
+**Like**: jumlah like dan nama depan pemberinya (hingga 50 terbaru). Untuk aktivitas orang lain ada tombol **Beri like** / **Sudah** (ketuk lagi untuk membatalkan). Di API dan database namanya tetap `kudos`.
 
 **Segmen**: daftar segmen yang dilewati aktivitas ini, berurutan sesuai posisi di jalur. Tiap baris menampilkan nama segmen, panjang, pace/kecepatan, waktu, lencana **PR** bila memecahkan waktu terbaikmu sebelumnya di segmen itu, dan lencana **#peringkat**, yaitu peringkat waktu ini dibanding waktu terbaik atlet lain. Ketuk satu baris untuk menyorot potongan jalurnya di peta (ungu) dan memunculkan tombol **Lihat leaderboard**.
 
@@ -307,7 +307,7 @@ Kotak gelap dengan piala berarti **PR**: lebih cepat dari waktu terbaikmu sebelu
 **Khusus pemilik**:
 
 - **Buat segmen dari aktivitas ini** (lihat bagian berikut);
-- **Hapus aktivitas**: kudos, komentar, waktu terbaik, dan waktu segmennya ikut terhapus.
+- **Hapus aktivitas**: like, komentar, waktu terbaik, dan waktu segmennya ikut terhapus.
 
 ---
 
@@ -625,7 +625,7 @@ Ditambah catatan privasi: pesan chat tersimpan di server Jejak dan tidak terenkr
 Mulai 0.3.0, hanya di APK.
 
 - **Kartu Nyalakan notifikasi** di Beranda (di bawah salam) selama pengguna belum memilih: **Nyalakan** (minta izin, daftarkan HP) atau **Nanti** (dianggap mati; bisa dinyalakan di Pengaturan).
-- **Notifikasi** datang dari server (`deploy/deploy.sh notif`) di kanal *Info dan pengumuman* atau *Pembaruan aplikasi*, juga saat app tertutup. Saat app terbuka tampil sebagai banner. Mengetuknya membuka layar app yang dituju atau alamat https (misalnya unduhan APK). Pesan chat, kudos, dan pengikut baru **tidak** dikirim sebagai notifikasi.
+- **Notifikasi** datang dari server (`deploy/deploy.sh notif`) di kanal *Info dan pengumuman* atau *Pembaruan aplikasi*, juga saat app tertutup. Saat app terbuka tampil sebagai banner. Mengetuknya membuka layar app yang dituju atau alamat https (misalnya unduhan APK). Pesan chat, like, dan pengikut baru **tidak** dikirim sebagai notifikasi.
 - **Pendaftaran:** token FCM terikat ke sesi. Setelah keluar, HP itu tidak menerima notifikasi akun tersebut; setelah masuk lagi, token didaftarkan ulang otomatis bila notifikasi masih dinyalakan.
 - **Kartu pembaruan** di Beranda saat `/unduh/versi.json` memuat versi yang lebih baru dari versi app: *Jejak x.y.z tersedia*, versi yang sedang dipakai, ukuran unduhan, sampai empat butir catatan rilis, tombol **Unduh** (membuka unduhan APK di browser) dan **Nanti** (disembunyikan untuk versi itu). Dicek saat app dibuka dan saat kembali ke depan, paling sering sekali per 6 jam.
 - **Wajib perbarui:** bila `versi.json` memuat `minimal` di atas versi app, seluruh app diganti layar *Perbarui Jejak dulu* dengan tombol unduh.

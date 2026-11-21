@@ -64,6 +64,7 @@ create table if not exists activities (
   splits text not null,
   pr_count integer not null default 0,
   route_id integer references routes(id) on delete set null,
+  client_id text,
   created_at text not null default ${NOW}
 );
 create index if not exists activities_user on activities(user_id, started_at desc);
@@ -219,7 +220,19 @@ export function openDb(path: string): DB {
   migrateSessions(db);
   db.exec(SCHEMA);
   migrateUserPhotos(db);
+  migrateActivityClientId(db);
   return db;
+}
+
+/**
+ * `client_id` membuat unggahan idempoten: app boleh mengirim ulang rekaman yang sama
+ * setelah koneksi putus tanpa membuat aktivitas ganda. Database lama ditambah kolomnya
+ * di sini; indeks unik per pengguna mencegah dua unggahan bersamaan lolos.
+ */
+function migrateActivityClientId(db: DB) {
+  const cols = (db.prepare('pragma table_info(activities)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('client_id')) db.exec('alter table activities add column client_id text');
+  db.exec('create unique index if not exists activities_client on activities(user_id, client_id)');
 }
 
 /** Kolom foto profil dan sampul (nama berkas di data/uploads) ditambahkan ke database lama. */

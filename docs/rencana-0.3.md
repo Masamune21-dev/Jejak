@@ -237,7 +237,7 @@ Langkah ini memakai akun Google pemilik, jadi tidak bisa dikerjakan Claude:
 | 3 | **Uji kirim** ke akun sendiri (`--ke masamune`), lalu deploy web dan APK 0.3.0, dan bagikan manual untuk terakhir kalinya. |
 | 4 | **Rilis berikutnya** diumumkan lewat `deploy.sh apk --umumkan`. |
 
-Tahap sesudah 0.3.0: notifikasi otomatis untuk pesan chat baru, pengikut baru, kudos, balasan postingan, dan rekor segmen yang dikalahkan, masing-masing dengan sakelar sendiri di Pengaturan. Semuanya memakai fondasi #1.
+Tahap sesudah 0.3.0: notifikasi otomatis untuk pesan chat baru, pengikut baru, like, balasan postingan, dan rekor segmen yang dikalahkan, masing-masing dengan sakelar sendiri di Pengaturan. Semuanya memakai fondasi #1.
 
 ---
 
@@ -249,5 +249,5 @@ Tahap sesudah 0.3.0: notifikasi otomatis untuk pesan chat baru, pengikut baru, k
 | 2 | Kontak apa yang ditampilkan (email, WhatsApp, Instagram, lainnya), dan apa alamatnya? | Dijawab: email info@masamune.my.id dan GitHub github.com/Masamune21-dev. **Kirim masukan** lewat email. |
 | 3 | Perlu daftar **Info** (riwayat pengumuman) di app? | Belum perlu di 0.3.0 |
 | 4 | Perlu batas versi minimal (wajib perbarui)? | Ya, tapi hanya diisi bila API berubah |
-| 5 | Notifikasi otomatis (chat, pengikut, kudos) ikut 0.3.0 atau tahap berikutnya? | Tahap berikutnya |
+| 5 | Notifikasi otomatis (chat, pengikut, like) ikut 0.3.0 atau tahap berikutnya? | Tahap berikutnya |
 | 6 | Push pembaruan setiap `deploy.sh apk`, atau hanya dengan `--umumkan`? | Hanya dengan `--umumkan` |
